@@ -1,0 +1,166 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: #222;
+  background-color: #f7f8fa;
+  padding: 16px;
+}
+
+.harness-header {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.harness-header h1 {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.harness-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.harness-controls button,
+.harness-controls label.file-btn {
+  padding: 6px 14px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background-color: #fff;
+  cursor: pointer;
+  user-select: none;
+}
+
+.harness-controls button:hover,
+.harness-controls label.file-btn:hover {
+  background-color: #f0f0f0;
+}
+
+.harness-controls input[type="file"] {
+  display: none;
+}
+
+.harness-layout {
+  display: grid;
+  grid-template-columns: 280px 1fr 320px;
+  gap: 16px;
+  height: calc(100vh - 130px);
+}
+
+.sidebar-panel {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 12px;
+  overflow-y: auto;
+}
+
+.sidebar-panel h2 {
+  font-size: 15px;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #eee;
+}
+
+.toc-list {
+  list-style: none;
+}
+
+.toc-list li {
+  padding: 6px 8px;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.toc-list li:hover {
+  background-color: #eef4ff;
+  color: #1a73e8;
+}
+
+/* 核心宿主容器：必须带 id="page-area" (契约 1) 且 scroll 模式下 overflow-y: auto (契约 8) */
+.ebook-viewer#page-area {
+  position: relative;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+/* 契约 8：禁止给其中的 iframe 设 height: 100% */
+.ebook-viewer#page-area iframe {
+  border: none;
+  width: 100%;
+}
+
+.report-panel {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 12px;
+  overflow-y: auto;
+  font-size: 13px;
+}
+
+.report-panel h2 {
+  font-size: 15px;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #eee;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-badge.pass {
+  background-color: #e6f4ea;
+  color: #137333;
+}
+
+.status-badge.fail {
+  background-color: #fce8e6;
+  color: #c5221f;
+}
+
+.status-badge.pending {
+  background-color: #fef7e0;
+  color: #b06000;
+}
+
+.contract-item {
+  margin-bottom: 8px;
+  padding: 6px 8px;
+  background-color: #fafafa;
+  border: 1px solid #eee;
+  border-radius: 4px;
+}
+
+.contract-item .title {
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.contract-item .detail {
+  color: #666;
+  font-size: 12px;
+}

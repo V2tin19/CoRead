@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CoRead 渲染内核独立验证工具 (Harness)</title>
+  <link rel="stylesheet" href="./index.css" />
+  <!-- 本地依赖：零 CDN 外联 -->
+  <script src="./localforage.min.js"></script>
+  <script type="module">
+    // 契约 5: PDF 依赖外部全局对象，先挂 window.pdfjsLib 再动态加载内核
+    import * as pdfjs from "/public/lib/pdfjs/pdf.mjs";
+    window.pdfjsLib = pdfjs;
+    if (pdfjs.GlobalWorkerOptions) {
+      pdfjs.GlobalWorkerOptions.workerSrc = "/public/lib/pdfjs/pdf.worker.mjs";
+    }
+
+    // 暴露到全局供测试脚本使用
+    window.__HARNESS_ENV__ = {
+      pdfjsReady: true,
+      kookitLoaded: false
+    };
+  </script>
+</head>
+<body>
+  <header class="harness-header">
+    <h1>CoRead 内核独立验证工具 (Phase 0 Harness)</h1>
+    <p>脱离完整 App 环境，专门用于隔离验证 kookit 渲染契约（§4.3 17条契约）与行为回归。</p>
+  </header>
+
+  <div class="harness-controls">
+    <label class="file-btn" for="book-file-input">选择电子书 (EPUB/PDF/TXT/MOBI)</label>
+    <input type="file" id="book-file-input" accept=".epub,.pdf,.txt,.mobi,.azw3,.md,.fb2" />
+    <button id="btn-prev">上一页 (prev)</button>
+    <button id="btn-next">下一页 (next)</button>
+    <button id="btn-test-contract">运行契约自检</button>
+    <span id="current-pos-label">当前位置: 未加载</span>
+  </div>
+
+  <div class="harness-layout">
+    <!-- 章节目录面板 -->
+    <aside class="sidebar-panel">
+      <h2>章节目录</h2>
+      <ul id="chapter-list" class="toc-list">
+        <li style="color: #999;">暂无书籍加载</li>
+      </ul>
+    </aside>
+
+    <!-- 契约 1 宿主容器：必须有 id="page-area" -->
+    <main class="ebook-viewer" id="page-area"></main>
+
+    <!-- 契约自测报告面板 -->
+    <aside class="report-panel">
+      <h2>契约验证状态</h2>
+      <div id="contract-report-list">
+        <div class="contract-item" id="contract-1">
+          <div class="title">契约 1: 宿主容器 id="page-area" <span class="status-badge pending">检测中</span></div>
+          <div class="detail">内核硬编码获取 document.getElementById("page-area")。</div>
+        </div>
+        <div class="contract-item" id="contract-2">
+          <div class="title">契约 2: 导航补丁 <span class="status-badge pending">待加载</span></div>
+          <div class="detail">renderTo 只建 iframe，须补导航调用才出正文。</div>
+        </div>
+        <div class="contract-item" id="contract-8">
+          <div class="title">契约 8: 宿主滚动约束 <span class="status-badge pending">检测中</span></div>
+          <div class="detail">宿主容器必须 overflow-y: auto，且禁止 iframe height: 100%。</div>
+        </div>
+        <div class="contract-item" id="contract-12">
+          <div class="title">契约 12: 位置数值类型 <span class="status-badge pending">待加载</span></div>
+          <div class="detail">getPosition() 数值字段可能为 string，适配层须归一为 number。</div>
+        </div>
+        <div class="contract-item" id="contract-13">
+          <div class="title">契约 13: rendered 事件载荷 <span class="status-badge pending">待加载</span></div>
+          <div class="detail">文字类无参数，以 getPosition().chapterDocIndex 为权威。</div>
+        </div>
+        <div class="contract-item" id="contract-14">
+          <div class="title">契约 14: 高亮颜色格式 <span class="status-badge pending">待测试</span></div>
+          <div class="detail">颜色必须传 background-#RRGGBB 形态，裸 hex 会静默不显色。</div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <script>
+    // 独立测试结果汇总对象（供无头浏览器或自动化断言读取）
+    window.__HARNESS_RESULTS__ = {
+      contracts: {},
+      loaded: false,
+      position: null,
+      chapters: []
+    };
+
+    function updateContractStatus(id, passed, detail) {
+      window.__HARNESS_RESULTS__.contracts[id] = { passed, detail };
+      const el = document.getElementById(id);
+      if (!el) return;
+      const badge = el.querySelector(".status-badge");
+      if (badge) {
+        badge.className = "status-badge " + (passed ? "pass" : "fail");
+        badge.textContent = passed ? "通过" : "不通过";
+      }
+      if (detail) {
+        const detEl = el.querySelector(".detail");
+        if (detEl) detEl.textContent = detail;
+      }
+    }
+
+    // 静态环境契约预检
+    function runStaticContractChecks() {
+      // 契约 1: 检查宿主容器
+      const pageArea = document.getElementById("page-area");
+      const c1Passed = pageArea !== null && pageArea.classList.contains("ebook-viewer");
+      updateContractStatus("contract-1", c1Passed, c1Passed ? "已就绪: #page-area 存在" : "错误: 缺少 #page-area");
+
+      // 契约 8: 检查容器 CSS 规则
+      const computed = window.getComputedStyle(pageArea);
+      const overflowY = computed.overflowY;
+      const c8Passed = overflowY === "auto" || overflowY === "scroll";
+      updateContractStatus("contract-8", c8Passed, "容器 overflow-y: " + overflowY);
+    }
+
+    // 契约 14: 高亮颜色格式构造与校验纯函数
+    window.formatHighlightColor = function(colorHex) {
+      if (!colorHex) return "";
+      const clean = colorHex.startsWith("#") ? colorHex : "#" + colorHex;
+      return "background-" + clean;
+    };
+
+    function testHighlightFormat() {
+      const formatted = window.formatHighlightColor("#ff0000");
+      const valid = formatted === "background-#ff0000";
+      updateContractStatus("contract-14", valid, valid ? "格式构造正常: " + formatted : "格式不正确");
+    }
+
+    let currentRendition = null;
+
+    document.getElementById("btn-test-contract").addEventListener("click", () => {
+      runStaticContractChecks();
+      testHighlightFormat();
+    });
+
+    document.getElementById("btn-next").addEventListener("click", async () => {
+      if (currentRendition && typeof currentRendition.next === "function") {
+        await currentRendition.next();
+      }
+    });
+
+    document.getElementById("btn-prev").addEventListener("click", async () => {
+      if (currentRendition && typeof currentRendition.prev === "function") {
+        await currentRendition.prev();
+      }
+    });
+
+    const fileInput = document.getElementById("book-file-input");
+    fileInput.addEventListener("change", (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = async (evt) => {
+        const buffer = evt.target.result;
+        await localforage.setItem("harness_last_book", buffer);
+        document.getElementById("current-pos-label").textContent = "已存入本地: " + file.name + " (" + buffer.byteLength + " bytes)";
+      };
+      reader.readAsArrayBuffer(file);
+    });
+
+    // 页面加载完成后自动执行静态检测
+    window.addEventListener("DOMContentLoaded", () => {
+      runStaticContractChecks();
+      testHighlightFormat();
+    });
+  </script>
+</body>
+</html>
