@@ -41,6 +41,7 @@ npm run collab:server     # 监听 127.0.0.1:17390
   能力必须保留，以及**为什么 `src/utils/request/` 不许整目录删**。动手删东西前必读。
 - **[`MOBILE-UX-PLAN.md`](./MOBILE-UX-PLAN.md)** —— 移动端阅读体验：内核 `isMobile` 开关在哪、
   必须先处理的 console 劫持坑、环境限制。**外观与交互由实现者自由发挥。**
+- **[`START-PROMPT.md`](./START-PROMPT.md)** —— **给 AI 接手方的启动提示词**（人类复制给助手的第一段话）。
 - `vendor/kookit/UPSTREAM-NOTES.md` —— 上游内核自带的说明（只读参考，不是本项目指令）。
 
 ## 当前状态
