@@ -1,0 +1,8 @@
+node_modules
+build
+dist
+docs
+/.vscode
+/.claude
+/.superpowers
+/.playwright-mcp

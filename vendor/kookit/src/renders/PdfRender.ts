@@ -1,0 +1,1314 @@
+import {
+  createIframe,
+  getActualOffsetLeft,
+  getActualOffsetTop,
+  getSelectedElement,
+} from "../utils/layoutUtil.js";
+import GeneralParser from "../utils/generalParser.js";
+import { isPDF, makePDF } from "../libs/pdf.js";
+import GeneralRender from "./GeneralRender.js";
+import AnnotationManager from "../utils/annotationUtil.js";
+import { clearHighlight, showPDFHighlight } from "../utils/noteUtil.js";
+import {
+  createPDFContainer,
+  createPDFIframe,
+  getPDFVisibleText,
+  getTextFromPDFPage,
+  handleHighlightPDFNode,
+  handleIOSScrollPage,
+  handlePDFLayout,
+  handleScrollPDFPosition,
+  isPDFScrolledIntoView,
+} from "../utils/pdfUtil.js";
+import {
+  handleHighlightSearchNode,
+  handleScrollPage,
+} from "../utils/navigationUtil.js";
+import rangy from "rangy/lib/rangy-core.js";
+import "rangy/lib/rangy-textrange";
+declare var window: any;
+class PdfRender extends GeneralRender {
+  pdfBuffer: ArrayBuffer;
+  isStartFromEven: string = "no";
+  isKeepPDFBackground: string = "no";
+  pdfCrop: { top: number; bottom: number; left: number; right: number } = {
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+  };
+  password: string = "";
+  pdfScale: number = 0;
+  scale: number = 1;
+  paraSpacingValue: number = 1.5; // 段落间距
+  titleSizeValue: number = 1.2; // 标题大小倍数
+  backgroundColor: string;
+  isScannedPDF: string;
+  enablePDFSelectionOptimization: string = "no";
+  scrollPDFInterval: any = null;
+  templateChapterDocIndex: number = 0;
+  platform: string;
+  pdfTextLineHeightRecord: Record<string, number> = {};
+  pdfTextLineHeightFixed: number | null = null;
+  annotationManager: AnnotationManager;
+  constructor(pdfBuffer: ArrayBuffer, config: any) {
+    super({
+      ...config,
+      convertChinese: "Default",
+      format: "PDF",
+      isParagraphMode: "no",
+      isReadingRuler: "no",
+      isSpeedReading: "no",
+    });
+    this.pdfBuffer = pdfBuffer;
+    this.isStartFromEven = config.isStartFromEven || "no";
+    this.pdfCrop = config.pdfCrop || { top: 0, bottom: 0, left: 0, right: 0 };
+    this.isKeepPDFBackground = config.isKeepPDFBackground || "no";
+    this.paraSpacingValue = parseFloat(config.paraSpacingValue) || 1.5; // 支持配置段落间距
+    this.titleSizeValue = parseFloat(config.titleSizeValue) || 1.2; // 支持配置标题大小倍数
+    this.password = config.password || "";
+    this.scale = config.scale || 1;
+    this.backgroundColor = config.backgroundColor || "#ffffff";
+    this.isScannedPDF = config.isScannedPDF || "no";
+    this.platform = config.platform || "web";
+    this.enablePDFSelectionOptimization =
+      config.enablePDFSelectionOptimization || "no";
+    this.annotationManager = new AnnotationManager({
+      platform: this.platform,
+      isScannedPDF: this.isScannedPDF,
+      ...config,
+    });
+    this.annotationManager.onAnnotationChanged = (chapterDocIndex: number) => {
+      this.trigger("annotation-changed", [chapterDocIndex] as any);
+    };
+    this.annotationManager.fabricDocumentProvider = (chapterDocIndex: number) =>
+      this.getSubDocument(chapterDocIndex);
+  }
+  renderTo(element: HTMLElement) {
+    return new Promise<void>(async (resolve, reject) => {
+      this.element = element;
+      if (!this.book) {
+        await this.parse();
+      }
+      let parser = new GeneralParser(this.book);
+      this.chapterList = await parser.getChapter(this.book.toc);
+      this.chapterDocList = await parser.getChapterDoc();
+      if (this.isStartFromEven === "yes" && this.readerMode === "double") {
+        this.chapterDocList = [
+          {
+            label: "",
+            text: {
+              load: async () => "",
+              render: async () => {},
+              unload: async () => {},
+              getPage: async () => null,
+              getDimension: async () => ({ width: 0, height: 0 }),
+              getScale: async () => 1,
+              getPageCount: async () => 0,
+            },
+            href: "",
+          },
+          ...this.chapterDocList,
+        ];
+      }
+      if (this.readerMode === "single" && Math.abs(this.scale) > 1.4) {
+        this.scale = 1.4;
+      }
+      if (
+        document.body.clientWidth * Math.abs(this.scale) -
+          document.body.clientWidth * 0.4 >
+          document.body.clientWidth &&
+        this.readerMode !== "double"
+      ) {
+        createIframe(element, this.isAllowScript, this.scale);
+      } else {
+        createIframe(element, this.isAllowScript);
+      }
+      let viewport: any;
+      let templateIndex: number = 0;
+      // 分层采样策略：最小化getDimension调用
+
+      let maxFrequencyItem = await this.getTemplateChapterDoc();
+      viewport = maxFrequencyItem.dimension;
+      templateIndex = maxFrequencyItem.index;
+
+      this.templateChapterDocIndex = templateIndex;
+      // Set templateChapterDocIndex based on the viewport evaluation result
+      let doc: any = this.getDocument();
+      if (!doc) return;
+      await createPDFContainer(
+        doc.body || (doc.documentElement as HTMLElement),
+        this.chapterDocList,
+        viewport,
+        this.readerMode,
+        this.pdfCrop
+      );
+      let scrollTimeout: any = null;
+      if (this.readerMode === "scroll") {
+        this.element.addEventListener("scroll", (e) => {
+          if (scrollTimeout) {
+            clearTimeout(scrollTimeout);
+          }
+          scrollTimeout = setTimeout(async () => {
+            await this.handlePDFScrollEvent(doc);
+            await this.record();
+          }, 100); // Debounce selection events
+        });
+      } else {
+        doc.addEventListener("scroll", (e) => {
+          if (scrollTimeout) {
+            clearTimeout(scrollTimeout);
+          }
+          scrollTimeout = setTimeout(async () => {
+            await this.handlePDFScrollEvent(doc);
+            await this.record();
+          }, 200); // Debounce selection events
+        });
+      }
+
+      handlePDFLayout(element, this.readerMode, doc);
+      resolve();
+    });
+  }
+  async getTemplateChapterDoc() {
+    const totalPages = this.chapterDocList.length;
+
+    // 第一层：采样5个关键位置（首页、1/4、1/2、3/4、末页）
+    let keyIndices = [
+      1,
+      Math.floor(totalPages / 4),
+      Math.floor(totalPages / 2),
+      Math.floor((totalPages * 3) / 4),
+      totalPages - 1,
+    ].filter((idx) => idx >= 0 && idx < totalPages);
+    //去重
+    keyIndices = Array.from(new Set(keyIndices));
+
+    const keyViewports = await Promise.all(
+      keyIndices.map(async (index) => ({
+        index,
+        dimension: await this.chapterDocList[index].text.getDimension(),
+      }))
+    );
+
+    // 计算长宽比
+    const aspectRatios = keyViewports.map((v) => ({
+      index: v.index,
+      ratio: v.dimension.height / v.dimension.width,
+      dimension: v.dimension,
+    }));
+
+    // 统计长宽比出现频率
+    const ratioFrequency = new Map<number, number>();
+    // 统计页面宽度出现频率
+    const widthFrequency = new Map<number, number>();
+
+    aspectRatios.forEach((item) => {
+      const roundedRatio = Math.round(item.ratio * 1000) / 1000;
+      ratioFrequency.set(
+        roundedRatio,
+        (ratioFrequency.get(roundedRatio) || 0) + 1
+      );
+      const roundedWidth = Math.round(item.dimension.width);
+      widthFrequency.set(
+        roundedWidth,
+        (widthFrequency.get(roundedWidth) || 0) + 1
+      );
+    });
+
+    // 找出长宽比和页面宽度各自的最大频率
+    let maxRatioCount = 0;
+    ratioFrequency.forEach((count) => {
+      if (count > maxRatioCount) maxRatioCount = count;
+    });
+    let maxWidthCount = 0;
+    widthFrequency.forEach((count) => {
+      if (count > maxWidthCount) maxWidthCount = count;
+    });
+
+    // 候选项：长宽比和页面宽度的出现频率都等于各自最大频率
+    const candidates = aspectRatios.filter((item) => {
+      const roundedRatio = Math.round(item.ratio * 1000) / 1000;
+      const roundedWidth = Math.round(item.dimension.width);
+      return (
+        ratioFrequency.get(roundedRatio) === maxRatioCount &&
+        widthFrequency.get(roundedWidth) === maxWidthCount
+      );
+    });
+
+    // 从候选项中选择长宽比最大的
+    let maxFrequencyItem = {
+      count: maxRatioCount,
+      dimension: null as any,
+      index: 0,
+      ratio: 0,
+    };
+    candidates.forEach((item) => {
+      if (item.ratio > maxFrequencyItem.ratio) {
+        maxFrequencyItem = {
+          count: maxRatioCount,
+          dimension: item.dimension,
+          index: item.index,
+          ratio: item.ratio,
+        };
+      }
+    });
+
+    // 若无候选项（极端情况），回退到长宽比最大频率的项
+    if (!maxFrequencyItem.dimension) {
+      aspectRatios.forEach((item) => {
+        const roundedRatio = Math.round(item.ratio * 1000) / 1000;
+        if (
+          ratioFrequency.get(roundedRatio) === maxRatioCount &&
+          item.ratio > maxFrequencyItem.ratio
+        ) {
+          maxFrequencyItem = {
+            count: maxRatioCount,
+            dimension: item.dimension,
+            index: item.index,
+            ratio: item.ratio,
+          };
+        }
+      });
+    }
+
+    return maxFrequencyItem;
+  }
+  async autoScrollPDF(isStart: string) {
+    let doc = this.getDocument();
+
+    if (this.scrollPDFInterval) {
+      clearInterval(this.scrollPDFInterval);
+      this.scrollPDFInterval = null;
+    }
+    if (isStart === "no" || this.readerMode !== "scroll") {
+      return;
+    }
+    this.scrollPDFInterval = setInterval(async () => {
+      if (!doc) return;
+      await this.handlePDFScrollEvent(doc);
+    }, 1000); // Debounce selection events
+  }
+  async handlePDFScrollEvent(doc: Document) {
+    let subContainers = doc.querySelectorAll(".pdf-container");
+    for (let index = 0; index < subContainers.length; index++) {
+      let subContainer = subContainers[index];
+      let id = subContainer.getAttribute("id");
+      if (!id) continue;
+      let chapterDocIndex = parseInt(id.split("-").reverse()[0]);
+      let isScrollIntoView = isPDFScrolledIntoView(
+        this.element,
+        subContainer as HTMLElement,
+        this.readerMode,
+        doc
+      );
+      if (isScrollIntoView) {
+        await this.renderPdfPage(chapterDocIndex);
+      }
+    }
+  }
+  async parse() {
+    try {
+      let blob = new Blob([this.pdfBuffer]);
+      let file = new File([blob], "book", {
+        lastModified: new Date().getTime(),
+        type: blob.type,
+      });
+      this.book = await makePDF(file, this.password);
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+  async preCache() {
+    return "";
+    // if (!this.book) {
+    //   await this.parse();
+    // }
+    // return await getCache(this.book);
+  }
+  async goToChapterIndex(targetChapterIndex: number) {
+    if (this.chapterDocList.length > 0) {
+      await this.goToChapter(
+        targetChapterIndex,
+        this.chapterDocList[targetChapterIndex].href,
+        this.chapterDocList[targetChapterIndex].label
+      );
+    }
+  }
+  getPageSize(pageIndex?: number) {
+    let doc = this.getDocument();
+    if (!doc) return;
+    let scale = this.readerMode === "double" ? 2 : 1;
+    let section = Math.floor(doc.body.clientWidth / 12);
+    let gap = section % 2 === 0 ? section : section - 1;
+
+    let subIframe = doc.querySelectorAll("iframe")[0];
+    let iframeHeight = subIframe?.getBoundingClientRect().height;
+
+    let offsetTop = 0;
+    if (pageIndex !== undefined) {
+      let subContainer = doc.querySelector("#pdf-container-" + pageIndex);
+      if (subContainer) {
+        offsetTop = subContainer.getBoundingClientRect().top;
+      }
+    }
+    return {
+      width: doc.body.clientWidth,
+      height: this.element.clientHeight,
+      left: getActualOffsetLeft(this.element),
+      top: getActualOffsetTop(this.element),
+      offsetTop: offsetTop,
+      scrollTop: this.element.scrollTop,
+      scrollLeft: this.element.scrollWidth / 2 - this.element.clientWidth / 2,
+      sectionWidth: (doc.body.clientWidth - gap) / scale,
+      sectionHeight: iframeHeight,
+      gap: gap,
+    };
+  }
+  async goToChapter(chapterDocIndex, _chapterHref, _chapterTitle) {
+    if (this.readerMode === "double" && chapterDocIndex % 2 == 1) {
+      chapterDocIndex--;
+    }
+    let doc = this.getDocument();
+    let iframe = this.getIframe();
+    if (!doc || !iframe) return;
+    await this.renderPdfPage(chapterDocIndex);
+    await handleScrollPDFPosition(
+      parseInt(chapterDocIndex),
+      this.readerMode,
+      doc
+    );
+    await this.recordByChapter(chapterDocIndex);
+  }
+  getPositionByChapter(chapterDocIndex: number) {
+    return {
+      percentage: chapterDocIndex / this.chapterDocList.length,
+      chapterDocIndex: chapterDocIndex + "",
+      chapterHref: this.chapterDocList[chapterDocIndex].href,
+      chapterTitle: this.chapterDocList[chapterDocIndex].label,
+      text: "",
+    };
+  }
+  async goToPercentage(percentage: number) {
+    if (this.chapterDocList.length > 0) {
+      let chapterIndex =
+        percentage === 1
+          ? this.chapterDocList.length - 1
+          : Math.floor(this.chapterDocList.length * percentage);
+      await this.goToChapter(
+        chapterIndex,
+        this.chapterDocList[chapterIndex].href,
+        this.chapterDocList[chapterIndex].label
+      );
+    }
+  }
+  async goToPosition(bookLocationStr: string) {
+    let doc = this.getDocument();
+    let iframe = this.getIframe();
+    if (!doc || !iframe) return;
+    let bookLocation = JSON.parse(bookLocationStr);
+    if (bookLocation.chapterDocIndex === undefined) {
+      bookLocation.chapterDocIndex = 0;
+    }
+    this.tempLocation = {
+      text: bookLocation.text,
+      chapterTitle: bookLocation.chapterTitle,
+      chapterDocIndex: bookLocation.chapterDocIndex,
+      chapterHref: bookLocation.chapterHref,
+      count: bookLocation.count,
+      page: bookLocation.page,
+      percentage: bookLocation.percentage,
+    };
+    let { chapterTitle, chapterDocIndex, chapterHref } = bookLocation;
+    if (this.readerMode === "double" && chapterDocIndex % 2 == 1) {
+      chapterDocIndex--;
+    }
+    await this.renderPdfPage(parseInt(chapterDocIndex));
+    if (this.readerMode === "scroll") {
+      iframe.height = doc.body.scrollHeight + "px";
+      iframe.height = doc.body.scrollHeight + 300 + "px";
+    }
+
+    await handleScrollPDFPosition(
+      parseInt(chapterDocIndex),
+      this.readerMode,
+      doc
+    );
+    rangy.init();
+    await this.recordByChapter(parseInt(chapterDocIndex));
+    this.addPageAnimation(this.backgroundColor);
+  }
+  async prev(platform?: string) {
+    let doc = this.getDocument();
+    let iframe = this.getIframe();
+    if (!doc || !iframe) {
+      return;
+    }
+    if (this.readerMode === "scroll") {
+      // scroll readerMode under normal condition
+      this.element.scrollBy({
+        left: 0,
+        top: -(this.element.clientHeight - 50),
+        behavior: "smooth",
+      });
+    } else {
+      if (platform === "ios") {
+        await handleIOSScrollPage(
+          this.element,
+          this.animation,
+          1,
+          doc,
+          this.flipToNextPage,
+          this.flipToPrevPage,
+          this.isMobile,
+          parseInt(this.tempLocation.chapterDocIndex || "0"),
+          this.readerMode
+        );
+      } else {
+        await handleScrollPage(
+          this.element,
+          this.animation,
+          1,
+          doc,
+          this.flipToNextPage,
+          this.flipToPrevPage,
+          this.isMobile
+        );
+      }
+
+      await this.renderPdfPage(
+        parseInt(this.tempLocation.chapterDocIndex) -
+          (this.readerMode === "double" ? 2 : 1)
+      );
+    }
+
+    await this.record();
+  }
+  async next(platform?: string) {
+    let doc = this.getDocument();
+    let iframe = this.getIframe();
+    if (!doc || !iframe) {
+      return;
+    }
+    if (this.readerMode === "scroll") {
+      // scroll readerMode under normal condition
+      this.element.scrollBy({
+        left: 0,
+        top: this.element.clientHeight - 50,
+        behavior: "smooth",
+      });
+    } else {
+      // single and double readerMode under normal condition
+      if (platform === "ios") {
+        await handleIOSScrollPage(
+          this.element,
+          this.animation,
+          -1,
+          doc,
+          this.flipToNextPage,
+          this.flipToPrevPage,
+          this.isMobile,
+          parseInt(this.tempLocation.chapterDocIndex || "0"),
+          this.readerMode
+        );
+      } else {
+        await handleScrollPage(
+          this.element,
+          this.animation,
+          -1,
+          doc,
+          this.flipToNextPage,
+          this.flipToPrevPage,
+          this.isMobile
+        );
+      }
+
+      await this.renderPdfPage(
+        parseInt(this.tempLocation.chapterDocIndex) +
+          (this.readerMode === "double" ? 2 : 1)
+      );
+    }
+
+    await this.record();
+  }
+  async prevChapter() {
+    await this.prev();
+  }
+  async nextChapter() {
+    await this.next();
+  }
+  async goToPage(targetPage: number): Promise<void> {
+    let chapterDocIndex = Math.floor(targetPage - 1);
+    if (chapterDocIndex >= this.chapterDocList.length) {
+      chapterDocIndex = this.chapterDocList.length - 1;
+    }
+    if (chapterDocIndex < 0) {
+      chapterDocIndex = 0;
+    }
+    await this.goToChapter(
+      chapterDocIndex,
+      this.chapterDocList[chapterDocIndex].href,
+      this.chapterDocList[chapterDocIndex].label
+    );
+  }
+  async visibleText() {
+    let chapterDocIndex = parseInt(this.tempLocation.chapterDocIndex || "0");
+    let chapterDoc = this.chapterDocList[chapterDocIndex];
+    let textList = (
+      await getTextFromPDFPage(
+        chapterDoc,
+        this.titleSizeValue,
+        this.paraSpacingValue
+      )
+    ).map((item) => item.text.trim());
+    if (this.readerMode === "double") {
+      let nextChapterDocIndex = chapterDocIndex + 1;
+      if (nextChapterDocIndex < this.chapterDocList.length) {
+        let nextChapterDoc = this.chapterDocList[nextChapterDocIndex];
+        let nextTextList = (
+          await getTextFromPDFPage(
+            nextChapterDoc,
+            this.titleSizeValue,
+            this.paraSpacingValue
+          )
+        ).map((item) => item.text.trim());
+        textList = textList.concat(nextTextList);
+      }
+    }
+    return textList;
+  }
+  async audioText() {
+    return await this.visibleText();
+  }
+  async getRestAudioText(count: number) {
+    const currentIndex = parseInt(this.tempLocation.chapterDocIndex || "0");
+    const result: { chapterDocIndex: number; audioText: string[] }[] = [];
+    const startIndex = currentIndex + 1;
+    const endIndex = Math.min(startIndex + count, this.chapterDocList.length);
+
+    for (let i = startIndex; i < endIndex; i++) {
+      const chapterDoc = this.chapterDocList[i];
+      const textList = (
+        await getTextFromPDFPage(
+          chapterDoc,
+          this.titleSizeValue,
+          this.paraSpacingValue
+        )
+      ).map((item) => item.text.trim());
+      const filteredText = textList.filter((s): s is string => !!s);
+      if (filteredText.length > 0) {
+        result.push({
+          chapterDocIndex: i,
+          audioText: filteredText,
+        });
+      }
+    }
+    return result;
+  }
+  async chapterText() {
+    return (await this.visibleText()).join(" ");
+  }
+  async record(): Promise<void> {
+    if (this.animation !== "none" && this.isMobile !== "yes") {
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+    let doc = this.getDocument();
+    if (!doc) return;
+    await this.handlePDFRecord(doc);
+  }
+  async recordByChapter(chapterDocIndex: number): Promise<void> {
+    if (this.animation !== "none" && this.isMobile !== "yes") {
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+    if (chapterDocIndex >= this.chapterDocList.length || chapterDocIndex < 0) {
+      return;
+    }
+    this.tempLocation.chapterDocIndex = chapterDocIndex + "";
+    this.tempLocation.percentage =
+      this.chapterDocList.length === 1
+        ? "1"
+        : chapterDocIndex / (this.chapterDocList.length - 1) + "";
+    this.tempLocation.chapterHref = this.chapterDocList[chapterDocIndex].href;
+    let chapterTitle = this.chapterDocList[chapterDocIndex].label;
+    if (!chapterTitle) {
+      //取前面最近的章节，且存在的标题
+      let tempChapterDocIndex = chapterDocIndex;
+      while (tempChapterDocIndex >= 0) {
+        if (this.chapterDocList[tempChapterDocIndex].label) {
+          chapterTitle = this.chapterDocList[tempChapterDocIndex].label;
+          break;
+        }
+        tempChapterDocIndex--;
+      }
+    }
+    this.tempLocation.chapterTitle = chapterTitle;
+    this.tempLocation.text = "";
+    this.trigger("page-changed");
+  }
+  async handlePDFRecord(doc: Document) {
+    let subContainers = doc.querySelectorAll(".pdf-container");
+    if (
+      subContainers.length > 0 &&
+      isPDFScrolledIntoView(
+        this.element,
+        subContainers[subContainers.length - 1] as HTMLElement,
+        this.readerMode,
+        doc
+      )
+    ) {
+      this.handleRecord(subContainers[subContainers.length - 1] as HTMLElement);
+      return;
+    }
+    for (let index = 0; index < subContainers.length; index++) {
+      let subContainer = subContainers[index];
+      if (
+        isPDFScrolledIntoView(
+          this.element,
+          subContainer as HTMLElement,
+          this.readerMode,
+          doc
+        )
+      ) {
+        this.handleRecord(subContainer as HTMLElement);
+        break;
+      }
+    }
+  }
+  handleRecord(subContainer: HTMLElement) {
+    let id = subContainer.getAttribute("id");
+    if (!id) return;
+    let chapterDocIndex = parseInt(id.split("-").reverse()[0]);
+    if (chapterDocIndex !== parseInt(this.tempLocation.chapterDocIndex)) {
+      this.tempLocation.chapterDocIndex = chapterDocIndex + "";
+      this.tempLocation.percentage =
+        this.chapterDocList.length === 1
+          ? "1"
+          : chapterDocIndex / (this.chapterDocList.length - 1) + "";
+      this.tempLocation.chapterHref = this.chapterDocList[chapterDocIndex].href;
+      let chapterTitle = this.chapterDocList[chapterDocIndex].label;
+      if (!chapterTitle) {
+        //取前面最近的章节，且存在的标题
+        let tempChapterDocIndex = chapterDocIndex;
+        while (tempChapterDocIndex >= 0) {
+          if (this.chapterDocList[tempChapterDocIndex].label) {
+            chapterTitle = this.chapterDocList[tempChapterDocIndex].label;
+            break;
+          }
+          tempChapterDocIndex--;
+        }
+      }
+      this.tempLocation.chapterTitle = chapterTitle;
+      this.tempLocation.text = "";
+      this.trigger("page-changed");
+    }
+  }
+  async getMetadata() {
+    try {
+      if (!this.book) {
+        await this.parse();
+      }
+      let parser = new GeneralParser(this.book);
+      let metadata = await parser.getMetadata();
+      return metadata;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+  highlightAudioNode(text: string, style: string) {
+    let pageIndex = parseInt(this.tempLocation.chapterDocIndex);
+    let doc = this.getSubDocument(pageIndex);
+    if (!doc) return;
+    handleHighlightPDFNode(text, style, doc);
+    if (this.readerMode === "double") {
+      let doc = this.getSubDocument(pageIndex + 1);
+      if (!doc) return;
+      handleHighlightPDFNode(text, style, doc);
+    }
+  }
+  highlightSearchNode(text: string, style: string) {
+    let pageIndex = parseInt(this.tempLocation.chapterDocIndex);
+    let doc = this.getSubDocument(pageIndex);
+    if (!doc) return;
+    handleHighlightSearchNode(text, style, doc);
+  }
+  getProgress() {
+    return {
+      totalPage: this.chapterDocList.length,
+      currentPage: parseInt(this.tempLocation.chapterDocIndex || "0") + 1,
+    };
+  }
+  async getNotePosition() {
+    let doc = this.getDocument();
+    if (!doc) return;
+    let selectedElement = getSelectedElement(doc);
+    if (!selectedElement) return;
+    let ownerDoc = selectedElement.ownerDocument;
+    let targetIframe = ownerDoc?.defaultView?.frameElement;
+    let id = targetIframe?.getAttribute("id") || "";
+    let chapterDocIndex = id ? parseInt(id.split("-").reverse()[0]) : 0;
+    return { ...this.tempLocation, chapterDocIndex };
+  }
+  getSubDocument(chapterDocIndex?: number): Document | null {
+    let pageArea = document.getElementById("page-area");
+    if (!pageArea) return null;
+    let iframe = pageArea.getElementsByTagName("iframe")[0];
+    if (!iframe) return null;
+    let doc = iframe.contentDocument;
+    if (!doc) {
+      return null;
+    }
+
+    let subIframe: any = doc.getElementById("pdf-iframe-" + chapterDocIndex);
+    if (!subIframe) {
+      createPDFIframe(chapterDocIndex || 0, doc);
+      subIframe = doc.getElementById("pdf-iframe-" + chapterDocIndex);
+    }
+    return subIframe.contentDocument;
+  }
+  getSubIframe(chapterDocIndex?: number): HTMLIFrameElement | null {
+    let pageArea = document.getElementById("page-area");
+    if (!pageArea) return null;
+    let iframe = pageArea.getElementsByTagName("iframe")[0];
+    if (!iframe) return null;
+
+    let doc = iframe.contentDocument;
+    if (!doc) {
+      return null;
+    }
+    iframe = doc.getElementById("pdf-iframe-" + chapterDocIndex) as any;
+    if (!iframe) {
+      createPDFIframe(chapterDocIndex || 0, doc);
+      iframe = doc.getElementById("pdf-iframe-" + chapterDocIndex) as any;
+    }
+
+    return iframe;
+  }
+  async getHighlightCoords(chapterDocIndex?: number) {
+    let pageIndex =
+      chapterDocIndex !== undefined
+        ? chapterDocIndex
+        : parseInt(this.tempLocation.chapterDocIndex);
+    let subDoc = this.getSubDocument(chapterDocIndex);
+    if (!subDoc) return;
+    var selectionRects = subDoc.getSelection()!.getRangeAt(0).getClientRects();
+
+    let page = await this.chapterDocList[pageIndex].text.getPage();
+    let scale = await this.getPdfScale();
+    var viewport = page.getViewport({ scale: scale });
+    let canvas = subDoc.querySelector("canvas");
+    var pageRect: any = canvas?.getClientRects()[0];
+
+    let tempRect: {
+      bottom: number;
+      top: number;
+      left: number;
+      right: number;
+    }[] = [];
+    for (let i = 0; i < selectionRects.length; i++) {
+      if (i === 0) {
+        tempRect.push({
+          bottom: selectionRects[i].bottom,
+          top: selectionRects[i].top,
+          left: selectionRects[i].left,
+          right: selectionRects[i].right,
+        });
+      } else if (
+        Math.abs(
+          tempRect[tempRect.length - 1].bottom - selectionRects[i].bottom
+        ) < 5
+      ) {
+        if (tempRect[tempRect.length - 1].left > selectionRects[i].left) {
+          tempRect[tempRect.length - 1].left = selectionRects[i].left;
+        }
+        if (tempRect[tempRect.length - 1].right < selectionRects[i].right) {
+          tempRect[tempRect.length - 1].right = selectionRects[i].right;
+        }
+      } else {
+        tempRect.push({
+          bottom: selectionRects[i].bottom,
+          top: selectionRects[i].top,
+          left: selectionRects[i].left,
+          right: selectionRects[i].right,
+        });
+      }
+    }
+    var selected = tempRect.map(function (r: any) {
+      return viewport
+        .convertToPdfPoint(r.left - pageRect.x, r.top - pageRect.y)
+        .concat(
+          viewport.convertToPdfPoint(
+            r.right - pageRect.x,
+            r.bottom - pageRect.y
+          )
+        );
+    });
+    return { page: pageIndex, coords: selected, readerMode: this.readerMode };
+  }
+  async renderHighlighters(notes: any[], handleNoteClick: any) {
+    if (notes.length === 0) return;
+    notes = notes.reverse();
+    let chapterIndex = notes[0].chapterIndex;
+    let subIframe = this.getSubIframe(chapterIndex);
+    let subDoc = this.getSubDocument(chapterIndex);
+    if (!subDoc || !subIframe) return;
+    clearHighlight(subDoc);
+    let iWin: any =
+      subIframe.contentWindow || subIframe.contentDocument?.defaultView;
+    for (let index = 0; index < notes.length; index++) {
+      const item = notes[index];
+      let selected = JSON.parse(item.range);
+      if (item.color === "annotation") {
+        // fabric canvas 批注：selected 即 getAnnotationData 返回的 toJSON 数据
+        await this.restoreAnnotation(item.chapterIndex, selected);
+        continue;
+      }
+      var pageIndex = parseInt(selected.page + "");
+      if (pageIndex !== chapterIndex) {
+        continue;
+      }
+      let page = await this.chapterDocList[pageIndex].text.getPage();
+      let scale = await this.getPdfScale();
+      try {
+        showPDFHighlight(
+          selected,
+          item.color,
+          item.key,
+          handleNoteClick,
+          page,
+          scale,
+          subDoc,
+          item.notes !== "",
+          this.isMobile === "yes",
+          item.notes || ""
+        );
+      } catch (e) {
+        console.warn(
+          e,
+          "Exception has been caught when restore character ranges."
+        );
+        return;
+      }
+      if (!iWin || !iWin.getSelection()) return;
+      iWin.getSelection()?.empty();
+    }
+  }
+  async restoreAnnotation(chapterDocIndex: number, data: any) {
+    await this.annotationManager.restoreAnnotation(chapterDocIndex, data);
+  }
+  getAnnotationData(chapterDocIndex: number): any {
+    return this.annotationManager.getAnnotationData(chapterDocIndex);
+  }
+  undoAnnotation(chapterDocIndex: number) {
+    this.annotationManager.undoFabric(chapterDocIndex);
+  }
+  removeOneNote(key: string, chapterDocIndex?: number) {
+    let doc = this.getSubDocument(
+      chapterDocIndex !== undefined
+        ? chapterDocIndex
+        : parseInt(this.tempLocation.chapterDocIndex)
+    );
+    if (!doc) return;
+    const elements = doc.querySelectorAll(".kookit-note");
+    for (let index = 0; index < elements.length; index++) {
+      const element: any = elements[index];
+      const dataKey = element.getAttribute("data-key");
+      if (dataKey === key) {
+        element.parentNode.removeChild(element);
+      }
+    }
+  }
+  async createOneNote(item: any, handleNoteClick: any) {
+    let iframe = this.getSubIframe(item.chapterIndex);
+    let subDoc = this.getSubDocument(item.chapterIndex);
+    if (!subDoc || !iframe) return;
+    let selected = JSON.parse(item.range);
+    var pageIndex = parseInt(selected.page + "");
+    let page = await this.chapterDocList[pageIndex].text.getPage();
+    let scale = await this.getPdfScale();
+    showPDFHighlight(
+      selected,
+      item.color,
+      item.key,
+      handleNoteClick,
+      page,
+      scale,
+      subDoc,
+      item.notes !== "",
+      this.isMobile === "yes",
+      item.notes || ""
+    );
+    this.clearSelection();
+  }
+  applyPDFTextLayerLineHeight(subDoc: Document) {
+    let textLayer = subDoc.querySelector("#textLayer") as HTMLElement | null;
+    if (!textLayer) {
+      return;
+    }
+
+    // If a stable line height has been determined, apply it directly
+    if (this.pdfTextLineHeightFixed !== null) {
+      let styleTag = subDoc.getElementById(
+        "kookit-pdf-text-layer-style"
+      ) as HTMLStyleElement | null;
+      if (!styleTag) {
+        styleTag = subDoc.createElement("style");
+        styleTag.id = "kookit-pdf-text-layer-style";
+        styleTag.textContent = `
+        .textLayer span {
+          line-height: var(--kookit-pdf-text-line-height, 1) !important;
+        }
+      `;
+        (subDoc.head || subDoc.documentElement).appendChild(styleTag);
+      }
+      textLayer.style.setProperty(
+        "--kookit-pdf-text-line-height",
+        this.pdfTextLineHeightFixed.toFixed(1)
+      );
+      return;
+    }
+
+    const getAverage = (values: number[]) => {
+      if (!values.length) {
+        return 0;
+      }
+      return values.reduce((sum, value) => sum + value, 0) / values.length;
+    };
+    const filterByAverage = <T>(
+      items: T[],
+      getValue: (item: T) => number,
+      deviationRatio: number
+    ) => {
+      if (items.length < 3) {
+        return items;
+      }
+      let averageValue = getAverage(items.map(getValue));
+      if (!averageValue) {
+        return items;
+      }
+      let threshold = Math.max(averageValue * deviationRatio, 1);
+      let filteredItems = items.filter(
+        (item) => Math.abs(getValue(item) - averageValue) <= threshold
+      );
+      return filteredItems.length ? filteredItems : items;
+    };
+
+    let spans = Array.from(textLayer.querySelectorAll("span"))
+      .map((span) => {
+        let rect = span.getBoundingClientRect();
+        return {
+          left: rect.left,
+          top: rect.top,
+          bottom: rect.bottom,
+          height: rect.height,
+          text: span.textContent?.trim() || "",
+        };
+      })
+      .filter((item) => item.text && item.height > 0);
+
+    if (spans.length < 2) {
+      return;
+    }
+
+    spans.sort((a, b) => {
+      if (Math.abs(a.top - b.top) < 0.5) {
+        return a.left - b.left;
+      }
+      return a.top - b.top;
+    });
+
+    let lines: {
+      top: number;
+      bottom: number;
+      avgTop: number;
+      avgHeight: number;
+      count: number;
+    }[] = [];
+
+    for (let index = 0; index < spans.length; index++) {
+      let span = spans[index];
+      let currentLine = lines[lines.length - 1];
+      if (!currentLine) {
+        lines.push({
+          top: span.top,
+          bottom: span.bottom,
+          avgTop: span.top,
+          avgHeight: span.height,
+          count: 1,
+        });
+        continue;
+      }
+
+      let sameLineTolerance = Math.max(
+        2,
+        Math.min(currentLine.avgHeight, span.height) * 0.5
+      );
+      if (Math.abs(span.top - currentLine.avgTop) <= sameLineTolerance) {
+        currentLine.top = Math.min(currentLine.top, span.top);
+        currentLine.bottom = Math.max(currentLine.bottom, span.bottom);
+        currentLine.avgTop =
+          (currentLine.avgTop * currentLine.count + span.top) /
+          (currentLine.count + 1);
+        currentLine.avgHeight =
+          (currentLine.avgHeight * currentLine.count + span.height) /
+          (currentLine.count + 1);
+        currentLine.count += 1;
+      } else {
+        lines.push({
+          top: span.top,
+          bottom: span.bottom,
+          avgTop: span.top,
+          avgHeight: span.height,
+          count: 1,
+        });
+      }
+    }
+
+    if (lines.length < 2) {
+      return;
+    }
+
+    let filteredLines = filterByAverage(lines, (line) => line.avgHeight, 0.3);
+    let averageHeight = getAverage(
+      filteredLines.map((line) => line.avgHeight).filter((height) => height > 0)
+    );
+    if (!averageHeight) {
+      textLayer.style.removeProperty("--kookit-pdf-text-line-height");
+      return;
+    }
+
+    let gaps: number[] = [];
+    for (let index = 0; index < filteredLines.length - 1; index++) {
+      let currentLine = filteredLines[index];
+      let nextLine = filteredLines[index + 1];
+      let lineGap = nextLine.top - currentLine.bottom;
+      if (lineGap > 0) {
+        gaps.push(lineGap);
+      }
+    }
+
+    let filteredGaps = filterByAverage(gaps, (gap) => gap, 0.5);
+    let averageGap = getAverage(filteredGaps.filter((gap) => gap >= 0));
+    let requiredLineHeight = (averageGap + averageHeight) / averageHeight;
+
+    if (requiredLineHeight <= 1 || requiredLineHeight > 2) {
+      textLayer.style.removeProperty("--kookit-pdf-text-line-height");
+      return;
+    }
+
+    let styleTag = subDoc.getElementById(
+      "kookit-pdf-text-layer-style"
+    ) as HTMLStyleElement | null;
+    if (!styleTag) {
+      styleTag = subDoc.createElement("style");
+      styleTag.id = "kookit-pdf-text-layer-style";
+      styleTag.textContent = `
+        .textLayer span {
+          line-height: var(--kookit-pdf-text-line-height, 1) !important;
+        }
+      `;
+      (subDoc.head || subDoc.documentElement).appendChild(styleTag);
+    }
+
+    let lineHeightKey = requiredLineHeight.toFixed(1);
+    let count = (this.pdfTextLineHeightRecord[lineHeightKey] || 0) + 1;
+    this.pdfTextLineHeightRecord[lineHeightKey] = count;
+    if (count >= 3) {
+      this.pdfTextLineHeightFixed = requiredLineHeight;
+    }
+
+    textLayer.style.setProperty("--kookit-pdf-text-line-height", lineHeightKey);
+  }
+  applyPdfCrop(subIframe: any, subDoc: Document) {
+    if (this.readerMode === "scroll") {
+      subDoc.body.style.overflow = "hidden";
+      const visibleWidth = 100 - this.pdfCrop.left - this.pdfCrop.right;
+      const scale = 100 / visibleWidth;
+
+      // 经验补偿系数，根据你的 PDF 微调（通常 0.6~0.9）
+      const compensation = 1;
+      const tx =
+        (this.pdfCrop.right - this.pdfCrop.left) * (scale / 2) * compensation;
+
+      subIframe.style.transformOrigin = "50% 50%";
+      subIframe.style.transform = `translateX(${tx}%) scale(${scale}) translateZ(0)`;
+
+      if (this.pdfCrop.top > 0) {
+        subDoc.body.style.position = "relative";
+        subDoc.body.style.bottom = this.pdfCrop.top + 2 + "%";
+      }
+    }
+  }
+  applyAnnotationConfig(config: any) {
+    this.annotationManager.applyConfig(config);
+  }
+  async handleRenderPDFChapter(
+    chapterDocIndex: number,
+    isReload: boolean = false
+  ) {
+    if (chapterDocIndex >= this.chapterDocList.length || chapterDocIndex < 0) {
+      return;
+    }
+
+    let doc = this.getDocument();
+    if (!doc) return;
+    let subIframe: any = doc.getElementById("pdf-iframe-" + chapterDocIndex);
+    if (!subIframe) {
+      subIframe = createPDFIframe(chapterDocIndex, doc);
+    }
+    if (isReload) {
+      await this.handleUnloadPDFChapter(chapterDocIndex);
+    }
+    let subDoc = subIframe?.contentDocument;
+    if (!subDoc) return;
+    if (subDoc.body.innerHTML && !isReload) {
+      return;
+    }
+    subDoc.body.innerHTML = "";
+    let blob = await fetch(
+      await this.chapterDocList[chapterDocIndex].text.load()
+    ).then((r) => r.blob());
+    let chapterText = await blob.text();
+    subDoc.body.innerHTML = chapterText;
+    let scale = await this.getPdfScale();
+    await this.chapterDocList[chapterDocIndex].text.render(
+      subDoc,
+      scale,
+      this.isMobile,
+      this,
+      this.isKeepPDFBackground
+    );
+
+    let docLayer: any = subDoc.querySelector("#koodoPDFLayer");
+    if (!docLayer) {
+      return;
+    }
+    if (this.isDarkMode === "yes") {
+      docLayer.style.filter = "invert(1) hue-rotate(180deg) contrast(0.95)";
+    }
+    if (
+      this.backgroundColor === "rgba(233, 216, 188,1)" &&
+      this.isScannedPDF === "yes"
+    ) {
+      docLayer.style.filter = "sepia(100%) contrast(0.95) brightness(0.95)";
+    }
+    if (
+      this.backgroundColor === "rgba(197, 231, 207,1)" &&
+      this.isScannedPDF === "yes"
+    ) {
+      docLayer.style.filter =
+        "sepia(30%) hue-rotate(60deg) saturate(120%) brightness(95%)";
+    }
+    if (
+      this.pdfCrop.top > 0 ||
+      this.pdfCrop.left > 0 ||
+      this.pdfCrop.right > 0
+    ) {
+      this.applyPdfCrop(subIframe, subDoc);
+    }
+
+    if (this.readerMode === "single" || this.readerMode === "double") {
+      let additionalHeight =
+        this.element.clientHeight / 2 -
+        docLayer.getBoundingClientRect().height / 2;
+      docLayer.style.marginTop = additionalHeight + "px";
+      subIframe.style.height =
+        docLayer.getBoundingClientRect().height + additionalHeight + "px";
+
+      let noteLayer: any = subDoc.querySelector(".noteLayer");
+      if (noteLayer) {
+        noteLayer.style.position = "relative";
+      }
+    }
+    if (this.readerMode !== "scroll") {
+      docLayer.style.marginLeft = `calc(50% - ${
+        docLayer.getBoundingClientRect().width / 2
+      }px)`;
+    }
+    docLayer.style.visibility = "visible";
+    if (
+      this.platform === "android" &&
+      this.enablePDFSelectionOptimization === "yes"
+    ) {
+      this.applyPDFTextLayerLineHeight(subDoc);
+    }
+    if (this.annotationManager.isCanvasEnabled()) {
+      let canvasEle = subDoc.querySelector("#fabric");
+      if (canvasEle) {
+        this.annotationManager.initCanvas(
+          chapterDocIndex,
+          canvasEle,
+          docLayer,
+          subDoc
+        );
+      }
+    }
+    this.trigger("rendered", [chapterDocIndex] as any);
+  }
+  async handleUnloadPDFChapter(chapterDocIndex: number) {
+    if (chapterDocIndex >= this.chapterDocList.length || chapterDocIndex < 0) {
+      return;
+    }
+    let subDoc = this.getSubDocument(chapterDocIndex);
+    if (!subDoc) return;
+    if (subDoc.body.innerHTML === "") {
+      return;
+    }
+    await this.chapterDocList[chapterDocIndex].text.unload();
+    this.annotationManager.disposeCanvas(chapterDocIndex);
+    subDoc.body.innerHTML = "";
+  }
+  async renderPdfPage(chapterDocIndex: number) {
+    if (chapterDocIndex >= this.chapterDocList.length || chapterDocIndex < 0) {
+      return;
+    } else if (chapterDocIndex > 3) {
+      await this.handleUnloadPDFChapter(chapterDocIndex - 4);
+    }
+    await this.handleRenderPDFChapter(chapterDocIndex);
+    this.handleRenderPDFChapter(chapterDocIndex + 1);
+    if (this.platform === "ios") {
+      //ios 性能太差，先不预渲染后续章节了
+      return;
+    }
+    this.handleRenderPDFChapter(chapterDocIndex + 2);
+    this.handleRenderPDFChapter(chapterDocIndex + 3);
+    // 预渲染会把 fabric.document 切到后续页，恢复为当前页 iframe，
+    // 保证用户在当前页绘制时 fabric 的 mousemove/mouseup 监听器挂在正确 document 上
+    this.activateFabricDocument(chapterDocIndex);
+  }
+  activateFabricDocument(chapterDocIndex: number) {
+    this.annotationManager.activateFabricDocument(chapterDocIndex);
+  }
+  getPdfScale = async () => {
+    if (this.pdfScale && this.pdfScale > 0) {
+      return this.pdfScale;
+    }
+    let doc = this.getDocument();
+    if (this.readerMode === "scroll") {
+      doc = this.getSubDocument(this.templateChapterDocIndex);
+    }
+    if (!doc) return 1;
+    let { width, height } =
+      await this.chapterDocList[
+        this.templateChapterDocIndex
+      ].text.getDimension();
+
+    let viewWidth = doc.body.clientWidth;
+    let viewHeight = this.element.clientHeight;
+    if (this.readerMode === "double") {
+      let scale = this.readerMode === "double" ? 2 : 1;
+      let section = Math.floor(this.element.clientWidth / 12);
+      let gap = section % 2 === 0 ? section : section - 1;
+      viewWidth = (viewWidth - gap) / scale;
+    }
+    let scale = Math.min(viewWidth / width, viewHeight / height);
+    if (this.readerMode === "scroll") {
+      viewWidth = viewWidth - 10;
+      scale = viewWidth / width;
+    }
+    this.pdfScale = scale;
+    return scale;
+  };
+}
+export default PdfRender;

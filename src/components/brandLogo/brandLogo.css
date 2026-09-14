@@ -1,0 +1,69 @@
+.coread-brand-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
+  position: absolute;
+  top: 22px;
+  left: 56px;
+  height: 44px;
+  color: var(--color-alpha-beta, #09090b);
+}
+
+.coread-brand-logo:hover {
+  transform: translateY(-1px);
+  opacity: 0.85;
+}
+
+.coread-brand-logo:hover .coread-logo-icon {
+  transform: scale(1.05);
+}
+
+.coread-logo-icon {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  color: inherit;
+}
+
+.coread-logo-text {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  line-height: 1;
+}
+
+.coread-logo-title {
+  display: flex;
+  align-items: baseline;
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.4px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: inherit;
+}
+
+.coread-logo-co {
+  font-weight: 850;
+  color: inherit;
+}
+
+.coread-logo-read {
+  font-weight: 550;
+  color: inherit;
+  opacity: 0.85;
+  margin-left: 0.5px;
+}
+
+.coread-logo-subtitle {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  opacity: 0.5;
+  margin-top: 3px;
+  color: inherit;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}

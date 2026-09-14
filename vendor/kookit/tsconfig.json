@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "es6",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "strict": true,
+    "skipLibCheck": true,
+    "declaration": true,
+    "allowJs": true,
+    "esModuleInterop": true,
+    "noImplicitAny": false,
+    "outDir": "dist",
+    "typeRoots": ["./node_modules/@types", "types"]
+  },
+  "include": ["src", "types"],
+  "paths": {
+    "*": ["./node_modules/@types", "./types"]
+  }
+}

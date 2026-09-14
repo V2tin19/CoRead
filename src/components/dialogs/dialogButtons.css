@@ -1,0 +1,34 @@
+/* 弹窗底部「取消 / 确认」按钮公共布局样式。
+   原 addDialog.css 在轻量化重构中被删，但多个弹窗仍复用这些类名，
+   故恢复为全局公共样式；配色由 themeUtil 按主题注入。 */
+.add-dialog-button-container {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+  position: absolute;
+  right: 25px;
+  bottom: 15px;
+}
+.add-dialog-cancel {
+  min-width: 60px;
+  height: 26px;
+  border-radius: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  font-size: 13px;
+  margin-right: 10px;
+  line-height: 26px;
+  text-align: center;
+  cursor: pointer;
+}
+.add-dialog-confirm {
+  min-width: 64px;
+  height: 30px;
+  font-size: 13px;
+  border-radius: 5px;
+  padding-left: 10px;
+  padding-right: 10px;
+  line-height: 30px;
+  text-align: center;
+  cursor: pointer;
+}

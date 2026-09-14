@@ -1,0 +1,299 @@
+/* 随心笔记(涂鸦) —— v3.1
+   画布层：只负责「书页上那层纸」，容器不拦鼠标（pointer-events:none），
+   画布自己按书页矩形摆放（left/top/width/height 由 TSX 按 #page-area 实测下发）。
+
+   工具条改成「顶部页眉条」：整条贴在视口顶部，高 38px（窄屏 34px），
+   与右上角页眉同高，且小于正文起始留白 42px，所以不再压住正文。
+   右边界由 TSX 内联下发（right: headerRight），让开右上角那排常驻图标。
+   它另起一层（.doodle-toolbar-layer），必须压在阅读器「边缘触发条」
+   （.top-panel，z-index:10）之上，否则点不到。
+   两层分开的根因：子元素的 z-index 出不了父元素的层叠上下文。 */
+
+.doodle-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+}
+
+/* 贴着书页的矩形。默认是绘画模式：接管指针 */
+.doodle-canvas-wrap {
+  position: absolute;
+  pointer-events: auto;
+  cursor: crosshair;
+  touch-action: none;
+  /* 与书页同形，边框给一点点暗示「这层纸盖在这里」 */
+  border-radius: 2px;
+  outline: 1px dashed rgba(75, 137, 255, 0.35);
+  outline-offset: 0;
+}
+
+.doodle-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+/* 浏览模式：只看不画，画布放行（滚轮/点字/选中都不受影响） */
+.doodle-canvas-wrap-view {
+  pointer-events: none;
+  cursor: default;
+  outline: none;
+}
+
+.doodle-toolbar-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 13;
+  pointer-events: none;
+}
+
+/* 工具条的「可用横条」：从视口左边一直铺到右上角页眉的左边界（right 由 TSX
+   内联下发），本身透明、不吃点击；真正的条在里面水平居中。
+   套这一层的原因：直接给条 `left:0;right:X;margin:0 auto` 时，`max-width:100%`
+   参考的是整个层（视口），内容一多就会顶到页眉上；有了这个 flex 容器，
+   条被限制在「左边缘 ~ 页眉左边界」这段真实空间里，永远不会压到页眉图标。 */
+.doodle-toolbar-slot {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 38px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  pointer-events: none;
+  transition: right 0.3s ease;
+}
+
+/* 顶部页眉条：浅色实底 + 毛玻璃 + 下圆角，和 .reader-top-dock 同一套观感。
+   高度刻意与页眉对齐（宽屏 38px / 窄屏 34px），两条并排看不出高低差；
+   38px 也小于正文起始留白 42px，所以永远压不到字。
+   内容超出可用宽度时自身横向滚动（窄屏 / 作者图例很多时），高度不变。 */
+.doodle-toolbar {
+  position: relative;
+  max-width: 100%;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  padding: 0 8px;
+  border-radius: 0 0 12px 12px;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+  color: #3a3a3a;
+  user-select: none;
+  pointer-events: auto;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  transition: background 0.2s ease;
+}
+
+.doodle-toolbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* 深色纸张：换深底浅字，跟 .reader-top-dock-dark 一致 */
+.doodle-toolbar-dark {
+  background: rgba(44, 47, 49, 0.94);
+  color: #e8e8e8;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+
+.doodle-toolbar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: nowrap;
+  /* 横向滚动容器里的 flex 行：不要被压扁，宽度取内容自然宽 */
+  min-width: max-content;
+}
+
+.doodle-toolbar-row > * {
+  flex-shrink: 0;
+}
+
+/* 组与组之间的竖分隔线 */
+.doodle-divider {
+  width: 1px;
+  height: 18px;
+  background: rgba(128, 128, 128, 0.3);
+  flex-shrink: 0;
+}
+
+/* 信息簇（本页笔数 / 作者图例 / 同步状态）：字号小一号，靠右排 */
+.doodle-info-group {
+  gap: 8px;
+  font-size: 11px;
+  padding-right: 2px;
+}
+
+.doodle-info-text {
+  white-space: nowrap;
+  opacity: 0.75;
+}
+
+.doodle-info-dim {
+  opacity: 0.5;
+}
+
+.doodle-info-sync {
+  color: #3b7dff;
+  opacity: 1;
+}
+
+.doodle-toolbar-dark .doodle-info-sync {
+  color: #7fb1ff;
+}
+
+.doodle-author-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(128, 128, 128, 0.16);
+  color: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  line-height: 16px;
+}
+
+.doodle-author-chip:hover {
+  background: rgba(128, 128, 128, 0.3);
+}
+
+/* 被隐藏的作者：划掉 + 变暗，点一下恢复 */
+.doodle-author-chip-off {
+  opacity: 0.42;
+  text-decoration: line-through;
+}
+
+.doodle-author-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.doodle-author-chip em {
+  font-style: normal;
+  opacity: 0.6;
+}
+
+.doodle-toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.doodle-color-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  box-sizing: border-box;
+}
+
+.doodle-color-dot.active {
+  border-color: #4b89ff;
+  box-shadow: 0 0 0 2px rgba(75, 137, 255, 0.28);
+}
+
+.doodle-size-dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: 1px solid rgba(128, 128, 128, 0.4);
+  box-sizing: border-box;
+}
+
+.doodle-size-dot.active {
+  border-color: #4b89ff;
+  background: rgba(75, 137, 255, 0.14);
+}
+
+/* 笔刷示意圆点：跟着文字色走，浅色底/深色底都看得见 */
+.doodle-size-dot span {
+  display: block;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.78;
+}
+
+.doodle-tool-btn {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 18px;
+  color: inherit;
+  cursor: pointer;
+  background: rgba(128, 128, 128, 0.14);
+  white-space: nowrap;
+}
+
+.doodle-tool-btn:hover {
+  background: rgba(128, 128, 128, 0.28);
+}
+
+.doodle-tool-square {
+  padding: 4px 8px;
+  font-size: 15px;
+  line-height: 18px;
+}
+
+/* 当前模式(绘画 / 浏览)高亮 */
+.doodle-tool-active {
+  background: #4b89ff;
+  color: #ffffff;
+}
+
+.doodle-tool-active:hover {
+  background: #4b89ff;
+  color: #ffffff;
+}
+
+/* 没有可以撤销的笔迹（比如这一页全是别人画的） */
+.doodle-tool-disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.doodle-tool-disabled:hover {
+  background: rgba(128, 128, 128, 0.14);
+}
+
+.doodle-tool-close {
+  background: #4b89ff;
+  color: #ffffff;
+}
+
+.doodle-tool-close:hover {
+  background: #3a78ee;
+  color: #ffffff;
+}
+
+/* 窄屏：页眉条本身已可横向滚动，这里只把内边距收紧一点 */
+@media (max-width: 570px) {
+  .doodle-toolbar-slot {
+    height: 34px;
+  }
+  .doodle-toolbar {
+    height: 34px;
+    padding: 0 6px;
+  }
+  .doodle-toolbar-row {
+    gap: 8px;
+  }
+  .doodle-info-group {
+    font-size: 10px;
+  }
+}

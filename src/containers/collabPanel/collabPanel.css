@@ -1,0 +1,443 @@
+.collab-panel {
+  position: absolute;
+  right: 18px;
+  top: 58px;
+  z-index: 30;
+  width: 330px;
+  max-height: calc(100vh - 86px);
+  display: flex;
+  flex-direction: column;
+  background: var(--background-color, rgba(255, 255, 255, 0.96));
+  color: var(--main-color, #333);
+  border: 1px solid rgba(120, 120, 120, 0.25);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+  border-radius: 8px;
+  overflow: hidden;
+}
+/* 拖动中:去掉位移动画、禁止选中文本,手感更跟手 */
+.collab-panel-dragging {
+  transition: none;
+  user-select: none;
+}
+.collab-panel-dragging .collab-panel-body {
+  pointer-events: none;
+}
+
+@media (max-width: 570px) {
+  .collab-panel {
+    right: 12px;
+    left: 12px;
+    width: auto;
+    top: 50px;
+    max-height: calc(100vh - 70px);
+  }
+}
+
+.collab-panel-header {
+  height: 42px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(120, 120, 120, 0.18);
+  font-weight: 600;
+  /* 可拖动:整条标题栏是拖拽把手 */
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.collab-panel-header:active {
+  cursor: grabbing;
+}
+.collab-panel-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+/* 拖拽把手:纯 CSS 画的六点横纹,明确提示"可拖" */
+.collab-panel-drag-grip {
+  width: 12px;
+  height: 10px;
+  flex-shrink: 0;
+  opacity: 0.38;
+  background-image: radial-gradient(
+    circle,
+    currentColor 1px,
+    transparent 1.2px
+  );
+  background-size: 5px 5px;
+  background-position: 0 0;
+}
+
+.collab-panel-close {
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.collab-panel-body {
+  padding: 12px;
+  overflow: auto;
+}
+
+.collab-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+  font-size: 12px;
+}
+
+.collab-field input {
+  height: 30px;
+  border: 1px solid rgba(120, 120, 120, 0.35);
+  border-radius: 6px;
+  padding: 0 8px;
+  background: transparent;
+  color: inherit;
+  min-width: 0;
+}
+
+/* 输入框下方的补充说明(比如「留空=只用本地阅读」) */
+.collab-field-note {
+  font-size: 11px;
+  opacity: 0.6;
+  line-height: 1.5;
+}
+
+.collab-section-title {
+  margin: 12px 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.collab-section-title:first-child {
+  margin-top: 0;
+}
+
+.collab-hint {
+  font-size: 12px;
+  opacity: 0.72;
+  margin-bottom: 8px;
+  word-break: break-word;
+}
+
+.collab-link {
+  font-size: 12px;
+  opacity: 0.72;
+  cursor: pointer;
+  text-decoration: underline;
+  user-select: none;
+}
+
+.collab-button {
+  height: 32px;
+  border: 1px solid rgba(120, 120, 120, 0.35);
+  border-radius: 6px;
+  background: rgba(120, 120, 120, 0.08);
+  color: inherit;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.collab-button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.collab-primary-button {
+  width: 100%;
+  height: 38px;
+  font-weight: 600;
+  background: rgba(75, 137, 255, 0.14);
+  border-color: rgba(75, 137, 255, 0.55);
+}
+
+.collab-mini-button {
+  height: 26px;
+  font-size: 12px;
+  padding: 0 8px;
+  white-space: nowrap;
+}
+
+.collab-room-list {
+  list-style: none;
+  margin: 0 0 4px;
+  padding: 0;
+  border: 1px solid rgba(120, 120, 120, 0.2);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.collab-room-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.collab-room-item + .collab-room-item {
+  border-top: 1px solid rgba(120, 120, 120, 0.15);
+}
+
+.collab-room-item:hover {
+  background: rgba(120, 120, 120, 0.1);
+}
+
+.collab-room-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.collab-room-item-id {
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+.collab-room-item-members {
+  font-size: 11px;
+  opacity: 0.72;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.collab-room-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.collab-room-item-join {
+  font-size: 12px;
+  color: #4b89ff;
+}
+
+.collab-room-item-delete {
+  font-size: 12px;
+  color: rgb(197, 48, 48);
+  cursor: pointer;
+}
+
+.collab-button-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.collab-danger-button {
+  color: rgb(197, 48, 48);
+  background: rgba(255, 82, 82, 0.08);
+  border-color: rgba(255, 82, 82, 0.4);
+}
+
+.collab-join-row {
+  display: grid;
+  grid-template-columns: 1fr 62px;
+  gap: 6px;
+}
+
+/* 房间号:单行胶囊,尽量少占版面。
+   房间号是次要信息 → 整块用灰色,不抢主视觉。 */
+.collab-room-code {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  margin: 0 0 8px;
+  border-radius: 6px;
+  background: rgba(120, 120, 120, 0.08);
+  color: rgba(120, 120, 120, 0.9);
+  font-size: 12px;
+  line-height: 1.2;
+}
+.collab-room-code-label {
+  opacity: 0.75;
+  flex-shrink: 0;
+}
+.collab-room-code-value {
+  font-size: 13px;
+  letter-spacing: 1px;
+  font-weight: 600;
+  color: rgba(120, 120, 120, 0.95);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.collab-room-code-copy {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: rgba(120, 120, 120, 0.95);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(120, 120, 120, 0.12);
+  user-select: none;
+}
+.collab-room-code-copy:hover {
+  background: rgba(120, 120, 120, 0.22);
+}
+
+/* 「同步涂鸦」这一行：文字样式统一，去掉 <em> 带来的斜体 */
+.collab-switch-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 8px 0;
+  font-size: 12px;
+  color: inherit;
+  opacity: 0.9;
+  cursor: pointer;
+}
+.collab-switch-field em {
+  font-style: normal;
+  opacity: 0.6;
+  margin-left: 6px;
+  font-size: 11px;
+}
+
+.collab-members {
+  margin: 10px 0;
+  font-size: 12px;
+  color: inherit;
+  opacity: 0.88;
+}
+
+/* 在线成员列表：每人一行，右侧是「设为领读」 */
+.collab-members-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+  opacity: 0.8;
+}
+
+.collab-members-leader {
+  font-size: 11px;
+  opacity: 0.85;
+}
+
+.collab-member-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 132px;
+  overflow: auto;
+}
+
+.collab-member-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 0;
+}
+
+.collab-member-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.collab-member-badge {
+  font-style: normal;
+  font-size: 10px;
+  line-height: 14px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #4b89ff;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.collab-member-action {
+  font-size: 11px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(120, 120, 120, 0.35);
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.collab-member-action:hover {
+  border-color: #4b89ff;
+  color: #4b89ff;
+}
+
+.collab-member-action-on {
+  border-color: #4b89ff;
+  color: #4b89ff;
+}
+
+/* 「一笔一划」是「同步涂鸦」的子开关，左边缩进一档、字号再小一点 */
+.collab-switch-sub {
+  margin-top: -4px;
+  padding-left: 12px;
+  font-size: 11px;
+  opacity: 0.82;
+}
+
+.collab-switch-sub input:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.collab-messages {
+  height: 180px;
+  overflow: auto;
+  border: 1px solid rgba(120, 120, 120, 0.2);
+  border-radius: 6px;
+  padding: 8px;
+  margin-top: 10px;
+}
+
+.collab-message {
+  margin-bottom: 8px;
+  word-break: break-word;
+}
+
+.collab-message-name {
+  display: block;
+  font-size: 11px;
+  opacity: 0.7;
+  margin-bottom: 2px;
+}
+
+.collab-chat-form {
+  display: grid;
+  grid-template-columns: 1fr 58px;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.collab-chat-form input {
+  min-width: 0;
+  height: 32px;
+  border: 1px solid rgba(120, 120, 120, 0.35);
+  border-radius: 6px;
+  padding: 0 8px;
+  background: transparent;
+  color: inherit;
+}
+
+.collab-status {
+  min-height: 18px;
+  font-size: 12px;
+  opacity: 0.72;
+  margin-top: 8px;
+}

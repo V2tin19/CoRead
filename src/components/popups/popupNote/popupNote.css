@@ -1,0 +1,159 @@
+.note-editor {
+  width: calc(100% - 40px);
+  height: calc(100% - 140px);
+  padding: 20px;
+}
+.note-original-text {
+  border-left: solid 3px #109870;
+  padding-left: 10px;
+  margin-bottom: 20px;
+  margin-top: 5px;
+  line-height: 1.25;
+  text-align: left;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  font-size: 15px;
+}
+/* ── 共读笔记的作者信息行 ────────────────────────────────────────── */
+.note-author {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: -12px 0 12px 3px;
+  font-size: 12px;
+  line-height: 1;
+  color: rgba(0, 0, 0, 0.55);
+}
+.note-author-badge {
+  flex-shrink: 0;
+  padding: 2px 6px;
+  border-radius: 8px;
+  font-size: 11px;
+  background: rgba(75, 137, 255, 0.12);
+  color: #4b89ff;
+}
+/* 自己做的笔记用绿色区分,和别人的蓝色一眼能分出来 */
+.note-author-badge.is-mine {
+  background: rgba(16, 152, 112, 0.12);
+  color: #109870;
+}
+.note-author-name {
+  flex-shrink: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 160px;
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.72);
+}
+.note-author-time {
+  flex-shrink: 0;
+  margin-left: auto;
+  opacity: 0.65;
+}
+.editor-box-parent {
+  width: 100%;
+  height: calc(100% - 15px);
+}
+.editor-box {
+  border: none;
+  outline: none;
+  resize: none;
+  font-size: 15px;
+  width: calc(100% - 20px);
+  min-height: 120px;
+  line-height: 18px;
+  overflow-y: scroll;
+  background-color: rgba(16, 152, 112, 0.05);
+  border-radius: 7px;
+  padding: 10px;
+}
+
+.editor-box::placeholder {
+  font-size: 15px;
+  line-height: 15px;
+  opacity: 0.6;
+  position: relative;
+  top: 6px;
+  font-weight: 500;
+}
+.editor-box::-ms-input-placeholder {
+  font-size: 15px;
+  line-height: 15px;
+  opacity: 0.6;
+  position: relative;
+  top: 6px;
+  font-weight: 500;
+}
+.editor-box::-moz-placeholder {
+  font-size: 15px;
+  line-height: 15px;
+  opacity: 0.6;
+  position: relative;
+  top: 6px;
+  font-weight: 500;
+}
+.note-button-container {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  max-width: 100%;
+  display: flex;
+  justify-content: space-between;
+  cursor: pointer;
+}
+.confirm-button {
+  font-size: 15px;
+  line-height: 15px;
+  opacity: 1;
+  cursor: pointer;
+}
+.cancel-button {
+  font-size: 15px;
+  line-height: 15px;
+  opacity: 1;
+  cursor: pointer;
+  margin-right: 20px;
+}
+.note-tags-container {
+  overflow-x: auto;
+  overflow-y: hidden;
+  /* 默认隐藏滚动条 */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+
+/* 隐藏 WebKit 浏览器的滚动条 */
+.note-tags-container::-webkit-scrollbar {
+  display: none;
+}
+
+/* 悬停时显示滚动条 */
+.note-tags-container:hover {
+  scrollbar-width: thin; /* Firefox */
+  -ms-overflow-style: auto; /* IE/Edge */
+}
+
+/* 悬停时显示 WebKit 浏览器的滚动条 */
+.note-tags-container:hover::-webkit-scrollbar {
+  display: block;
+  height: 8px;
+}
+
+.note-tags-container:hover::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+
+.note-tags-container:hover::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  height: 4px;
+}
+
+.note-tags-container:hover::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.5);
+}

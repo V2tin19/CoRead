@@ -1,0 +1,449 @@
+.ebook-viewer {
+  overflow-y: scroll;
+  z-index: 5;
+}
+.viewer {
+  height: 100%;
+}
+.view-area {
+  height: 100%;
+  touch-action: none;
+  position: relative;
+}
+
+@keyframes fade-right {
+  0% {
+    transform: translateX(200px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0px);
+    opacity: 1;
+  }
+}
+
+@keyframes fade-left {
+  0% {
+    transform: translateX(-200px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0px);
+    opacity: 1;
+  }
+}
+
+@keyframes fade-down {
+  0% {
+    transform: translateY(-60px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0px);
+    opacity: 1;
+  }
+}
+
+@keyframes fade-up {
+  0% {
+    transform: translateY(60px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0px);
+    opacity: 1;
+  }
+}
+.panel-icon {
+  color: white;
+  font-size: 18px;
+  opacity: 0.9;
+}
+.left-panel {
+  width: 40px;
+  height: 60%;
+  position: absolute;
+  left: 0px;
+  top: calc(50vh - 30%);
+  background-color: rgba(75, 75, 75, 0.3);
+  border-bottom-right-radius: 20px;
+  border-top-right-radius: 20px;
+  z-index: 10;
+  opacity: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+}
+.right-panel {
+  width: 40px;
+  height: 60%;
+  position: absolute;
+  right: 0px;
+  top: calc(50vh - 30%);
+  background-color: rgba(75, 75, 75, 0.3);
+  border-bottom-left-radius: 20px;
+  border-top-left-radius: 20px;
+  z-index: 10;
+  opacity: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+}
+.top-panel {
+  width: 60%;
+  height: 40px;
+  position: absolute;
+  left: calc(50vw - 30%);
+  top: 0px;
+  background-color: rgba(75, 75, 75, 0.3);
+  border-bottom-left-radius: 20px;
+  border-bottom-right-radius: 20px;
+  z-index: 10;
+  opacity: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+}
+.bottom-panel {
+  width: 60%;
+  height: 40px;
+  position: absolute;
+  left: calc(50vw - 30%);
+  bottom: 0px;
+  background-color: rgba(75, 75, 75, 0.3);
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
+  z-index: 10;
+  opacity: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+}
+.operation-panel-container {
+  width: 450px;
+  height: 60px;
+  position: absolute;
+  top: 0px;
+  left: calc(50vw - 225px);
+  z-index: 15;
+  /* 顶部按钮原本是「裸奔」在正文上，中间的正文会从按钮缝隙里透出来，
+     看起来像按钮压在字上。给面板一层半透明底 + 圆角，视觉上浮起来。 */
+  box-sizing: border-box;
+  border-radius: 0 0 14px 14px;
+  background: var(--background-color, rgba(255, 255, 255, 0.94));
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+  transition: transform 0.5s ease;
+}
+
+/* ── 右上角页眉（阅读选项 / 共读 / 更多 三个常驻入口）─────────────────
+   这排图标以前是一个无底色的 flex 容器，压在正文上；正文只从 top:20px 开始，
+   图标把首行右侧的字挡了个正着。现在：
+     · 容器自身就是「页眉」底衬：浅色实底 + 毛玻璃 + 圆角 + 投影；
+     · 宽度改为自适应（内容多宽就多宽），所以放大镜展开的缩放条也在这块底衬里；
+     · 与 .html-viewer-page 的 top:42px 配套 —— 正文永远从页眉下方开始。
+     · 页眉压薄到 38px + 图标收到 34px（原来 50/50），纵向少占 12px，
+       一页能多显示一行正文 —— 阅读页里文字优先，入口图标不需要那么抢眼。
+   深色纸张下由 .reader-top-dock-dark 换成深色底衬。 */
+.reader-top-dock {
+  position: absolute;
+  top: 0;
+  z-index: 11;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  box-sizing: border-box;
+  padding: 0 3px 0 6px;
+  border-radius: 0 0 10px 10px;
+  background: rgba(255, 255, 255, 0.93);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+  transition: background 0.2s ease, right 0.3s ease;
+}
+
+.reader-top-dock-dark {
+  background: rgba(44, 47, 49, 0.93);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+
+/* 页眉内的图标缩一号。
+   只作用于 .reader-top-dock 内部 —— 右下角那排悬浮按钮用的是同一套类名，
+   不能被这里连带缩小（那是用户已经习惯的尺寸）。
+   容器 34×34 放 16px 字形；.reader-setting-icon 显式声明 border-box + 内边距，
+   是因为项目里没有全局 * { box-sizing } —— 不写清楚 width/padding 会互相叠加，
+   图标就会撑出容器。 */
+.reader-top-dock .reader-setting-icon-container,
+.reader-top-dock .reader-zoom-in-icon-container {
+  box-sizing: border-box;
+  width: 34px;
+  height: 34px;
+  font-size: 16px;
+}
+
+.reader-top-dock .reader-zoom-in-icon-container {
+  font-size: 18px;
+}
+
+.reader-top-dock .reader-setting-icon {
+  box-sizing: border-box;
+  margin: 0;
+  width: 34px;
+  padding: 9px;
+}
+
+/* 页眉里的图标按钮不需要 hover 圆底（底衬已经是一块面板了） */
+.reader-top-dock .reader-setting-icon-container:hover,
+.reader-top-dock .reader-zoom-in-icon-container:hover {
+  border-radius: 8px;
+  background: rgba(128, 128, 128, 0.16);
+}
+
+.progress-panel-container {
+  width: min(560px, 92vw);
+  height: 60px;
+  position: absolute;
+  top: calc(100vh - 60px);
+  /* 居中策略：left + right 双值 + margin:auto，在「可用区」内水平居中。
+     left/right 由 TSX 内联下发：侧栏常驻时让出 300px，否则为 0。
+     千万不要在这里或 TSX 里写 margin-left/margin-right 的具体数值——
+     内联 margin 会把这里的 margin:auto 覆盖掉，居中立刻失效
+     （这正是此前「下侧面板没放到正中央」的根因）。
+     也不能用 transform 居中：TSX 隐藏态会写内联 translateY(110px)。 */
+  left: 0;
+  right: 0;
+  margin-left: auto;
+  margin-right: auto;
+  z-index: 15;
+  box-sizing: border-box;
+  transition: transform 0.5s ease, left 0.5s ease, right 0.5s ease;
+}
+.setting-panel-container {
+  width: 299px;
+  height: 100vh;
+  position: absolute;
+  top: 0px;
+  right: 0px;
+  transition: transform 0.5s ease;
+  z-index: 15;
+}
+.navigation-panel-container {
+  width: 299px;
+  height: 100vh;
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  transition: transform 0.5s ease;
+  z-index: 15;
+}
+.view-area-page {
+  position: absolute;
+  left: 0px;
+  right: 0px;
+  top: 28px;
+  bottom: 25px;
+  /* width: calc(100% - 100px);
+  height: calc(100% - 100px); */
+  z-index: 5;
+  user-select: text;
+}
+.previous-chapter-single-container {
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: 50%;
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  font-size: 30px;
+  transform: rotate(90deg);
+  cursor: pointer;
+  opacity: 0.2;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
+}
+.next-chapter-single-container {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  transform: rotate(-90deg);
+  cursor: pointer;
+  opacity: 0.2;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+}
+.next-chapter-single-container:hover {
+  opacity: 0.7;
+}
+.previous-chapter-single-container:hover {
+  opacity: 0.7;
+}
+.previous-chapter-single {
+  height: 20px;
+  font-size: 20px;
+}
+.next-chapter-single {
+  font-size: 20px;
+  height: 20px;
+}
+.reader-setting-icon {
+  margin: 8px;
+  opacity: 0.7;
+  width: 50px;
+  padding: 15px;
+}
+.scale-container {
+  min-width: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+.text-to-speech-icon {
+  font-size: 22px;
+  margin-right: 10px;
+}
+.reader-setting-icon-container,
+.reader-zoom-in-icon-container {
+  width: 50px;
+  height: 50px;
+  font-size: 20px;
+  cursor: pointer;
+  z-index: 10;
+  transition: 0.1s;
+  line-height: 30px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: 0, 2s;
+  float: right;
+}
+.reader-setting-icon-container:hover,
+.reader-zoom-in-icon-container:hover {
+  border-radius: 50%;
+}
+.reader-zoom-in-icon-container {
+  font-size: 23px;
+}
+/* 共读按钮:并入右下角按钮栈(与其它 reader-setting-icon-container 同款) */
+.collab-stack-button {
+  position: relative;
+}
+.collab-stack-button::after {
+  /* 未开启时的轻微「在线」提示点,开启后变实心高亮 */
+  content: "";
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(75, 137, 255, 0.55);
+  transition: background 0.15s ease, transform 0.15s ease;
+  pointer-events: none;
+}
+.collab-stack-button-active {
+  background: rgba(75, 137, 255, 0.14) !important;
+}
+.collab-stack-button-active::after {
+  background: #4b89ff;
+  transform: scale(1.25);
+}
+.collab-stack-button-active .reader-setting-icon {
+  opacity: 1;
+  color: #4b89ff;
+}
+
+/* ── 手机端面板关闭按钮(桌面不显示)── */
+.panel-close-button {
+  display: none;
+}
+@media (max-width: 570px) {
+  /* 上下工具栏拉满屏宽(原 450px 在窄屏会超出屏幕)。
+     这里用 !important 压掉 TSX 内联下发的 left/right 偏移——
+     窄屏上侧栏是浮层,不存在「让出 300px」的需求,否则面板会被推出屏幕。 */
+  .operation-panel-container,
+  .progress-panel-container {
+    width: 100vw;
+    left: 0 !important;
+    right: 0 !important;
+    margin-left: 0;
+    margin-right: 0;
+  }
+  /* 窄屏页眉再压薄一份,给正文多留一行 */
+  .reader-top-dock {
+    height: 34px;
+    right: 6px !important;
+    padding: 0 2px 0 4px;
+  }
+  .reader-top-dock .reader-setting-icon-container,
+  .reader-top-dock .reader-zoom-in-icon-container {
+    width: 30px;
+    height: 30px;
+    font-size: 15px;
+  }
+  .reader-top-dock .reader-zoom-in-icon-container {
+    font-size: 16px;
+  }
+  .reader-top-dock .reader-setting-icon {
+    margin: 0;
+    padding: 8px;
+    width: 30px;
+  }
+  .panel-close-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 10px;
+    right: 8px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: rgba(120, 120, 120, 0.28);
+    font-size: 20px;
+    line-height: 1;
+    color: inherit;
+    z-index: 20;
+    cursor: pointer;
+    user-select: none;
+  }
+  /* 右侧设置面板的 × 放内侧左上角 */
+  .setting-panel-container .panel-close-button {
+    right: auto;
+    left: 8px;
+  }
+  /* 上下工具栏的 × 悬浮在栏内侧的屏幕中央,避开栏内按钮和右下按钮栈 */
+  .panel-close-button-top {
+    top: 66px;
+    right: auto;
+    left: calc(50vw - 15px);
+  }
+  .panel-close-button-bottom {
+    top: auto;
+    bottom: 66px;
+    right: auto;
+    left: calc(50vw - 15px);
+  }
+}
+
+/* 手机上收窄边缘触发条:点一下空白大多是想要翻页(点按翻页已支持),
+   打开面板改成需要刻意点到屏幕最边缘的细条(10px),误触率大幅下降 */
+@media (max-width: 570px) {
+  .left-panel,
+  .right-panel {
+    width: 10px;
+  }
+  .top-panel,
+  .bottom-panel {
+    height: 26px;
+  }
+}

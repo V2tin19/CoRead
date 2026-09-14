@@ -1,0 +1,327 @@
+/* ══════════════════════════════════════════════
+   左侧目录面板 · 排版重做
+   纵向自上而下：三按钮一行 → 图书信息 → 全书搜索(独占行) → Tab → 目录列表
+   ══════════════════════════════════════════════ */
+
+.navigation-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 299px;
+  height: 306px;
+  opacity: 1;
+  z-index: 10;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+/* ① 退出 / 书签 / 全屏 —— 一行三个，贴在最顶端 */
+.navigation-operation-slot {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 46px;
+  padding: 8px 10px;
+  box-sizing: border-box;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.16);
+}
+.navigation-operation-slot .book-operation-panel {
+  position: static !important;
+  width: 100% !important;
+  height: auto !important;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  animation: none;
+}
+/* 阅读时间信息行：独占一行放在按钮下方 */
+.navigation-operation-slot .book-opeartion-info {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: 50px;
+  margin-top: 0;
+  font-size: 11px;
+  line-height: 16px;
+  text-align: center;
+  opacity: 0.6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* 三个按钮：等分一行 */
+.navigation-operation-slot .exit-reading-button,
+.navigation-operation-slot .add-bookmark-button,
+.navigation-operation-slot .enter-fullscreen-button {
+  float: none;
+  flex: 1 1 0;
+  min-width: 0;
+  width: auto;
+  height: 30px;
+  margin: 0;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.navigation-operation-slot .operation-button-container {
+  width: 100%;
+  justify-content: center;
+}
+/* 窄面板里收起文字，只留图标，避免挤压换行 */
+.navigation-operation-slot .exit-reading-text,
+.navigation-operation-slot .add-bookmark-text,
+.navigation-operation-slot .enter-fullscreen-text {
+  display: none;
+}
+.navigation-operation-slot .exit-reading-icon,
+.navigation-operation-slot .add-bookmark-icon,
+.navigation-operation-slot .enter-fullscreen-icon {
+  margin: 0 !important;
+  font-size: 17px;
+  line-height: 1;
+}
+.navigation-operation-slot .exit-reading-button:hover,
+.navigation-operation-slot .add-bookmark-button:hover,
+.navigation-operation-slot .enter-fullscreen-button:hover {
+  filter: brightness(1.08);
+}
+
+/* ② 图书信息 */
+.navigation-book-info {
+  position: absolute;
+  top: 76px;
+  left: 0;
+  right: 0;
+  height: 118px;
+}
+.book-cover {
+  float: left;
+  width: 82px;
+  height: 106px;
+  position: relative;
+  left: 12px;
+  top: 6px;
+}
+.book-title {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 18px;
+  opacity: 1;
+  width: 170px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+  position: absolute;
+  left: 106px;
+  top: 10px;
+  margin: 0;
+}
+.book-arthur {
+  font-size: 13px;
+  line-height: 17px;
+  opacity: 0.72;
+  width: 170px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+  position: absolute;
+  left: 106px;
+  top: 34px;
+  margin: 0;
+}
+.reading-duration {
+  position: absolute;
+  left: 106px;
+  top: 58px;
+  font-size: 12px;
+  line-height: 17px;
+  opacity: 0.72;
+}
+
+/* ③ 全书搜索 —— 独占一行 */
+.navigation-search-row {
+  position: absolute;
+  top: 200px;
+  left: 12px;
+  right: 12px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+}
+.navigation-search-row .search-box {
+  width: 100% !important;
+}
+
+/* ④ Tab 栏 */
+.navigation-navigation {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 38px;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  border-top: 1px solid rgba(128, 128, 128, 0.18);
+}
+
+.navigation-body-parent {
+  position: absolute;
+  top: 306px;
+  overflow: hidden;
+  width: 100%;
+  height: calc(100% - 306px);
+}
+.navigation-body {
+  width: 100%;
+  height: 100%;
+  overflow-y: scroll;
+  z-index: 0;
+  overflow-x: hidden;
+}
+.navigation-body:hover::-webkit-scrollbar-thumb,
+.navigation-body:active::-webkit-scrollbar-thumb,
+.navigation-body:focus::-webkit-scrollbar-thumb {
+  display: block;
+  width: 15px;
+  border-radius: 0;
+  opacity: 0.1;
+  background-color: rgba(75, 75, 75, 0.2);
+}
+.navigation-body::-webkit-scrollbar-thumb {
+  border-radius: 0px;
+}
+.navigation-body::-webkit-scrollbar {
+  width: 15px;
+}
+.navigation-panel-empty-bookmark {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 15px;
+  line-height: 60px;
+}
+.navigation-panel {
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  width: 299px;
+  height: 100%;
+  opacity: 1;
+  z-index: 10;
+  animation: fade-left 0.2s ease-in-out 0s 1;
+}
+.navigation-search-title {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: calc(100% - 44px);
+  height: 38px;
+  font-size: 15px;
+  margin: 6px 22px;
+  font-weight: 500;
+}
+.nav-close-icon {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  font-size: 20px;
+  transition: 0.1s;
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.nav-close-icon:hover {
+  border-radius: 50%;
+}
+.nav-search-list {
+  position: absolute;
+  padding: 10px;
+  top: 110px;
+  font-size: 15px;
+  height: calc(100vh - 170px);
+  overflow-y: scroll;
+  width: calc(100% - 20px);
+}
+.nav-search-list-item {
+  padding: 8px;
+  cursor: pointer;
+  word-break: break-all;
+  word-wrap: break-word;
+}
+.content-search-text {
+  color: red !important;
+  font-weight: 600 !important;
+}
+.nav-search-page {
+  position: absolute;
+  left: 40px;
+  bottom: 7px;
+  display: flex;
+  justify-content: space-around;
+  width: calc(100% - 80px);
+  margin-top: 10px;
+}
+.nav-search-page-item {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+.nav-lock-icon {
+  position: absolute;
+  top: 0px;
+  right: 0px;
+  font-size: 20px;
+  opacity: 0.3;
+  margin: 10px;
+  cursor: pointer;
+  font-size: 20px;
+  display: inline-block;
+}
+.nav-search-group {
+  margin-bottom: 6px;
+}
+.nav-search-group-title {
+  display: flex;
+  align-items: center;
+  padding: 6px 4px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.15s ease;
+}
+.nav-search-group-title:hover {
+  background: var(--color-hover, rgba(128, 128, 128, 0.12));
+}
+.nav-search-group-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  font-size: 15px;
+  margin-left: 10px;
+  line-height: 20px;
+}
+.nav-search-group-count {
+  margin-left: 6px;
+  opacity: 0.8;
+}
+.nav-search-group-items {
+  list-style: none;
+  padding: 0 0 0 10px;
+  margin: 2px 0 0;
+}
+.nav-search-list-item-active {
+  background: var(--color-hover, rgba(128, 128, 128, 0.05));
+  border-left: 3px solid var(--color-theme-color, #0179ca);
+  padding-left: 5px;
+}

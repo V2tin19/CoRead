@@ -1,0 +1,124 @@
+/* 「个人设置」页:布局约定同其他页面(top:75/left:200 避开侧边栏和顶栏) */
+.personal-center-container-parent {
+  position: absolute;
+  top: 75px;
+  left: 200px;
+  width: calc(100% - 200px);
+  height: calc(100% - 75px);
+  overflow-y: auto;
+  padding: 0 20px 20px;
+  box-sizing: border-box;
+}
+
+.personal-center-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 15px 0 10px;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.15);
+  flex-wrap: wrap;
+}
+
+.personal-center-tab {
+  padding: 6px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.7;
+}
+
+.personal-center-tab:hover {
+  opacity: 1;
+  background: rgba(128, 128, 128, 0.12);
+}
+
+.personal-center-tab.active {
+  opacity: 1;
+  font-weight: 600;
+  background: rgba(75, 137, 255, 0.14);
+  color: #4b89ff;
+}
+
+.personal-center-section {
+  padding: 20px 5px;
+}
+
+/* 同一个 tab 里的第二块设置:与上一块之间加一条分隔线 */
+.personal-center-section-divider {
+  border-top: 1px solid rgba(128, 128, 128, 0.15);
+}
+
+.personal-center-section-title {
+  font-size: 17px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.personal-center-hint {
+  font-size: 13px;
+  opacity: 0.6;
+  line-height: 1.6;
+  margin-bottom: 10px;
+}
+
+.personal-center-input {
+  width: 280px;
+  max-width: 100%;
+  height: 36px;
+  padding: 0 12px;
+  font-size: 15px;
+  border-radius: 6px;
+  border: 1px solid rgba(128, 128, 128, 0.35);
+  background: transparent;
+  color: inherit;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.personal-center-input:focus {
+  border-color: #4b89ff;
+}
+
+/* 内嵌笔记/高亮列表:给 absolute 定位的 NoteList 提供定位上下文 */
+.personal-center-note-wrapper {
+  position: relative;
+  top: -10px;
+  height: calc(100% - 70px);
+}
+
+.personal-center-stats-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 10px 0 15px;
+}
+
+.personal-center-stat-card {
+  min-width: 160px;
+  padding: 16px 20px;
+  border-radius: 10px;
+  background: rgba(128, 128, 128, 0.08);
+  box-sizing: border-box;
+}
+
+.personal-center-stat-value {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.personal-center-stat-label {
+  font-size: 13px;
+  opacity: 0.6;
+}
+
+.personal-center-link {
+  display: inline-block;
+  font-size: 14px;
+  color: #4b89ff;
+  cursor: pointer;
+}
+
+.personal-center-link:hover {
+  text-decoration: underline;
+}

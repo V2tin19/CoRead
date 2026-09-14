@@ -1,0 +1,447 @@
+function createBookElement(sectionCount) {
+  let tempDiv = document.getElementById("book");
+  if (tempDiv) {
+    tempDiv.remove();
+  }
+  // Create the book div
+
+  const bookDiv = document.createElement("div");
+  bookDiv.id = "book";
+
+  // Create the canvas element
+  const canvas = document.createElement("canvas");
+  canvas.id = "pageflip-canvas";
+
+  // Create the pages div
+  const pagesDiv = document.createElement("div");
+  pagesDiv.id = "pages";
+
+  // Create the section elements based on sectionCount
+  for (let i = 0; i < sectionCount; i++) {
+    const section = document.createElement("section");
+    pagesDiv.appendChild(section);
+  }
+
+  // Append the canvas and pages div to the book div
+  bookDiv.appendChild(canvas);
+  bookDiv.appendChild(pagesDiv);
+
+  // Append the book div to the body
+  document.body.appendChild(bookDiv);
+  let css = `
+      #book {
+        position: fixed;
+        width: 200vw;
+        height: 100vh;
+        left: -100vw;
+        top: 0vh;
+        float: left;
+        margin: 0;
+        display: none;
+      }
+
+      #pages section {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+        position: absolute;
+        left: 100vw;
+        top: 0px;
+        overflow: hidden;
+        margin: 0;
+      }
+
+      #pageflip-canvas {
+        position: absolute;
+        z-index: 100;
+        margin: 0;
+      }
+    `;
+  let style = document.createElement("style");
+  style.innerHTML = css;
+  document.head.appendChild(style);
+}
+
+let flipRenderTimer: number | null = null;
+let flipAnimFrameId: number | null = null;
+let flipAnimating = false;
+
+export const addPageAnimation = (
+  totalPage: number,
+  isDarkMode,
+  backgroundColor: string,
+  pageIndex = 0
+) => {
+  // 清理之前的动画
+  if (flipRenderTimer) {
+    clearInterval(flipRenderTimer);
+    flipRenderTimer = null;
+  }
+  if (flipAnimFrameId) {
+    cancelAnimationFrame(flipAnimFrameId);
+    flipAnimFrameId = null;
+  }
+  flipAnimating = false;
+
+  createBookElement(Math.max(1, Math.floor(totalPage) + 1));
+  var WINDOW_WIDTH = window.innerWidth;
+  var WINDOW_HEIGHT = window.innerHeight;
+
+  // The canvas size equals to the book dimensions + this padding
+  var CANVAS_PADDING = 0;
+
+  // Dimensions of the whole book
+  var BOOK_WIDTH = 2 * WINDOW_WIDTH - CANVAS_PADDING;
+  var BOOK_HEIGHT = WINDOW_HEIGHT - CANVAS_PADDING;
+
+  // Dimensions of one page in the book
+  var PAGE_WIDTH = WINDOW_WIDTH;
+  var PAGE_HEIGHT = WINDOW_HEIGHT;
+  var touchStartX = 0;
+  var touchEndX = 0;
+
+  // Canvas 降分辨率比例 (0.5 = 半分辨率，减少50%绘制计算量)
+  var CANVAS_SCALE = 0.5;
+
+  // Vertical spacing between the top edge of the book and the papers
+  var PAGE_Y = (BOOK_HEIGHT - PAGE_HEIGHT) / 2;
+
+  var pageNum = 0;
+
+  var canvas: any = document.getElementById("pageflip-canvas");
+  if (!canvas) return;
+  var context = canvas.getContext("2d");
+
+  var mouse = { x: 0, y: 0 };
+
+  var flips: any = [];
+
+  var book = document.getElementById("book");
+  if (!book) return;
+
+  // List of all the page elements in the DOM
+  var pages = book.getElementsByTagName("section");
+
+  // Organize the depth of our pages and create the flip definitions
+  for (var i = 0, len = pages.length; i < len; i++) {
+    pages[i].style.zIndex = len - i + "";
+
+    flips.push({
+      // Current progress of the flip (left -1 to right +1)
+      progress: 1,
+      // The target value towards which progress is always moving
+      target: 1,
+      // The page DOM element related to this flip
+      page: pages[i],
+      // True while the page is being dragged
+      dragging: false,
+    });
+  }
+
+  // Resize the canvas to match the book size (with scale reduction for GPU performance)
+  canvas.width = (BOOK_WIDTH + CANVAS_PADDING * 2) * CANVAS_SCALE;
+  canvas.height = (BOOK_HEIGHT + CANVAS_PADDING * 2) * CANVAS_SCALE;
+  canvas.style.width = (BOOK_WIDTH + CANVAS_PADDING * 2) + "px";
+  canvas.style.height = (BOOK_HEIGHT + CANVAS_PADDING * 2) + "px";
+
+  // 启用 GPU 加速: will-change 提示浏览器为该 canvas 创建独立合成层
+  canvas.style.willChange = "transform";
+  // 初始 transform 触发 GPU 层提升
+  canvas.style.transform = "translateZ(0)";
+
+  // Offset the canvas so that it's padding is evenly spread around the book
+  canvas.style.top = -CANVAS_PADDING + "px";
+  canvas.style.left = -CANVAS_PADDING + "px";
+
+  // 使用 requestAnimationFrame 替代 setInterval，与浏览器刷新率同步
+  flipAnimating = true;
+  function animationLoop() {
+    if (!flipAnimating) return;
+    render();
+    flipAnimFrameId = requestAnimationFrame(animationLoop);
+  }
+  flipAnimFrameId = requestAnimationFrame(animationLoop);
+
+  book.addEventListener("touchmove", mouseMoveHandler, false);
+  book.addEventListener("touchstart", mouseDownHandler, false);
+  book.addEventListener("touchend", mouseUpHandler, false);
+
+  function mouseMoveHandler(event) {
+    if (!book || !event.touches?.[0]) return;
+    const touch = event.touches[0];
+    const bookRect = book.getBoundingClientRect();
+    mouse.x = touch.screenX - bookRect.left - BOOK_WIDTH / 2;
+    mouse.y = touch.screenY - bookRect.top;
+  }
+
+  function mouseDownHandler(event) {
+    const touch = event.touches?.[0];
+    if (!touch) return;
+    touchStartX = touch.screenX;
+    if (touch.screenX < window.screen.width / 2 && pageNum - 1 >= 0) {
+      flips[pageNum - 1].dragging = true;
+    } else if (
+      touch.screenX > window.screen.width / 2 &&
+      pageNum + 1 < flips.length
+    ) {
+      flips[pageNum].dragging = true;
+    }
+
+    // Prevents the text selection cursor from appearing when dragging
+    event.preventDefault();
+  }
+
+  function mouseUpHandler(event) {
+    const touch = event.changedTouches?.[0];
+    if (!touch) return;
+    touchEndX = touch.screenX;
+    for (var i = 0; i < flips.length; i++) {
+      // If this flip was being dragged we animate to its destination
+      if (flips[i].dragging) {
+        // Figure out which page we should go to next depending on the flip direction
+        if (mouse.x < (PAGE_WIDTH / 4) * 3 && touchEndX - touchStartX < 0) {
+          flips[i].target = -1;
+          pageNum = Math.min(pageNum + 1, flips.length);
+        } else if (
+          mouse.x > (PAGE_WIDTH / 4) * 1 &&
+          touchEndX - touchStartX > 0
+        ) {
+          flips[i].target = 1;
+          pageNum = Math.max(pageNum - 1, 0);
+        } else {
+          //实现当不满足以上条件时将拖拽的页面恢复到原来的位置
+          if (i === pageNum) {
+            // Page was being dragged forward attempt
+            flips[i].target = 1;
+          } else if (i === pageNum - 1) {
+            // Page was being dragged backward attempt
+            flips[i].target = -1;
+          }
+        }
+      }
+
+      flips[i].dragging = false;
+    }
+  }
+
+  function render() {
+    // 按缩放比例缩小绘图坐标，减少实际像素绘制量
+    context.save();
+    context.setTransform(CANVAS_SCALE, 0, 0, CANVAS_SCALE, 0, 0);
+    context.clearRect(0, 0, BOOK_WIDTH + CANVAS_PADDING * 2, BOOK_HEIGHT + CANVAS_PADDING * 2);
+
+    for (var i = 0; i < flips.length; i++) {
+      var flip = flips[i];
+
+      if (flip.dragging) {
+        flip.target = Math.max(Math.min(mouse.x / PAGE_WIDTH, 1), -1);
+      }
+
+      flip.progress += (flip.target - flip.progress) * 0.2;
+
+      // If the flip is being dragged or is somewhere in the middle of the book, render it
+      if (flip.dragging || Math.abs(flip.progress) < 0.997) {
+        drawFlip(flip);
+      }
+    }
+    // 恢复之前的变换状态
+    context.restore();
+  }
+
+  function drawFlip(flip) {
+    // Strength of the fold is strongest in the middle of the book
+    var strength = 1 - Math.abs(flip.progress);
+
+    // Width of the folded paper
+    var foldWidth = PAGE_WIDTH * 0.5 * (1 - flip.progress);
+
+    // X position of the folded paper
+    var foldX = PAGE_WIDTH * flip.progress + foldWidth;
+
+    // How far the page should outdent vertically due to perspective
+    var verticalOutdent = 20 * strength;
+
+    // The maximum width of the left and right side shadows
+    var paperShadowWidth =
+      PAGE_WIDTH * 0.5 * Math.max(Math.min(1 - flip.progress, 0.5), 0);
+    var rightShadowWidth =
+      PAGE_WIDTH * 0.5 * Math.max(Math.min(strength, 0.5), 0);
+    var leftShadowWidth =
+      PAGE_WIDTH * 0.5 * Math.max(Math.min(strength, 0.5), 0);
+
+    // Change page element width to match the x position of the fold
+    flip.page.style.width = Math.max(foldX, 0) + "px";
+
+    context.save();
+    context.translate(CANVAS_PADDING + BOOK_WIDTH / 2, PAGE_Y + CANVAS_PADDING);
+
+    // Draw a sharp shadow on the left side of the page
+    context.strokeStyle =
+      (isDarkMode === "no" ? "rgba(0,0,0," : "rgba(255,255,255,") +
+      0.05 * strength +
+      ")";
+    context.lineWidth = 30 * strength;
+    context.beginPath();
+    context.moveTo(foldX - foldWidth, -verticalOutdent * 0.5);
+    context.lineTo(foldX - foldWidth, PAGE_HEIGHT + verticalOutdent * 0.5);
+    context.stroke();
+
+    // Right side drop shadow
+    var rightShadowGradient = context.createLinearGradient(
+      foldX,
+      0,
+      foldX + rightShadowWidth,
+      0
+    );
+    rightShadowGradient.addColorStop(
+      0,
+      (isDarkMode === "no" ? "rgba(0,0,0," : "rgba(255,255,255,") +
+        strength * 0.2 +
+        ")"
+    );
+    rightShadowGradient.addColorStop(
+      0.8,
+      (isDarkMode === "no" ? "rgba(0,0,0," : "rgba(255,255,255,") + "0.0)"
+    );
+
+    context.fillStyle = rightShadowGradient;
+    context.beginPath();
+    context.moveTo(foldX, 0);
+    context.lineTo(foldX + rightShadowWidth, 0);
+    context.lineTo(foldX + rightShadowWidth, PAGE_HEIGHT);
+    context.lineTo(foldX, PAGE_HEIGHT);
+    context.fill();
+
+    // Left side drop shadow
+    var leftShadowGradient = context.createLinearGradient(
+      foldX - foldWidth - leftShadowWidth,
+      0,
+      foldX - foldWidth,
+      0
+    );
+    leftShadowGradient.addColorStop(
+      0,
+      (isDarkMode === "no" ? "rgba(0,0,0," : "rgba(255,255,255,") + "0.0)"
+    );
+    leftShadowGradient.addColorStop(
+      1,
+      (isDarkMode === "no" ? "rgba(0,0,0," : "rgba(255,255,255,") +
+        +strength * 0.15 +
+        ")"
+    );
+
+    context.fillStyle = leftShadowGradient;
+    context.beginPath();
+    context.moveTo(foldX - foldWidth - leftShadowWidth, 0);
+    context.lineTo(foldX - foldWidth, 0);
+    context.lineTo(foldX - foldWidth, PAGE_HEIGHT);
+    context.lineTo(foldX - foldWidth - leftShadowWidth, PAGE_HEIGHT);
+    context.fill();
+
+    // Gradient applied to the folded paper (highlights & shadows)
+    var foldGradient = context.createLinearGradient(
+      foldX - paperShadowWidth,
+      0,
+      foldX,
+      0
+    );
+    if (backgroundColor) {
+      foldGradient.addColorStop(0.35, backgroundColor);
+      foldGradient.addColorStop(0.73, backgroundColor);
+      foldGradient.addColorStop(0.9, backgroundColor);
+      foldGradient.addColorStop(1.0, backgroundColor);
+    } else if (isDarkMode === "no") {
+      foldGradient.addColorStop(0.35, "#fafafa");
+      foldGradient.addColorStop(0.73, "#eeeeee");
+      foldGradient.addColorStop(0.9, "#fafafa");
+      foldGradient.addColorStop(1.0, "#e2e2e2");
+    } else {
+      foldGradient.addColorStop(0.35, "#333");
+      foldGradient.addColorStop(0.73, "#444");
+      foldGradient.addColorStop(0.9, "#333");
+      foldGradient.addColorStop(1.0, "#444");
+    }
+
+    context.fillStyle = foldGradient;
+    context.strokeStyle =
+      (isDarkMode === "no" ? "rgba(0,0,0," : "rgba(255,255,255,") + "0.06)";
+    context.lineWidth = 0.5;
+
+    // Draw the folded piece of paper
+    context.beginPath();
+    context.moveTo(foldX, 0);
+    context.lineTo(foldX, PAGE_HEIGHT);
+    context.quadraticCurveTo(
+      foldX,
+      PAGE_HEIGHT + verticalOutdent * 2,
+      foldX - foldWidth,
+      PAGE_HEIGHT + verticalOutdent
+    );
+    context.lineTo(foldX - foldWidth, -verticalOutdent);
+    context.quadraticCurveTo(foldX, -verticalOutdent * 2, foldX, 0);
+
+    context.fill();
+    context.stroke();
+
+    context.restore();
+  }
+
+  function resetFlips() {
+    for (var i = 0; i < flips.length; i++) {
+      var flip = flips[i];
+      flip.dragging = false;
+      if (i < pageNum) {
+        flip.progress = -1;
+        flip.target = -1;
+        flip.page.style.width = "0px";
+      } else {
+        flip.progress = 1;
+        flip.target = 1;
+        flip.page.style.width = PAGE_WIDTH + "px";
+      }
+    }
+  }
+
+  return {
+    flipToNextPage: () => {
+      if (!flips.length || pageNum >= flips.length) return;
+      if (pageNum + 1 < flips.length) {
+        flips[pageNum].target = -1;
+        pageNum = Math.min(pageNum + 1, flips.length);
+      }
+    },
+    flipToPrevPage: () => {
+      if (!flips.length || pageNum <= 0) return;
+      if (pageNum - 1 >= 0 && flips[pageNum - 1]) {
+        flips[pageNum - 1].target = 1;
+        pageNum = Math.max(pageNum - 1, 0);
+      }
+    },
+    setPageNum: (n: number) => {
+      if (!flips.length) return;
+      pageNum = Math.max(0, Math.min(n, flips.length - 1));
+      resetFlips();
+    },
+    resetFlips,
+    cleanup: () => {
+      // 清理动画资源和 GPU 加速标记
+      flipAnimating = false;
+      if (flipAnimFrameId) {
+        cancelAnimationFrame(flipAnimFrameId);
+        flipAnimFrameId = null;
+      }
+      if (flipRenderTimer) {
+        clearInterval(flipRenderTimer);
+        flipRenderTimer = null;
+      }
+      const canvasEl = document.getElementById("pageflip-canvas") as HTMLCanvasElement;
+      if (canvasEl) {
+        canvasEl.style.willChange = "";
+        canvasEl.style.transform = "";
+      }
+    },
+    mouseDownHandler,
+    mouseUpHandler,
+    mouseMoveHandler,
+  };
+};

@@ -1,0 +1,13 @@
+{
+  "name": "coread-collab-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Realtime collaboration server for CoRead rooms",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

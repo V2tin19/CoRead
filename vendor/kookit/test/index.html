@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="./index.css" />
+    <script type="module">
+      import "./pdfjs/pdf.min.mjs";
+      // import * as pdfjsWorker from "./pdfjs/pdf.worker.mjs";
+      pdfjsLib.GlobalWorkerOptions.workerSrc = "./pdfjs/pdf.worker.min.mjs";
+      import * as Kookit from "../dist/kookit.mjs";
+      window.Kookit = Kookit;
+    </script>
+    <!-- <script src="../dist/kookit.umd.js"></script> -->
+    <script src="https://cdn.bootcdn.net/ajax/libs/localforage/1.9.0/localforage.js"></script>
+    <!-- <script src="./jszip.min.js"></script> -->
+    <script src="./fflate.min.js"></script>
+    <script src="./underscore-umd-min.js"></script>
+    <script src="./untar.js"></script>
+    <script src="./zip-no-worker.min.js"></script>
+    <script src="../lib/libunrar/rpc.js"></script>
+    <script src="../lib/7z-wasm/7zz.umd.js"></script>
+    <title>Kookit - Koodo Reader</title>
+  </head>
+  <body>
+    <input type="file" id="yourFile" />
+    <div class="ebook-viewer" id="page-area"></div>
+    <div class="next">Next</div>
+    <div class="prev">Prev</div>
+    <ul class="content"></ul>
+    <script>
+      const handleNext = () => {
+        rendition.next();
+      };
+      const handlePrev = () => {
+        rendition.prev();
+      };
+      var fileToRead = document.getElementById("yourFile");
+      fileToRead.addEventListener(
+        "change",
+        function (event) {
+          var files = fileToRead.files;
+          if (files.length) {
+            let reader = new FileReader();
+            reader.readAsArrayBuffer(files[0]);
+            reader.onload = (event) => {
+              const file_content = event.target.result;
+              localforage.setItem("book", file_content);
+            };
+          }
+        },
+        false
+      );
+
+      const renderFunc = async () => {
+        localforage.getItem("book").then(async (result) => {
+          const { PdfRender } = Kookit;
+          var loaded = function () {};
+
+          var progressShow = function (fileName, fileSize, progress) {};
+
+          var errShow = function (errMsg) {};
+
+          // sort by name
+
+          // var rpc;
+          // var so = { loaded: loaded, progressShow: progressShow };
+          // RPC.new("./worker.js", so).then(function (r) {
+          //   rpc = r;
+          //   //test
+          //   localforage.getItem("book").then(async (result) => {
+          //     // const { ComicRender } = Kookit;
+          //     console.log(result);
+          //     var buffers = [result];
+          //     var dataToPass = [{ name: "test.rar", content: result }];
+          //     var password = null;
+          //     rpc.transferables = buffers;
+          //     rpc
+          //       .unrar(dataToPass, password, 0)
+          //       .then(function (ret) {
+          //         console.log(ret);
+          //       })
+          //       .catch(errShow);
+          //   });
+          // });
+
+          // let unrar = new Unrar(result);
+          // var entries = unrar.getEntries();
+
+          // let rendition = new ComicRender(
+          //   entries.map((item) => item.name),
+          //   unrar,
+          //   "scroll",
+          //   "cbr"
+          // );
+
+          // console.log(
+          //   unrar.decompress(
+          //     "Fantastic Four Anniversary Tribute (2021) 001-001.jpg"
+          //   )
+          // );
+          // await rendition.renderTo(
+          //   document.getElementsByClassName("ebook-viewer")[0]
+          // );
+          let rendition = new PdfRender(result, "scroll", "sliding");
+          await rendition.renderTo(
+            document.getElementsByClassName("ebook-viewer")[0]
+          );
+
+          let chapterList = await rendition.getChapter();
+
+          document
+            .getElementsByClassName("next")[0]
+            .addEventListener("click", () => {
+              rendition.next();
+            });
+          document
+            .getElementsByClassName("prev")[0]
+            .addEventListener("click", () => {
+              rendition.prev();
+            });
+          rendition.on("rendered", () => {});
+          chapterList.forEach((item) => {
+            let li = document.createElement("li");
+            li.innerText = item.label;
+            li.addEventListener("click", (e) => {
+              e.preventDefault();
+              rendition.goToChapter(item.index);
+            });
+            document.getElementsByClassName("content")[0].appendChild(li);
+          });
+        });
+      };
+      renderFunc();
+      window.addEventListener("resize", renderFunc);
+    </script>
+  </body>
+</html>

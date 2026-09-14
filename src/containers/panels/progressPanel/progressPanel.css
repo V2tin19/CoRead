@@ -1,0 +1,340 @@
+/* ───────────────────────────────────────────────
+   阅读进度面板（底部「当前进度」）
+   三行结构：信息行 / 控制行 / 操作行
+   —— 之前 TSX 已改三行，但 CSS 没跟上，导致
+      「阅读选项 / AI 问书 / 听书」按默认 inline-block
+      尺寸硬撑，溢出写死的 450px 面板。本文件补齐。
+   ─────────────────────────────────────────────── */
+
+.progress-text {
+  font-size: 15px;
+  width: 100%;
+  margin-top: 75px;
+  text-align: center;
+  height: 25px;
+  overflow: hidden;
+}
+.progress-slide-container {
+  width: 209px;
+}
+.progress-slide-line {
+  width: 100%;
+  height: 0px;
+  border-bottom: 2px solid rgba(112, 112, 112, 1);
+  opacity: 1;
+  margin-top: 10px;
+  margin-left: 52px;
+}
+.progress-slide-circle {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  opacity: 1;
+  position: absolute;
+  left: 100px;
+  bottom: 16px;
+}
+
+/* ── 上一章 / 下一章 箭头 ──
+   注意：rotate 加在「容器」上，icon 在里面，
+   这样箭头转动后点击热区不会跟着错位。 */
+.previous-chapter {
+  width: 25px !important;
+  height: 25px !important;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  opacity: 0.85;
+  font-size: 15px;
+  transform: rotate(90deg);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--main-color, #4b89ff);
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+.next-chapter {
+  width: 25px;
+  min-width: 25px;
+  height: 25px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  opacity: 0.85;
+  font-size: 15px;
+  transform: rotate(-90deg);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--main-color, #4b89ff);
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+.previous-chapter:hover,
+.next-chapter:hover {
+  background: rgba(75, 137, 255, 0.12);
+  opacity: 1;
+}
+
+.previous-chapter-icon {
+  line-height: 1 !important;
+  margin-left: 0 !important;
+  font-size: 13px;
+}
+.next-chapter-icon {
+  line-height: 1 !important;
+  margin-left: 0 !important;
+  font-size: 13px;
+}
+
+/* ── 进度条 ──
+   限定到 .input-progress，避免裸 input[type=range]
+   影响全站其它滑杆。 */
+.input-progress {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 20px;
+  background: transparent;
+  cursor: pointer;
+  margin: 0 6px;
+}
+.input-progress::-webkit-slider-thumb {
+  -webkit-appearance: none;
+}
+.input-progress::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 0px;
+  border-bottom: 2px solid rgba(112, 112, 112, 1);
+  opacity: 1;
+  cursor: pointer;
+  background: transparent;
+}
+.input-progress::-moz-range-track {
+  width: 100%;
+  height: 0px;
+  border-bottom: 2px solid rgba(112, 112, 112, 1);
+  opacity: 1;
+  cursor: pointer;
+  background: transparent;
+}
+.input-progress::-ms-track {
+  width: 100%;
+  height: 0px;
+  border-bottom: 2px solid rgba(112, 112, 112, 1);
+  opacity: 1;
+  cursor: pointer;
+  background: transparent;
+  border-color: transparent;
+  color: transparent;
+}
+.input-progress:focus {
+  outline: none;
+}
+.input-progress::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(112, 112, 112, 1);
+  border-radius: 50%;
+  opacity: 1;
+  position: relative;
+  bottom: 8px;
+  cursor: pointer;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 1);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+}
+.input-progress::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(112, 112, 112, 1);
+  border-radius: 50%;
+  opacity: 1;
+  position: relative;
+  bottom: 8px;
+  cursor: pointer;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 1);
+}
+.input-progress::-ms-thumb {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(112, 112, 112, 1);
+  border-radius: 50%;
+  opacity: 1;
+  position: relative;
+  bottom: 8px;
+  cursor: pointer;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 1);
+}
+
+/* ── 面板本体（自适应宽度，不再写死 450px）──
+   注意：外层 .progress-panel-container 已经负责「居中 + 限宽」，
+   这里必须填满容器即可。若在此再写 left:50% + translateX(-50%)，
+   会和容器的居中叠加，导致整块偏到左下角。 */
+.progress-panel {
+  width: 100% !important;
+  min-height: 100px;
+  opacity: 1;
+  position: absolute;
+  bottom: 0px;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  box-sizing: border-box;
+  padding: 12px 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-radius: 14px 14px 0 0;
+  animation: fade-up 0.1s ease-in-out 0s 1;
+  color: var(--second-text-color, rgba(40, 40, 40, 0.92));
+}
+
+/* ── 三行通用 ── */
+.progress-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* 第一行：进度 / 页码 / 章节 */
+.progress-row-info {
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+.progress-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  opacity: 0.92;
+}
+
+/* 跳页 / 跳章输入框 */
+.progress-jump-input {
+  width: 34px;
+  border: none;
+  height: 20px;
+  border-radius: 5px;
+  padding: 0 4px 0 8px;
+  margin: 0 2px;
+  box-sizing: border-box;
+  text-align: center;
+  font-size: 13px;
+  background: rgba(0, 0, 0, 0.05);
+  color: inherit;
+}
+.progress-jump-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(75, 137, 255, 0.35);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* 第二行：上一章 / 滑杆 / 下一章 */
+.progress-row-controls {
+  gap: 4px;
+}
+
+/* 第三行：阅读选项 / AI 问书 / 听书 */
+.progress-row-actions {
+  gap: 8px;
+}
+.progress-option-btn {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: none;
+  border-radius: 9px;
+  /* koodo 原生主色：实心蓝 */
+  background: #4b89ff;
+  color: #fff;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: filter 0.15s ease, transform 0.1s ease;
+}
+.progress-option-btn:hover {
+  filter: brightness(1.08);
+}
+.progress-option-btn:active {
+  transform: scale(0.98);
+}
+.progress-option-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.progress-action-btn {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(75, 137, 255, 0.45);
+  border-radius: 9px;
+  background: transparent;
+  color: #4b89ff;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.progress-action-btn:hover {
+  background: rgba(75, 137, 255, 0.1);
+}
+.progress-action-active {
+  background: rgba(75, 137, 255, 0.16);
+  font-weight: 600;
+}
+
+/* 老 id 选择器保留（兼容其它地方可能的引用），
+   但把写死宽度收敛，避免和新 class 冲突 */
+#jumpPage,
+#jumpChapter {
+  width: 34px;
+  border: none;
+  height: 20px;
+  border-radius: 5px;
+  padding: 0 4px 0 8px;
+  margin: 0 2px;
+  box-sizing: border-box;
+  text-align: center;
+  font-size: 13px;
+}
+#jumpPage,
+#jumpChapter {
+  outline: none;
+}
+
+/* ── 窄屏 ── */
+@media (max-width: 570px) {
+  .progress-panel {
+    width: 100% !important;
+    border-radius: 14px 14px 0 0;
+    padding: 10px 12px 12px;
+    gap: 6px;
+  }
+  .progress-row-info {
+    font-size: 12px;
+    gap: 6px;
+  }
+  .progress-row-actions {
+    gap: 6px;
+  }
+  .progress-option-btn,
+  .progress-action-btn {
+    height: 32px;
+    font-size: 12px;
+  }
+}

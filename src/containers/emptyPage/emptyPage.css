@@ -1,0 +1,107 @@
+.empty-page-container {
+  position: absolute;
+  top: 75px;
+  left: 203px;
+  width: calc(100vw - 203px);
+  height: calc(100vh - 75px);
+  overflow: hidden;
+}
+.empty-page-illustration {
+  height: 80%;
+  position: absolute;
+  bottom: 30px;
+  right: 40px;
+}
+.empty-illustration-container {
+  height: 350px;
+  position: absolute;
+  right: 0;
+  bottom: 0;
+
+  z-index: -1;
+  overflow: hidden;
+}
+.empty-page-info-container {
+  position: absolute;
+  left: 30px;
+  top: 60px;
+}
+.empty-page-info-main {
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 42px;
+  letter-spacing: -0.5px;
+  opacity: 1;
+}
+.empty-page-info-sub {
+  max-width: 540px;
+  font-size: 16px;
+  line-height: 24px;
+  opacity: 0.65;
+  margin-top: 6px;
+}
+
+.empty-welcome-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(180px, 240px));
+  gap: 16px;
+  margin-top: 36px;
+  max-width: calc(100vw - 320px);
+}
+
+@media screen and (max-width: 1100px) {
+  .empty-welcome-grid {
+    grid-template-columns: repeat(2, minmax(180px, 240px));
+  }
+}
+
+@media screen and (max-width: 650px) {
+  .empty-welcome-grid {
+    grid-template-columns: 1fr;
+    max-width: calc(100vw - 60px);
+  }
+}
+
+.empty-welcome-card {
+  display: flex;
+  flex-direction: column;
+  padding: 18px 18px 20px;
+  border-radius: 12px;
+  background: rgba(120, 120, 120, 0.05);
+  border: 1px solid rgba(120, 120, 120, 0.2);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+}
+
+.empty-welcome-card:hover {
+  transform: translateY(-3px);
+  background: rgba(75, 137, 255, 0.06);
+  border-color: rgba(75, 137, 255, 0.4);
+  box-shadow: 0 8px 24px rgba(75, 137, 255, 0.1);
+}
+
+.empty-welcome-icon-box {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+  color: #4b89ff;
+  background: rgba(75, 137, 255, 0.12);
+  font-size: 18px;
+}
+
+.empty-welcome-card-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  line-height: 1.4;
+}
+
+.empty-welcome-card-desc {
+  font-size: 12px;
+  line-height: 1.55;
+  opacity: 0.65;
+}
