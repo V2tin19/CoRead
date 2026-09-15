@@ -23,7 +23,6 @@ import {
   updateDiscordPresence,
   clearDiscordPresence,
 } from "../../utils/reader/discordRPC";
-import SupportDialog from "../../components/dialogs/supportDialog";
 import { READING_PANEL_TOGGLE_EVENT } from "../../utils/reader/mouseEvent";
 import CollabPanel from "../../containers/collabPanel";
 import DoodleLayer from "../../components/doodleLayer";
@@ -913,7 +912,6 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
         {this.props.currentBook.key && <Viewer {...(renditionProps as any)} />}
         {this.props.isConvertOpen && <ConvertDialog />}
         {this.props.isPdfCropOpen && <PdfCropDialog />}
-        <SupportDialog />
         {this.props.isOpenPopupOptionDialog && (
           <>
             <PopupOptionDialog />

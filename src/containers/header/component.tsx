@@ -9,7 +9,6 @@ import {
   TokenService,
   KOReaderUtil,
 } from "../../assets/lib/kookit-extra-browser.min";
-import UpdateInfo from "../../components/dialogs/updateDialog";
 import { restoreFromConfigJson } from "../../utils/file/restore";
 import { backupToConfigJson, generateSnapshot } from "../../utils/file/backup";
 import { isElectron } from "react-device-detect";
@@ -45,7 +44,6 @@ import {
   vexComfirmAsync,
 } from "../../utils/common";
 import { driveList } from "../../constants/driveList";
-import SupportDialog from "../../components/dialogs/supportDialog";
 import SyncService from "../../utils/storage/syncService";
 import { LocalFileManager } from "../../utils/file/localFile";
 import packageJson from "../../../package.json";
@@ -945,8 +943,6 @@ class Header extends React.Component<HeaderProps, HeaderState> {
             } as any)}
           />
         )}
-        <SupportDialog />
-        <UpdateInfo />
       </div>
     );
   }
