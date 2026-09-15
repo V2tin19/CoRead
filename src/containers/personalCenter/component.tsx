@@ -12,6 +12,8 @@ import {
 import {
   getCollabServerUrlSetting,
   saveCollabServerUrlSetting,
+  getCollabServerTokenSetting,
+  saveCollabServerTokenSetting,
 } from "../../utils/collab/collabServerConfig";
 
 // 「个人中心」页:共读昵称 + 共读服务器 + 我的笔记 / 高亮 + 阅读数据
@@ -27,6 +29,8 @@ interface PersonalCenterState {
   displayName: string;
   /** 共读服务器地址;空串 = 未配置 = 本地阅读器模式 */
   serverUrl: string;
+  /** 共读鉴权 Token;空串 = 无鉴权 */
+  serverToken: string;
   totalSeconds: number;
   weekSeconds: number;
   streakDays: number;
@@ -56,6 +60,7 @@ class PersonalCenter extends React.Component<
       tab: "profile",
       displayName: getOrCreateDisplayName(),
       serverUrl: getCollabServerUrlSetting(),
+      serverToken: getCollabServerTokenSetting(),
       totalSeconds: 0,
       weekSeconds: 0,
       streakDays: 0,
@@ -130,6 +135,15 @@ class PersonalCenter extends React.Component<
   handleServerUrlBlur = () => {
     const saved = saveCollabServerUrlSetting(this.state.serverUrl);
     this.setState({ serverUrl: saved });
+  };
+
+  handleServerTokenChange = (value: string) => {
+    this.setState({ serverToken: value });
+  };
+
+  handleServerTokenBlur = () => {
+    const saved = saveCollabServerTokenSetting(this.state.serverToken);
+    this.setState({ serverToken: saved });
   };
 
   dateToKey(d: Date) {
@@ -209,6 +223,21 @@ class PersonalCenter extends React.Component<
                 <br />
                 修改地址后,请退出并重新进入共读房间才会生效。
               </div>
+
+              <div className="personal-center-section-title" style={{ marginTop: "16px" }}>
+                共读鉴权 Token（可选）
+              </div>
+              <div className="personal-center-hint">
+                若你的共读服务器配置了 COLLAB_TOKEN，请在此填写；未配置请留空。
+              </div>
+              <input
+                className="personal-center-input"
+                type="password"
+                value={this.state.serverToken}
+                placeholder="共读服务 Token (可选)"
+                onChange={(event) => this.handleServerTokenChange(event.target.value)}
+                onBlur={this.handleServerTokenBlur}
+              />
             </div>
           </>
         )}

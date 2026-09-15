@@ -13,6 +13,8 @@ import { getOrCreateDisplayName } from "../../utils/collab/roomBook";
 import {
   getCollabServerUrlSetting,
   saveCollabServerUrlSetting,
+  getCollabServerTokenSetting,
+  saveCollabServerTokenSetting,
 } from "../../utils/collab/collabServerConfig";
 import { sanitizeRemoteNote } from "../../utils/collab/remoteNote";
 import {
@@ -68,6 +70,7 @@ class CollabPanel extends React.Component<CollabPanelProps, CollabPanelState> {
     this.state = {
       // 与「个人中心 → 共读服务器」是同一份设置(唯一真源),这里只是回显
       serverUrl: getCollabServerUrlSetting() || collabClient.serverUrl,
+      serverToken: getCollabServerTokenSetting() || collabClient.token,
       roomIdInput: "",
       activeRoomId: collabClient.roomId,
       ownerId: "",
@@ -387,6 +390,11 @@ class CollabPanel extends React.Component<CollabPanelProps, CollabPanelState> {
   handleServerUrlBlur = () => {
     const saved = saveCollabServerUrlSetting(this.state.serverUrl);
     this.setState({ serverUrl: saved });
+  };
+
+  handleServerTokenBlur = () => {
+    const saved = saveCollabServerTokenSetting(this.state.serverToken);
+    this.setState({ serverToken: saved });
   };
 
   describeError(error: unknown) {
@@ -861,21 +869,39 @@ class CollabPanel extends React.Component<CollabPanelProps, CollabPanelState> {
             {this.state.isAdvancedVisible ? "收起高级设置" : "高级设置"}
           </div>
           {this.state.isAdvancedVisible && (
-            <label className="collab-field">
-              服务器地址
-              <input
-                value={this.state.serverUrl}
-                disabled={isInRoom}
-                placeholder="https://your-server.example.com"
-                onChange={(event) =>
-                  this.setState({ serverUrl: event.target.value })
-                }
-                onBlur={this.handleServerUrlBlur}
-              />
-              <span className="collab-field-note">
-                与「个人中心 → 共读服务器」是同一份设置；留空则只用本地阅读
-              </span>
-            </label>
+            <>
+              <label className="collab-field">
+                服务器地址
+                <input
+                  value={this.state.serverUrl}
+                  disabled={isInRoom}
+                  placeholder="https://your-server.example.com"
+                  onChange={(event) =>
+                    this.setState({ serverUrl: event.target.value })
+                  }
+                  onBlur={this.handleServerUrlBlur}
+                />
+                <span className="collab-field-note">
+                  与「个人中心 → 共读服务器」是同一份设置；留空则只用本地阅读
+                </span>
+              </label>
+              <label className="collab-field" style={{ marginTop: "8px" }}>
+                鉴权 Token（可选）
+                <input
+                  type="password"
+                  value={this.state.serverToken}
+                  disabled={isInRoom}
+                  placeholder="共读服务 Token (如服务端开启)"
+                  onChange={(event) =>
+                    this.setState({ serverToken: event.target.value })
+                  }
+                  onBlur={this.handleServerTokenBlur}
+                />
+                <span className="collab-field-note">
+                  服务端配置 COLLAB_TOKEN 时必填；留空表示服务端未开启鉴权
+                </span>
+              </label>
+            </>
           )}
         </div>
       </div>

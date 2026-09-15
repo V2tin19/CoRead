@@ -1,4 +1,8 @@
-import { resolveCollabServerUrl } from "./collabServerConfig";
+import {
+  resolveCollabServerUrl,
+  resolveCollabServerToken,
+  saveCollabServerTokenSetting,
+} from "./collabServerConfig";
 
 type CollabEventHandler = (payload: any) => void;
 
@@ -76,7 +80,13 @@ class CollabClient {
   }
 
   // 服务端设置 COLLAB_TOKEN 后，写操作需带此头；未设置则服务端放行，本值留空即可。
-  token = process.env.REACT_APP_COLLAB_TOKEN || "";
+  // 支持运行时动态配置（个人中心 / 共读高级设置），优先级高于构建期环境变量注入。
+  get token(): string {
+    return resolveCollabServerToken();
+  }
+  set token(val: string) {
+    saveCollabServerTokenSetting(val);
+  }
 
   // 统一的鉴权请求头。GET/文件直链不需要，POST/PUT/DELETE 带上。
   private authHeaders(extra: Record<string, string> = {}) {

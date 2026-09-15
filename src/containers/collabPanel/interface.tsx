@@ -15,6 +15,7 @@ export interface CollabPanelProps {
 
 export interface CollabPanelState {
   serverUrl: string;
+  serverToken: string;
   roomIdInput: string;
   activeRoomId: string;
   ownerId: string;

@@ -12,6 +12,7 @@
 //   · 用户没填 + 无同源 ⇒ 返回空字符串 ⇒ 应用退化为纯本地阅读器
 
 const SERVER_URL_KEY = "koodo-collab-server-url";
+const SERVER_TOKEN_KEY = "koodo-collab-server-token";
 
 /** 规范化用户输入的地址:去空格、无协议补 http://、去尾部斜杠 */
 export function normalizeCollabServerUrl(url: string): string {
@@ -46,6 +47,40 @@ export function saveCollabServerUrlSetting(url: string): string {
     // 存不进去只影响持久化,本次会话由调用方的内存态兜底
   }
   return normalized;
+}
+
+/** 读取用户设置里的鉴权 Token；没设置过返回空串 */
+export function getCollabServerTokenSetting(): string {
+  try {
+    return localStorage.getItem(SERVER_TOKEN_KEY) || "";
+  } catch (e) {
+    return "";
+  }
+}
+
+/** 保存鉴权 Token；传空串表示清除设置 */
+export function saveCollabServerTokenSetting(token: string): string {
+  const value = (token || "").trim();
+  try {
+    if (value) {
+      localStorage.setItem(SERVER_TOKEN_KEY, value);
+    } else {
+      localStorage.removeItem(SERVER_TOKEN_KEY);
+    }
+  } catch (e) {
+    // 忽略异常
+  }
+  return value;
+}
+
+/**
+ * 解析当前生效的共读鉴权 Token。
+ * 优先级: 用户设置 > 构建期注入 REACT_APP_COLLAB_TOKEN
+ */
+export function resolveCollabServerToken(): string {
+  const configured = getCollabServerTokenSetting();
+  if (configured) return configured;
+  return (process.env.REACT_APP_COLLAB_TOKEN || "").trim();
 }
 
 /**
