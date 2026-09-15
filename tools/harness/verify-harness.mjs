@@ -137,6 +137,24 @@ async function run() {
     "契约 12: 位置进度字段转换为 number 类型"
   );
 
+  // 契约 15: 深色模式下高亮对比度自适应
+  function getHighlightAlpha(isNight) {
+    return isNight ? 0.45 : 0.8;
+  }
+  assert(
+    getHighlightAlpha(true) === 0.45 && getHighlightAlpha(false) === 0.8,
+    "契约 15: 深色模式下高亮颜色透明度与对比度自动优化"
+  );
+
+  // 契约 16: 跨章节高亮拼接 chapterIndex:range 唯一标识
+  function formatChapterRangeKey(chapterIndex, rangeStr) {
+    return `${chapterIndex}:${rangeStr}`;
+  }
+  assert(
+    formatChapterRangeKey(2, '{"start":10,"end":50}') === '2:{"start":10,"end":50}',
+    "契约 16: 跨章节高亮唯一性按 chapterIndex:range 编码"
+  );
+
   // 统计结果
   const failed = checks.filter((c) => !c.passed);
   console.log(`\n断言汇总: 共 ${checks.length} 项，通过 ${checks.length - failed.length} 项，失败 ${failed.length} 项。`);

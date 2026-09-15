@@ -19,13 +19,16 @@ export interface Chapter {
 
 export interface NoteRange {
   key?: string;
+  bookKey?: string;
+  chapter?: string;
   chapterIndex: number;
   range: string;
   text: string;
   color: string;
   notes?: string;
   tag?: string[];
-  date?: string;
+  date?: string | { year: number; month: number; day: number; [key: string]: any };
+  [key: string]: any;
 }
 
 export interface RenderTargetOptions {

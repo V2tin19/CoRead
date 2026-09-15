@@ -97,6 +97,15 @@ export class HighlightUtil {
     this.configService.setReaderConfig(SEARCH_CONFIG_KEY, `${val.styleType}-${val.color}`);
   };
 
+  isDarkMode = (): boolean => {
+    return (
+      this.configService?.getReaderConfig?.("appSkin") === "night" ||
+      (this.configService?.getReaderConfig?.("appSkin") === "system" &&
+        this.configService?.getReaderConfig?.("isOSNight") === "yes") ||
+      this.configService?.getReaderConfig?.("backgroundColor") === "rgba(44,47,49,1)"
+    );
+  };
+
   buildHighlightStyleForType = (typeVal: any, multiply = false): string => {
     let styleType = "background";
     let color = "#FEF3CD";
@@ -113,6 +122,8 @@ export class HighlightUtil {
       color = parts[1] || "#FEF3CD";
     }
 
+    const isNight = this.isDarkMode();
+
     const rgbaColor =
       styleType === "background"
         ? (() => {
@@ -122,13 +133,20 @@ export class HighlightUtil {
             const r = parseInt(fullHex.slice(0, 2), 16);
             const g = parseInt(fullHex.slice(2, 4), 16);
             const b = parseInt(fullHex.slice(4, 6), 16);
-            return `rgba(${r}, ${g}, ${b}, 0.8)`;
+            // 契约 15: 深色模式下高亮颜色自动调整对比度与透明度，确保白字/浅字清晰可读
+            const alpha = isNight ? 0.45 : 0.8;
+            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
           })()
         : color;
 
     switch (styleType) {
       case "background":
-        return multiply ? `background: ${rgbaColor}; mix-blend-mode: multiply;` : `background: ${rgbaColor};`;
+        if (multiply) {
+          return isNight
+            ? `background: ${rgbaColor}; mix-blend-mode: screen;`
+            : `background: ${rgbaColor}; mix-blend-mode: multiply;`;
+        }
+        return `background: ${rgbaColor};`;
       case "underline":
         return `border-bottom: 2px solid ${rgbaColor};`;
       case "strikethrough":

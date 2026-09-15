@@ -1,6 +1,5 @@
 import Note from "../../models/Note";
-import DatabaseService from "../storage/databaseService";
-import { ConfigService } from '../../services';
+import { configStore, readingProgressStore, noteStore } from "../../core/ports/stores";
 import { getIframeDoc } from "./docUtil";
 import collabClient, { getCollabBookKey } from "../collab/collabClient";
 import { getOrCreateDisplayName } from "../collab/roomBook";
@@ -22,24 +21,25 @@ export async function createHighlight(params: DigestParams): Promise<void> {
     htmlBook,
     chapterDocIndex,
     chapter,
-    color,
     onNoteClick,
     onSuccess,
   } = params;
+  let color = params.color;
 
   if (!htmlBook) return;
 
+  // 契约 14: 高亮颜色必须严格编码为 styleType-#RRGGBB 格式，默认 background-#RRGGBB
+  if (color && !color.includes("-") && color.startsWith("#")) {
+    color = `background-${color}`;
+  }
+
   let bookKey = currentBook.key;
-  let bookLocation = ConfigService.getObjectConfig(
-    bookKey,
-    "recordLocation",
-    {}
-  );
+  let bookLocation: any = readingProgressStore.getProgressSync(bookKey) || {};
   let cfi = JSON.stringify(bookLocation);
 
   if (
     currentBook.format === "PDF" &&
-    !ConfigService.getAllListConfig("convertPDFBooks").includes(currentBook.key)
+    !configStore.getAllListConfig("convertPDFBooks").includes(currentBook.key)
   ) {
     let pdfLocation = htmlBook.rendition.getPositionByChapter(chapterDocIndex);
     cfi = JSON.stringify(pdfLocation);
@@ -82,7 +82,7 @@ export async function createHighlight(params: DigestParams): Promise<void> {
     collabClient.clientId
   );
 
-  await DatabaseService.saveRecord(highlight, "notes");
+  await noteStore.saveNote(highlight);
   await htmlBook.rendition.createOneNote(highlight, onNoteClick ?? (() => {}));
   collabClient
     .broadcastNote(getCollabBookKey(currentBook), highlight)
