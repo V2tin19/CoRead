@@ -846,6 +846,9 @@ class PdfRender extends GeneralRender {
     });
     return { page: pageIndex, coords: selected, readerMode: this.readerMode };
   }
+  async getHightlightCoords(chapterDocIndex?: number) {
+    return this.getHighlightCoords(chapterDocIndex);
+  }
   async renderHighlighters(notes: any[], handleNoteClick: any) {
     if (notes.length === 0) return;
     notes = notes.reverse();

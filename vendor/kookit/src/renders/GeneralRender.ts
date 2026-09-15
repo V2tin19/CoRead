@@ -1,4 +1,4 @@
-﻿import Chapter from "../model/chapter";
+import Chapter from "../model/chapter";
 import ChapterDoc from "../model/chapterDoc";
 import {
   collectChapterImageUrls,
@@ -1438,6 +1438,9 @@ class GeneralRender extends EventEmitter {
     if (!doc || !iframe) return;
     let charRange = rangy.getSelection(iframe).saveCharacterRanges(doc.body)[0];
     return charRange;
+  }
+  async getHightlightCoords() {
+    return this.getHighlightCoords();
   }
   async renderHighlighters(notes: any[], handleNoteClick: any) {
     notes = notes.reverse();

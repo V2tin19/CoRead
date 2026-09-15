@@ -8,9 +8,13 @@ import { Trans } from "react-i18next";
 import toast from "react-hot-toast";
 import { getIframeDoc } from "../../../utils/reader/docUtil";
 import {
-  ConfigService,
   HighlightUtil,
 } from '../../../services';
+import {
+  configStore,
+  readingProgressStore,
+  noteStore,
+} from "../../../core/ports/stores";
 import DatabaseService from "../../../utils/storage/databaseService";
 import ColorOption from "../../colorOption";
 import copy from "copy-text-to-clipboard";
@@ -22,7 +26,7 @@ class PopupNote extends React.Component<PopupNoteProps, PopupNoteState> {
   highlightUtil: any;
   constructor(props: PopupNoteProps) {
     super(props);
-    this.highlightUtil = new HighlightUtil(ConfigService);
+    this.highlightUtil = new HighlightUtil(configStore);
     this.state = { tag: [], text: "", note: null };
   }
   async componentDidMount() {
@@ -94,47 +98,55 @@ class PopupNote extends React.Component<PopupNoteProps, PopupNoteState> {
   }
 
   handleNoteClick = (event: Event) => {
-    this.props.handleNoteKey((event.target as any).dataset.key);
-    this.props.handleMenuMode("note");
-    this.props.handleOpenMenu(true);
+    const el = (event.target as HTMLElement) || (event.currentTarget as HTMLElement);
+    const key = el?.getAttribute("data-key") || (el as any)?.dataset?.key;
+    if (key) {
+      this.props.handleNoteKey(key);
+      this.props.handleMenuMode("note");
+      this.props.handleOpenMenu(true);
+    }
   };
   async createNote() {
-    let notes = (document.querySelector(".editor-box") as HTMLInputElement)
-      .value;
+    let notes =
+      (document.querySelector(".editor-box") as HTMLInputElement)?.value || "";
 
     if (this.props.noteKey) {
       let newNote = await DatabaseService.getRecord(
         this.props.noteKey,
         "notes"
       );
+      if (!newNote) {
+        toast.error("未找到对应笔记");
+        return;
+      }
       newNote.notes = notes;
       newNote.tag = this.state.tag;
       newNote.color =
         this.highlightUtil.formatHighlightValue(this.props.highlight) ||
         newNote.color;
-      DatabaseService.updateRecord(newNote, "notes").then(() => {
-        collabClient
-          .broadcastNoteUpdate(getCollabBookKey(this.props.currentBook), newNote)
-          .catch((error) => console.warn("Failed to broadcast note", error));
-        this.props.handleOpenMenu(false);
-        this.props.handleFetchNotes();
-        this.props.handleMenuMode("");
-        this.props.handleNoteKey("");
-        this.props.handleShowPopupNote(false);
-        if (this.props.htmlBook && this.props.htmlBook.rendition) {
-          this.props.htmlBook.rendition.removeOneNote(
-            this.props.noteKey,
-            this.props.chapterDocIndex
-          );
-          this.props.htmlBook.rendition.createOneNote(
-            newNote,
-            this.handleNoteClick
-          );
-        }
-      });
+      await DatabaseService.updateRecord(newNote, "notes");
+      collabClient
+        .broadcastNoteUpdate(getCollabBookKey(this.props.currentBook), newNote)
+        .catch((error) => console.warn("Failed to broadcast note", error));
+      this.props.handleOpenMenu(false);
+      this.props.handleFetchNotes();
+      this.props.handleMenuMode("");
+      this.props.handleNoteKey("");
+      this.props.handleShowPopupNote(false);
+      toast.success(this.props.t("Update successful") || "笔记已保存");
+      if (this.props.htmlBook && this.props.htmlBook.rendition) {
+        this.props.htmlBook.rendition.removeOneNote(
+          this.props.noteKey,
+          this.props.chapterDocIndex
+        );
+        this.props.htmlBook.rendition.createOneNote(
+          newNote,
+          this.handleNoteClick
+        );
+      }
     } else {
       let cfi = JSON.stringify(
-        ConfigService.getObjectConfig(
+        configStore.getObjectConfig(
           this.props.currentBook.key,
           "recordLocation",
           {}
@@ -142,7 +154,7 @@ class PopupNote extends React.Component<PopupNoteProps, PopupNoteState> {
       );
       if (
         this.props.currentBook.format === "PDF" &&
-        !ConfigService.getAllListConfig("convertPDFBooks").includes(
+        !configStore.getAllListConfig("convertPDFBooks").includes(
           this.props.currentBook.key
         )
       ) {
@@ -152,23 +164,23 @@ class PopupNote extends React.Component<PopupNoteProps, PopupNoteState> {
         cfi = JSON.stringify(bookLocation);
       }
       let bookKey = this.props.currentBook.key;
-      let range = JSON.stringify(
-        await this.props.htmlBook.rendition.getHightlightCoords(
-          this.props.chapterDocIndex
-        )
-      );
+      let rendition = this.props.htmlBook?.rendition;
+      let getCoords =
+        rendition?.getHighlightCoords || rendition?.getHightlightCoords;
+      if (!getCoords) {
+        console.warn("Rendition highlight coords method missing");
+        return;
+      }
+      let rawCoords = await getCoords.call(rendition, this.props.chapterDocIndex);
+      let range = JSON.stringify(rawCoords);
 
-      let percentage = ConfigService.getObjectConfig(
-        this.props.currentBook.key,
-        "recordLocation",
-        {}
-      ).percentage
-        ? ConfigService.getObjectConfig(
-            this.props.currentBook.key,
-            "recordLocation",
-            {}
-          ).percentage
-        : "0";
+      let rawPercentage =
+        readingProgressStore.getProgressSync(this.props.currentBook.key)
+          ?.percentage;
+      let percentage =
+        rawPercentage !== undefined && rawPercentage !== null
+          ? String(rawPercentage)
+          : "0";
 
       let color =
         this.highlightUtil.formatHighlightValue(this.props.highlight) ||
@@ -190,18 +202,20 @@ class PopupNote extends React.Component<PopupNoteProps, PopupNoteState> {
         getOrCreateDisplayName(),
         collabClient.clientId
       );
-      DatabaseService.saveRecord(note, "notes").then(async () => {
-        collabClient
-          .broadcastNote(getCollabBookKey(this.props.currentBook), note)
-          .catch((error) => console.warn("Failed to broadcast note", error));
-        this.props.handleOpenMenu(false);
-        this.props.handleFetchNotes();
-        this.props.handleMenuMode("");
-        await this.props.htmlBook.rendition.createOneNote(
+      await DatabaseService.saveRecord(note, "notes");
+      collabClient
+        .broadcastNote(getCollabBookKey(this.props.currentBook), note)
+        .catch((error) => console.warn("Failed to broadcast note", error));
+      this.props.handleOpenMenu(false);
+      this.props.handleFetchNotes();
+      this.props.handleMenuMode("");
+      toast.success(this.props.t("Addition successful") || "笔记已保存");
+      if (rendition) {
+        await rendition.createOneNote(
           note,
           this.handleNoteClick
         );
-      });
+      }
     }
   }
   handleUpdateHighlight = () => {};

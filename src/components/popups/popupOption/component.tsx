@@ -28,9 +28,29 @@ class PopupOption extends React.Component<PopupOptionProps> {
     super(props);
     this.highlightUtil = new HighlightUtil(ConfigService);
   }
-  handleNote = () => {
-    this.props.handleMenuMode("note");
-    this.props.handleOpenMenu(true);
+  handleNote = async () => {
+    await createHighlight({
+      currentBook: this.props.currentBook,
+      htmlBook: this.props.htmlBook,
+      chapterDocIndex: this.props.chapterDocIndex,
+      chapter: this.props.chapter,
+      color:
+        this.highlightUtil.getNoteHighlightString() ||
+        this.highlightUtil.formatHighlightValue(this.props.highlight),
+      t: this.props.t,
+      onNoteClick: this.handleNoteClick,
+      onSuccess: () => {
+        this.props.handleOpenMenu(false);
+        this.props.handleFetchNotes();
+        this.props.handleMenuMode("");
+        let docs = getIframeDoc(this.props.currentBook.format);
+        for (let i = 0; i < docs.length; i++) {
+          let doc = docs[i];
+          if (!doc) continue;
+          doc.getSelection()?.empty();
+        }
+      },
+    });
   };
   handleCopy = () => {
     let text = getSelection(this.props.currentBook.format);
@@ -84,9 +104,13 @@ class PopupOption extends React.Component<PopupOptionProps> {
   };
 
   handleNoteClick = (event: Event) => {
-    this.props.handleNoteKey((event.target as any).dataset.key);
-    this.props.handleMenuMode("note");
-    this.props.handleOpenMenu(true);
+    const el = (event.target as HTMLElement) || (event.currentTarget as HTMLElement);
+    const key = el?.getAttribute("data-key") || (el as any)?.dataset?.key;
+    if (key) {
+      this.props.handleNoteKey(key);
+      this.props.handleMenuMode("note");
+      this.props.handleOpenMenu(true);
+    }
   };
   handleJump = (url: string) => {
     openExternalUrl(url);

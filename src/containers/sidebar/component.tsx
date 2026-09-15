@@ -205,44 +205,46 @@ class Sidebar extends React.Component<SidebarProps, SidebarState> {
             <ul className="side-menu-container">{renderSideMenu()}</ul>
           </div>
           {/* Stats button at the bottom */}
-          <div className="side-menu-about" style={{ paddingBottom: 8 }}>
+          <div
+            className="side-menu-about"
+            style={this.props.isCollapsed ? { width: "70px" } : { width: "190px" }}
+          >
             <div
-              className={"side-menu-selector"}
-              style={{ cursor: "pointer" }}
+              className="side-menu-item"
+              id="sidebar-stats"
+              style={
+                this.props.isCollapsed
+                  ? { width: 40, marginLeft: 15 }
+                  : { width: "calc(100% - 30px)", marginLeft: 15 }
+              }
               onClick={() => {
                 this.props.history.push("/stats");
               }}
             >
-              <div
-                className="side-menu-icon"
-                style={
-                  this.props.isCollapsed
-                    ? {}
-                    : { marginLeft: "20px", marginRight: "15px" }
-                }
-              >
+              <div className="side-menu-selector">
+                <div
+                  className="side-menu-icon"
+                  style={this.props.isCollapsed ? {} : { marginLeft: "38px" }}
+                >
+                  <span
+                    className="icon-chart"
+                    style={
+                      this.props.isCollapsed
+                        ? { position: "relative", marginLeft: "-9px" }
+                        : {}
+                    }
+                  ></span>
+                </div>
                 <span
-                  className="icon-chart sidebar-shelf-icon"
                   style={
                     this.props.isCollapsed
-                      ? {
-                          position: "relative",
-                          marginLeft: "-0px",
-                          fontSize: 14,
-                        }
-                      : { fontSize: 14 }
+                      ? { display: "none", width: "70%" }
+                      : { width: "60%" }
                   }
-                ></span>
+                >
+                  {this.props.t("Reading Stats")}
+                </span>
               </div>
-              <span
-                style={
-                  this.props.isCollapsed
-                    ? { display: "none", width: "70%" }
-                    : { width: "61%" }
-                }
-              >
-                {this.props.t("Reading Stats")}
-              </span>
             </div>
           </div>
         </div>
