@@ -61,6 +61,17 @@ const ALLOWED_HOSTS = new Set([
   "tessdata.projectnaptha.com", "www.gutenberg.org", "manybooks.net",
   "apis.google.com", "www.googleapis.com", "sync.koreader.rocks",
   "beian.miit.gov.cn", "beian.mps.gov.cn",
+  // 公开第三方 AI 供应商端点（用户自带 Key 直连）
+  "api.openai.com", "api.anthropic.com", "generativelanguage.googleapis.com",
+  "api.deepseek.com", "api.mistral.ai", "api.cohere.ai", "api.groq.com",
+  "api.together.xyz", "api.fireworks.ai", "api.perplexity.ai", "openrouter.ai",
+  "api.ai21.com", "api.x.ai", "api.sambanova.ai", "api.cerebras.ai",
+  "api.hyperbolic.xyz", "api.novita.ai", "llm.lepton.run", "api.deepinfra.com",
+  "api.replicate.com", "open.bigmodel.cn", "dashscope.aliyuncs.com",
+  "api.moonshot.cn", "qianfan.baidubce.com", "ark.cn-beijing.volces.com",
+  "spark-api-open.xf-yun.com", "api.hunyuan.cloud.tencent.com", "api.minimax.chat",
+  "api.baichuan-ai.com", "api.stepfun.com", "api.lingyiwanwu.com",
+  "api.siliconflow.cn", "cloud.infini-ai.com",
   // 搜索引擎（「用搜索引擎查这个词」功能）
   "www.google.com", "google.com", "www.baidu.com", "baidu.com", "baike.baidu.com",
   "www.bing.com", "bing.com", "duckduckgo.com", "yandex.com",

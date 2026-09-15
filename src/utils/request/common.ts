@@ -1,26 +1,25 @@
 import axios from "axios";
 import toast from "react-hot-toast";
-import i18n from "../../i18n";
 import { SSE } from "sse.js";
-import {
-  CommonTool,
-  ConfigService,
-  TokenService,
-} from "../../assets/lib/kookit-extra-browser.min";
-import { getServerRegion, reloadManager } from "../common";
-import { resetReaderRequest } from "./reader";
-import { resetUserRequest } from "./user";
-import { resetThirdpartyRequest } from "./thirdparty";
 import { isElectron } from "react-device-detect";
+import { getDisableThinkingParams } from "../../constants/aiConfig";
+
 export const getPublicUrl = () => {
   return "";
 };
+
 export const checkDeveloperUpdate = async () => {
   return { version: "" };
 };
+
+export const checkStableUpdate = async () => {
+  return { version: "" };
+};
+
 export const getPluginList = async () => {
   return [];
 };
+
 export const uploadFile = async (url: string, file: any) => {
   return new Promise<boolean>((resolve) => {
     axios
@@ -34,29 +33,13 @@ export const uploadFile = async (url: string, file: any) => {
       });
   });
 };
-export const checkStableUpdate = async () => {
-  return { version: "" };
-};
+
 export const handleExitApp = async () => {
-  toast.error(i18n.t("Authorization failed, please login again"));
-  await handleClearToken();
-  //路由到login页面
-  reloadManager();
+  // No-op in offline / decoupled mode
 };
+
 export const handleClearToken = async () => {
-  await TokenService.deleteToken("is_authed");
-  await TokenService.deleteToken("access_token");
-  await TokenService.deleteToken("refresh_token");
-  let dataSourceList = ConfigService.getAllListConfig("dataSourceList") || [];
-  for (let i = 0; i < dataSourceList.length; i++) {
-    let targetDrive = dataSourceList[i];
-    await TokenService.setToken(targetDrive + "_token", "");
-  }
-  ConfigService.removeItem("defaultSyncOption");
-  ConfigService.removeItem("dataSourceList");
-  resetReaderRequest();
-  resetUserRequest();
-  resetThirdpartyRequest();
+  // No-op in offline / decoupled mode
 };
 
 export const chatStream = async (
@@ -66,7 +49,7 @@ export const chatStream = async (
   model: string,
   prompt: string,
   chat: any[],
-  onMessage: (result) => void
+  onMessage: (result: { text?: string; done?: boolean }) => void
 ) => {
   return new Promise<{ done: boolean }>((resolve, reject) => {
     const messages = [...chat, { role: "user", content: prompt }];
@@ -79,7 +62,7 @@ export const chatStream = async (
         model,
         messages,
         stream: true,
-        ...CommonTool.getDisableThinkingParams(providerId || ""),
+        ...getDisableThinkingParams(providerId || ""),
       }),
       method: "POST",
     });
@@ -117,6 +100,7 @@ export const chatStream = async (
     });
   });
 };
+
 export const getNotification = async () => {
   return {
     data: {
@@ -126,12 +110,13 @@ export const getNotification = async () => {
   };
 };
 
-export const parseWithMineruAgent = async (file: any) => {
+export const parseWithMineruAgent = async (_file: any) => {
   throw new Error("MinerU parse service has been removed");
 };
+
 export const parseWithSystemOCR = async (imageBase64: string) => {
   if (!isElectron) {
-    return;
+    return "";
   }
   const { ipcRenderer } = window.require("electron");
   let result = await ipcRenderer.invoke("system-ocr", {

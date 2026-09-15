@@ -4,10 +4,13 @@ import CryptoJS from "crypto-js";
 import {
   CommonTool,
   ConfigService,
-  KookitConfig,
   SyncUtil,
   TokenService,
 } from "../assets/lib/kookit-extra-browser.min";
+import {
+  ConvertLangMap,
+  ContentRegxConfig,
+} from "../constants/commonConfig";
 import Book from "../models/Book";
 import BookUtil from "./file/bookUtil";
 import * as Kookit from "../assets/lib/kookit.min";
@@ -869,7 +872,7 @@ export const getFullTranslationTarget = (): string => {
     ConfigService.getReaderConfig("fullTranslationTarget") ||
     ConfigService.getReaderConfig("lang") ||
     "zhCN";
-  return KookitConfig.ConvertLangMap[langCode];
+  return ConvertLangMap[langCode];
 };
 export const getDefaultTransTarget = (langList) => {
   //reverse key and value
@@ -881,7 +884,7 @@ export const getDefaultTransTarget = (langList) => {
   const lang = ConfigService.getReaderConfig("lang");
   const langKeys = Object.keys(langMap);
   let langTarget = langKeys.find((key) =>
-    key.includes(KookitConfig.ConvertLangMap[lang])
+    key.includes(ConvertLangMap[lang])
   );
   return langMap[langTarget || "English"];
 };
@@ -1451,7 +1454,7 @@ export const getParserRegex = (extension: string, bookKey?: string) => {
     }
     let txtParsers: any[] = [
       ...Object.values(ConfigService.getAllObjectConfig("txtParsers")),
-      ...KookitConfig.ContentRegxConfig,
+      ...ContentRegxConfig,
     ];
     let txtParser = txtParsers.find(
       (parser) => parser.value === defaultTxtParser

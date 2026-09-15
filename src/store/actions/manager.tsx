@@ -7,11 +7,6 @@ import PluginModel from "../../models/Plugin";
 import { Dispatch } from "redux";
 import DatabaseService from "../../utils/storage/databaseService";
 import {
-  fetchUserInfo,
-  getUserRequest,
-  resetUserRequest,
-} from "../../utils/request/user";
-import {
   officialDictList,
   officialTranList,
 } from "../../constants/settingList";
@@ -20,8 +15,6 @@ import BookUtil from "../../utils/file/bookUtil";
 import i18n from "../../i18n";
 import { azureTTSVoiceList, officialVoiceList } from "../../constants/ttsList";
 import { langToName } from "../../utils/common";
-import { resetReaderRequest } from "../../utils/request/reader";
-import { resetThirdpartyRequest } from "../../utils/request/thirdparty";
 import DictUtil from "../../utils/file/dictUtil";
 export function handleBooks(books: BookModel[]) {
   return { type: "HANDLE_BOOKS", payload: books };
@@ -222,57 +215,8 @@ export function handleFetchBooks() {
 }
 export function handleFetchUserInfo() {
   return async (dispatch: Dispatch) => {
-    let response = await fetchUserInfo();
-    let userInfo: any = null;
-    if (response.code === 200) {
-      userInfo = response.data;
-      ConfigService.setReaderConfig(
-        "isEnableKoodoSync",
-        userInfo.is_enable_koodo_sync || "no"
-      );
-      if (
-        userInfo.is_enable_koodo_sync === "yes" &&
-        userInfo.default_sync_option &&
-        userInfo.default_sync_token
-      ) {
-        if (
-          ConfigService.getItem("defaultSyncOption") ===
-          userInfo.default_sync_option
-        ) {
-          let encryptedToken = await TokenService.getToken(
-            userInfo.default_sync_option + "_token"
-          );
-          if (encryptedToken !== userInfo.default_sync_token) {
-            await TokenService.setToken(
-              userInfo.default_sync_option + "_token",
-              userInfo.default_sync_token
-            );
-          }
-        }
-      }
-    }
-    if (
-      userInfo &&
-      userInfo.valid_until < parseInt(new Date().getTime() / 1000 + "")
-    ) {
-      dispatch(handleShowSupport(true));
-    }
-    if (userInfo && userInfo.valid_until && userInfo.token_valid_until) {
-      if (
-        userInfo.valid_until > 0 &&
-        userInfo.token_valid_until > 0 &&
-        userInfo.valid_until > userInfo.token_valid_until
-      ) {
-        let userRequest = await getUserRequest();
-        await userRequest.refreshUserToken();
-        resetReaderRequest();
-        resetUserRequest();
-        resetThirdpartyRequest();
-      }
-    }
-
-    dispatch(handleUserInfo(userInfo));
-    return userInfo;
+    dispatch(handleUserInfo(null));
+    return null;
   };
 }
 export function handleFetchPlugins() {

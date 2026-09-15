@@ -1,7 +1,6 @@
 import { Howl } from "howler";
 import PluginModel from "../../models/Plugin";
 import { getAllVoices, getFormatFromAudioPath } from "../common";
-import { getTTSAudio } from "../request/reader";
 import { isElectron } from "react-device-detect";
 
 class TTSUtil {
@@ -238,17 +237,6 @@ class TTSUtil {
     isFirst: boolean
   ) {
     if (voiceEngine === "official-ai-voice-plugin") {
-      let res = await getTTSAudio(
-        text,
-        voice.language,
-        voice.name,
-        (speed + 100) / 100,
-        1.0,
-        isFirst
-      );
-      if (res && res.data && res.data.audio_base64) {
-        return res.data.audio_base64;
-      }
       return "";
     } else {
       let audioPath = await window

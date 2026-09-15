@@ -29,12 +29,8 @@ import {
   ocrTesseractLangList,
 } from "../../constants/dropdownList";
 import DatabaseService from "../../utils/storage/databaseService";
-import { getOcrResult, getOcrResultV2 } from "../../utils/request/reader";
 import { BookHelper } from "../../assets/lib/kookit.min";
-import {
-  parseWithMineruAgent,
-  parseWithSystemOCR,
-} from "../../utils/request/common";
+import { parseWithSystemOCR } from "../../utils/request/common";
 import collabClient, { getCollabBookKey } from "../../utils/collab/collabClient";
 import toast from "react-hot-toast";
 import {
@@ -353,12 +349,7 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
             recognize:
               ConfigService.getReaderConfig(ocrEngineKey) === "system-ocr"
                 ? parseWithSystemOCR
-                : ConfigService.getReaderConfig(ocrEngineKey) ===
-                    "mineru-official-agent"
-                  ? parseWithMineruAgent
-                  : ConfigService.getReaderConfig(ocrLangKey) === "accurate"
-                    ? getOcrResultV2
-                    : getOcrResult,
+                : async () => "",
           },
           ocrEngine: ConfigService.getReaderConfig(ocrEngineKey) || "paddle",
           serverRegion:

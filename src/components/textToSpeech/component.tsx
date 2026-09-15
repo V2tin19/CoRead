@@ -19,8 +19,6 @@ import { isElectron } from "react-device-detect";
 import toast from "react-hot-toast";
 import TTSUtil from "../../utils/reader/ttsUtil";
 import "./textToSpeech.css";
-import { fetchUserInfo } from "../../utils/request/user";
-import { getSplitSentence } from "../../utils/request/reader";
 import { Howl } from "howler";
 declare var window: any;
 class TextToSpeech extends React.Component<
@@ -121,12 +119,8 @@ class TextToSpeech extends React.Component<
       this.customVoices = TTSUtil.getVoiceList(this.props.plugins);
       this.voices = [...this.nativeVoices, ...this.customVoices];
     } else {
-      this.customVoices = getAllVoices(
-        this.props.plugins.filter(
-          (item) => item.key === "official-ai-voice-plugin"
-        )
-      );
-      this.voices = [...this.nativeVoices, ...this.customVoices];
+      this.customVoices = [];
+      this.voices = [...this.nativeVoices];
     }
     this.handleVoiceLocaleList();
     if (
@@ -296,11 +290,8 @@ class TextToSpeech extends React.Component<
     }
 
     if (engine === "official-ai-voice-plugin") {
-      if (!this.props.isAuthed) {
-        toast(this.props.t("Please upgrade to Pro to use this feature"));
-        return;
-      }
-      await fetchUserInfo();
+      toast.error(this.props.t("Audio loading failed, stopped playback"));
+      return;
     }
 
     const plugin = this.props.plugins.find((item) => item.key === engine);
@@ -378,22 +369,6 @@ class TextToSpeech extends React.Component<
     return voiceList;
   };
   handleStartAudio = async () => {
-    if (
-      this.props.isAuthed &&
-      ConfigService.getReaderConfig("voiceEngine") !== "system"
-    ) {
-      toast.loading(this.props.t("Loading audio, please wait..."), {
-        id: "tts-load",
-      });
-      await fetchUserInfo();
-    }
-    if (
-      ConfigService.getReaderConfig("voiceEngine") ===
-        "official-ai-voice-plugin" &&
-      !this.props.isAuthed
-    ) {
-      ConfigService.setReaderConfig("voiceEngine", "system");
-    }
     this.handleStartSpeech();
   };
   handlePauseAudio = async () => {
@@ -504,13 +479,6 @@ class TextToSpeech extends React.Component<
     // 重置内存中的音频路径缓存（适用于所有引擎切换）
     TTSUtil.setAudioPaths();
 
-    // AI 语音需要刷新用户信息
-    if (this.props.isAuthed && newVoiceEngine !== "system") {
-      toast.loading(this.props.t("Loading audio, please wait..."), {
-        id: "tts-load",
-      });
-      await fetchUserInfo();
-    }
 
     // 非多角色模式下，将 nodeList 所有节点更新为新语音
     if (!this.state.multiRoleEnabled) {
@@ -556,7 +524,8 @@ class TextToSpeech extends React.Component<
     if ((ConfigService.getReaderConfig("animation") || "none") !== "none") {
       await sleep(1000);
     }
-    let nodeList = [];
+    let nodeList: { text: string; voiceName: string; voiceEngine: string }[] =
+      [];
     let nodeTextList = (await this.props.htmlBook.rendition.audioText()).filter(
       (item: string) => item && item.trim()
     );
@@ -598,45 +567,16 @@ class TextToSpeech extends React.Component<
         this.setState({ isAudioOn: false });
         return [];
       }
-      let splitTextList = rawNodeList.flatMap((texts, index) =>
-        texts.map((text) => ({ text, index: index }))
-      );
-      let res = await getSplitSentence(splitTextList);
       toast.dismiss("tts-load");
-
       let narratorVoice = this.state.multiRoleNarratorVoice;
       let narratorEngine = this.state.multiRoleNarratorEngine;
-      let maleVoice = this.state.multiRoleMaleVoice;
-      let maleEngine = this.state.multiRoleMaleEngine;
-      let femaleVoice = this.state.multiRoleFemaleVoice;
-      let femaleEngine = this.state.multiRoleFemaleEngine;
-      let childVoice = this.state.multiRoleChildVoice;
-      let childEngine = this.state.multiRoleChildEngine;
-      if (res && res.data && res.data.sentences) {
-        nodeList = res.data.sentences.map((item: any) => {
-          let voiceName = narratorVoice;
-          let voiceEngine = narratorEngine;
-          if (item.role === "male") {
-            voiceName = maleVoice || narratorVoice;
-            voiceEngine = maleEngine || narratorEngine;
-          } else if (item.role === "female") {
-            voiceName = femaleVoice || narratorVoice;
-            voiceEngine = femaleEngine || narratorEngine;
-          } else if (item.role === "child") {
-            voiceName = childVoice || narratorVoice;
-            voiceEngine = childEngine || narratorEngine;
-          }
-          return {
-            text: item.text,
-            voiceName,
-            voiceEngine,
-          };
-        });
-      } else {
-        toast.error(this.props.t("Analysis failed"));
-        this.setState({ isAudioOn: false });
-        return [];
-      }
+      nodeList = rawNodeList.flatMap((texts) =>
+        texts.map((text) => ({
+          text,
+          voiceName: narratorVoice,
+          voiceEngine: narratorEngine,
+        }))
+      );
     }
 
     if (nodeList.length === 0) {

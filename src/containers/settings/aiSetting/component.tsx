@@ -3,10 +3,11 @@ import { SettingInfoProps, SettingInfoState, AIModelConfig } from "./interface";
 import { Trans } from "react-i18next";
 import toast from "react-hot-toast";
 import { handleContextMenu, vexTextareaAsync } from "../../../utils/common";
+import { ConfigService } from "../../../assets/lib/kookit-extra-browser.min";
 import {
-  ConfigService,
-  KookitConfig,
-} from "../../../assets/lib/kookit-extra-browser.min";
+  DefaultPrompts,
+  AiProviderList,
+} from "../../../constants/aiConfig";
 
 class AISetting extends React.Component<SettingInfoProps, SettingInfoState> {
   constructor(props: SettingInfoProps) {
@@ -83,7 +84,7 @@ class AISetting extends React.Component<SettingInfoProps, SettingInfoState> {
   };
 
   handleProviderChange = (providerId: string) => {
-    const provider = KookitConfig.AiProviderList.find(
+    const provider = AiProviderList.find(
       (p) => p.id === providerId
     );
     this.setState({
@@ -112,7 +113,7 @@ class AISetting extends React.Component<SettingInfoProps, SettingInfoState> {
   };
 
   handleFetchModels = async () => {
-    const provider = KookitConfig.AiProviderList.find(
+    const provider = AiProviderList.find(
       (p) => p.id === this.state.selectedProvider
     );
     if (!provider || !provider.modelsEndpoint) {
@@ -234,7 +235,7 @@ class AISetting extends React.Component<SettingInfoProps, SettingInfoState> {
       toast.error(this.props.t("Please fill in all required fields"));
       return;
     }
-    const provider = KookitConfig.AiProviderList.find(
+    const provider = AiProviderList.find(
       (p) => p.id === selectedProvider
     );
     const config: AIModelConfig = {
@@ -322,7 +323,7 @@ class AISetting extends React.Component<SettingInfoProps, SettingInfoState> {
   ) => {
     const configKey = type + "Prompt";
     const currentValue =
-      (this.state as any)[configKey] || KookitConfig.DefaultPrompts[type];
+      (this.state as any)[configKey] || DefaultPrompts[type];
     const result = await vexTextareaAsync(
       this.props.t("Edit prompt"),
       currentValue
@@ -336,7 +337,7 @@ class AISetting extends React.Component<SettingInfoProps, SettingInfoState> {
   renderAddForm = () => {
     const isCustom =
       !this.state.selectedProvider || this.state.selectedProvider === "custom";
-    const provider = KookitConfig.AiProviderList.find(
+    const provider = AiProviderList.find(
       (p) => p.id === this.state.selectedProvider
     );
     const hasModelsEndpoint = provider && provider.modelsEndpoint;
@@ -365,7 +366,7 @@ class AISetting extends React.Component<SettingInfoProps, SettingInfoState> {
             <option value="" className="lang-setting-option">
               {this.props.t("Please select")}
             </option>
-            {KookitConfig.AiProviderList.map((p) => (
+            {AiProviderList.map((p) => (
               <option key={p.id} value={p.id} className="lang-setting-option">
                 {this.props.t(p.name)}
               </option>

@@ -1,17 +1,14 @@
 import React from "react";
 import "./popupAssist.css";
 import { PopupAssistProps, PopupAssistState, AiChatMessage } from "./interface";
-import {
-  ConfigService,
-  KookitConfig,
-} from "../../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from "../../../assets/lib/kookit-extra-browser.min";
+import { DefaultPrompts } from "../../../constants/aiConfig";
 import Parser from "html-react-parser";
 import DOMPurify from "dompurify";
 import { Trans } from "react-i18next";
 import { handleContextMenu } from "../../../utils/common";
 import toast from "react-hot-toast";
 import { saveAs } from "file-saver";
-import { getAnswerStream } from "../../../utils/request/reader";
 import { chatStream } from "../../../utils/request/common";
 import { marked } from "marked";
 import { sampleQuestion } from "../../../constants/settingList";
@@ -250,7 +247,7 @@ class PopupAssist extends React.Component<PopupAssistProps, PopupAssistState> {
         }
         let systemPrompt =
           ConfigService.getReaderConfig("aiAssistancePrompt") ||
-          KookitConfig.DefaultPrompts.aiAssistance;
+          DefaultPrompts.aiAssistance;
         if (this.state.mode === "ask") {
           systemPrompt = systemPrompt.replace("{text}", text);
         } else {
@@ -316,70 +313,11 @@ class PopupAssist extends React.Component<PopupAssistProps, PopupAssistState> {
         if (ConfigService.getReaderConfig("isManualScroll") !== "yes") {
           this.scrollToBottom();
         }
-      } else if (
-        this.state.aiService &&
-        this.state.aiService !== "official-ai-assistant-plugin"
-      ) {
-      } else if (this.props.isAuthed) {
-        let plugin = this.props.plugins.find(
-          (item) => item.key === "official-ai-assistant-plugin"
+      } else {
+        toast.error(
+          this.props.t("Please configure AI model in settings first")
         );
-        if (!plugin) {
-          return;
-        }
-        this.answerTextAccumulator = "";
-        this.startUpdateInterval();
-        let res = await getAnswerStream(
-          text,
-          this.state.question,
-          this.state.mode === "ask"
-            ? this.state.askHistory
-            : this.state.chatHistory,
-          this.state.mode,
-          (result) => {
-            if (result && result.text) {
-              if (!this.answerTextAccumulator) {
-                this.setState({ isWaiting: false });
-              }
-              this.answerTextAccumulator += result.text;
-            }
-          }
-        );
-        this.stopUpdateInterval(this.answerTextAccumulator);
-        const finalAnswer = this.answerTextAccumulator;
-        this.answerTextAccumulator = "";
-        if (res.data && res.done) {
-          if (this.state.mode === "ask") {
-            this.setState({
-              askHistory: [
-                ...this.state.askHistory,
-                {
-                  role: "assistant",
-                  content: finalAnswer,
-                },
-              ],
-              answer: "",
-              question: "",
-              isWaiting: false,
-            });
-          } else {
-            this.setState({
-              chatHistory: [
-                ...this.state.chatHistory,
-                {
-                  role: "assistant",
-                  content: finalAnswer,
-                },
-              ],
-              answer: "",
-              question: "",
-              isWaiting: false,
-            });
-          }
-        }
-        if (ConfigService.getReaderConfig("isManualScroll") !== "yes") {
-          this.scrollToBottom();
-        }
+        this.setState({ isWaiting: false });
       }
     } catch (error) {
       toast.error(
