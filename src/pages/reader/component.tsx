@@ -4,10 +4,8 @@ import NavigationPanel from "../../containers/panels/navigationPanel";
 import { Toaster } from "react-hot-toast";
 import ProgressPanel from "../../containers/panels/progressPanel";
 import { ReaderProps, ReaderState } from "./interface";
-import {
-  ConfigService,
-  ReadingTimeUtil,
-} from '../../services';
+import { ReadingTimeUtil } from "../../services";
+import { configStore, readingProgressStore } from "../../core/ports/stores";
 import Viewer from "../../containers/viewer";
 import { Tooltip } from "react-tooltip";
 import "./index.css";
@@ -74,7 +72,7 @@ const PANEL_OPEN_STATE: Record<
 function isDarkReaderTheme(): boolean {
   try {
     return (
-      ConfigService.getReaderConfig("backgroundColor") === "rgba(44,47,49,1)"
+      configStore.getReaderConfig("backgroundColor") === "rgba(44,47,49,1)"
     );
   } catch (e) {
     return false;
@@ -90,7 +88,7 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
   // 共读事件订阅（入房时按共读规则调整阅读模式）
   private collabUnsubs: Array<() => void> = [];
   private readingTimeUtil = new ReadingTimeUtil(
-    ConfigService,
+    configStore,
     isElectron
       ? {
           registerUnloadHandler(callback: () => void): () => void {
@@ -128,10 +126,10 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
       isOpenRightPanel: this.props.isSettingLocked,
       totalDuration: 0,
       currentDuration: 0,
-      scale: ConfigService.getReaderConfig("scale") || "1",
-      isTouch: ConfigService.getReaderConfig("isTouch") === "yes",
+      scale: configStore.getReaderConfig("scale") || "1",
+      isTouch: configStore.getReaderConfig("isTouch") === "yes",
       isPreventTrigger:
-        ConfigService.getReaderConfig("isPreventTrigger") === "yes",
+        configStore.getReaderConfig("isPreventTrigger") === "yes",
       isShowScale: false,
       // 从「共同阅读」页面点「开始阅读」进来时,自动弹出共读面板完成入房
       isCollabOpen: Boolean(localStorage.getItem("koodo-collab-pending-join")),
@@ -140,7 +138,7 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
     };
   }
   componentDidMount() {
-    if (ConfigService.getReaderConfig("isMergeWord") === "yes") {
+    if (configStore.getReaderConfig("isMergeWord") === "yes") {
       document
         .querySelector("body")
         ?.setAttribute("style", "background-color: rgba(0,0,0,0)");
@@ -173,7 +171,7 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
 
     window.addEventListener("beforeunload", function (event) {
       if (!isElectron) {
-        ConfigService.setReaderConfig("isFinishWebReading", "yes");
+        configStore.setReaderConfig("isFinishWebReading", "yes");
       }
     });
     window.addEventListener("mousemove", () => {
@@ -198,14 +196,14 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
     if (!book?.key) return;
     const isPdfLike =
       (book.format === "PDF" &&
-        !ConfigService.getAllListConfig("convertPDFBooks").includes(book.key)) ||
+        !configStore.getAllListConfig("convertPDFBooks").includes(book.key)) ||
       book.format.startsWith("CB");
     if (isPdfLike) {
-      if (ConfigService.getReaderConfig("pdfReaderMode") !== "scroll") return;
-      ConfigService.setReaderConfig("pdfReaderMode", "single");
+      if (configStore.getReaderConfig("pdfReaderMode") !== "scroll") return;
+      configStore.setReaderConfig("pdfReaderMode", "single");
     } else {
       if (this.props.readerMode !== "scroll") return;
-      ConfigService.setReaderConfig("readerMode", "single");
+      configStore.setReaderConfig("readerMode", "single");
     }
     this.props.handleReaderMode("single");
     this.props.renderBookFunc();
@@ -219,8 +217,8 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
     this.props.handleFetchAuthed();
     if (
       key &&
-      ConfigService.getAllListConfig("convertPDFBooks").includes(key) &&
-      ConfigService.getReaderConfig(
+      configStore.getAllListConfig("convertPDFBooks").includes(key) &&
+      configStore.getReaderConfig(
         this.props.currentBook?.description?.indexOf("scanned") > -1
           ? "scannedOcrEngine"
           : "textOcrEngine"
@@ -229,18 +227,18 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
       await this.props.handleFetchUserInfo();
     }
     DatabaseService.getRecord(key, "books").then((book: Book | null) => {
-      book = book || JSON.parse(ConfigService.getItem("tempBook") || "{}");
+      book = book || JSON.parse(configStore.getItem("tempBook") || "{}");
       if (!book) return;
 
       this.props.handleFetchPercentage(book);
       let readerMode =
         (book.format === "PDF" &&
-          !ConfigService.getAllListConfig("convertPDFBooks").includes(
+          !configStore.getAllListConfig("convertPDFBooks").includes(
             book.key
           )) ||
         book.format.startsWith("CB")
-          ? ConfigService.getReaderConfig("pdfReaderMode") || "scroll"
-          : ConfigService.getReaderConfig("readerMode") ||
+          ? configStore.getReaderConfig("pdfReaderMode") || "scroll"
+          : configStore.getReaderConfig("readerMode") ||
             // 窄屏(手机浏览器)默认单页,否则一屏会被排成两个过窄的小页
             (document.body.clientWidth < 570 ? "single" : "double");
       this.props.handleReaderMode(readerMode);
@@ -374,12 +372,12 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
     if (!format || typeof format !== "string") return false;
     const mode =
       format === "PDF" &&
-      !ConfigService.getAllListConfig("convertPDFBooks").includes(
+      !configStore.getAllListConfig("convertPDFBooks").includes(
         this.props.currentBook.key
       ) ||
       format.startsWith("CB")
-        ? ConfigService.getReaderConfig("pdfReaderMode") || "scroll"
-        : ConfigService.getReaderConfig("readerMode") || "double";
+        ? configStore.getReaderConfig("pdfReaderMode") || "scroll"
+        : configStore.getReaderConfig("readerMode") || "double";
     return mode === "scroll";
   };
   // 下侧进度面板的「可用区偏移」。
@@ -414,7 +412,7 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
       case "left":
         if (
           this.props.isNavLocked ||
-          ConfigService.getReaderConfig("isTempLocked") === "yes"
+          configStore.getReaderConfig("isTempLocked") === "yes"
         ) {
           break;
         } else {
@@ -445,7 +443,7 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
   handleLocation = () => {
     let position = this.props.htmlBook.rendition.getPosition();
 
-    ConfigService.setObjectConfig(
+    configStore.setObjectConfig(
       this.props.currentBook.key,
       position,
       "recordLocation"
@@ -565,9 +563,9 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
                       <input
                         className="input-value"
                         defaultValue={
-                          ConfigService.getReaderConfig("scale")
+                          configStore.getReaderConfig("scale")
                             ? parseFloat(
-                                ConfigService.getReaderConfig("scale")
+                                configStore.getReaderConfig("scale")
                               ) * 100
                             : 100
                         }
@@ -579,7 +577,7 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
                         type="number"
                         onInput={(event: any) => {
                           let fieldVal = event.target.value;
-                          ConfigService.setReaderConfig(
+                          configStore.setReaderConfig(
                             "scale",
                             parseFloat(fieldVal) / 100 + ""
                           );
@@ -596,7 +594,7 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
                         onBlur={(event) => {
                           let fieldVal = event.target.value;
                           if (fieldVal.trim() !== "") {
-                            ConfigService.setReaderConfig(
+                            configStore.setReaderConfig(
                               "scale",
                               parseFloat(fieldVal) / 100 + ""
                             );
@@ -616,7 +614,7 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
                       step={0.01}
                       onInput={(event: any) => {
                         const scale = event.target.value;
-                        ConfigService.setReaderConfig("scale", scale);
+                        configStore.setReaderConfig("scale", scale);
                       }}
                       onChange={(event) => {
                         this.setState({ scale: event.target.value });

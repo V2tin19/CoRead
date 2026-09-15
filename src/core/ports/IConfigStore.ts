@@ -29,4 +29,13 @@ export interface IConfigStore {
   setMapConfig(key: string, item: any, category: string): void;
   setOneMapConfig(key: string, val: any[], category: string, sync?: boolean): void;
   deleteFromMapConfig(key: string, item: any, category: string): void;
+  deleteFromAllMapConfig(item: any, category: string): void;
+  deleteMapConfig(key: string, category: string): void;
+  getFromAllMapConfig(item: any, category: string): string[];
+
+  getSyncRecord(record: { type: string; catergory: string; name: string; key: string }): any;
+  setSyncRecord(
+    record: { type: string; catergory: string; name: string; key: string },
+    op: { operation: string; time: number }
+  ): void;
 }
