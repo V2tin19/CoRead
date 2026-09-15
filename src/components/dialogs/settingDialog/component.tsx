@@ -3,7 +3,6 @@ import "./settingDialog.css";
 import { SettingInfoProps, SettingInfoState } from "./interface";
 import { Trans } from "react-i18next";
 import GeneralSetting from "../../../containers/settings/generalSetting";
-import SyncSetting from "../../../containers/settings/syncSetting";
 import ReadingSetting from "../../../containers/settings/readingSetting";
 import AppearanceSetting from "../../../containers/settings/appearanceSetting";
 import AboutSetting from "../../../containers/settings/aboutSetting";
@@ -72,12 +71,6 @@ class SettingDialog extends React.Component<
         return "Shortcuts";
       case "appearance":
         return "Appearance";
-      case "plugins":
-        return "Plugins";
-      case "sync":
-        return "Sync and backup";
-      case "account":
-        return "Account";
       case "about":
         return "About";
       case "ai":
@@ -130,8 +123,6 @@ class SettingDialog extends React.Component<
               "Appearance",
               "20px"
             )}
-
-            {this.renderSidebarItem("sync", "icon-sync", "Sync and backup", "")}
             {this.renderSidebarItem(
               "more",
               "icon-more",
@@ -210,8 +201,6 @@ class SettingDialog extends React.Component<
               <ShortcutSetting />
             ) : this.props.settingMode === "appearance" ? (
               <AppearanceSetting />
-            ) : this.props.settingMode === "sync" ? (
-              <SyncSetting />
             ) : this.props.settingMode === "data" ? (
               <DataSetting />
             ) : this.props.settingMode === "about" ? (

@@ -563,14 +563,6 @@ class ImportLocal extends React.Component<ImportLocalProps, ImportLocalState> {
     }));
   };
 
-  // Add method to handle cloud import
-  handleCloudImport = async (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent triggering the Dropzone
-    this.setState({ isMoreOptionsVisible: false });
-
-    this.props.handleImportDialog(true);
-  };
-
   // Handle OPDS import
   handleOPDSImport = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent triggering the Dropzone
@@ -865,14 +857,6 @@ class ImportLocal extends React.Component<ImportLocalProps, ImportLocalState> {
                           }}
                         ></input>
                       )}
-                    </div>
-                    <div
-                      className="more-option-item"
-                      onClick={this.handleCloudImport}
-                    >
-                      <span className="more-option-text">
-                        <Trans>From cloud storage</Trans>
-                      </span>
                     </div>
                     <div
                       className="more-option-item"

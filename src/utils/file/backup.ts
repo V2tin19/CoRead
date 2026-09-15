@@ -6,12 +6,10 @@ import {
   CommonTool,
   ConfigService,
 } from "../../assets/lib/kookit-extra-browser.min";
-import { getCloudConfig } from "./common";
 import DatabaseService from "../storage/databaseService";
 import { saveAs } from "file-saver";
 import JSZip from "jszip";
 import ConfigUtil from "./configUtil";
-import SyncService from "../storage/syncService";
 import BackgroundUtil from "./backgroundUtil";
 import FontUtil from "./fontUtil";
 import toast from "react-hot-toast";
@@ -64,15 +62,7 @@ export const backup = async (service: string): Promise<Boolean> => {
     if (service === "local") {
       return true;
     } else {
-      let tokenConfig = await getCloudConfig(service);
-
-      return await ipcRenderer.invoke("cloud-upload", {
-        ...tokenConfig,
-        fileName: "data.zip",
-        service: service,
-        type: "backup",
-        storagePath: getStorageLocation(),
-      });
+      return false;
     }
   } else {
     let blob: Blob | boolean = await backupFromStorage();
@@ -83,13 +73,7 @@ export const backup = async (service: string): Promise<Boolean> => {
       saveAs(blob as Blob, fileName);
       return true;
     } else {
-      let syncUtil = await SyncService.getSyncUtil();
-      let result = await syncUtil.uploadFile(fileName, "backup", blob as Blob);
-      if (result) {
-        return true;
-      } else {
-        return false;
-      }
+      return false;
     }
   }
 };

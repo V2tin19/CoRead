@@ -1,5 +1,5 @@
 import { generateSyncRecord, getStorageLocation } from "../common";
-import { getCloudConfig, upgradeConfig, upgradeStorage } from "./common";
+import { upgradeConfig, upgradeStorage } from "./common";
 import localforage from "localforage";
 import SqlUtil from "./sqlUtil";
 import DatabaseService from "../storage/databaseService";
@@ -196,28 +196,7 @@ export const restore = async (service: string): Promise<Boolean> => {
     await generateSyncRecord();
     return restoreRes;
   } else {
-    let tokenConfig = await getCloudConfig(service);
-    let result = await ipcRenderer.invoke("cloud-download", {
-      ...tokenConfig,
-      fileName: "data.zip",
-      service: service,
-      type: "backup",
-      storagePath: getStorageLocation(),
-    });
-    if (!result) {
-      console.error("no backup file");
-      return false;
-    }
-    const path = window.require("path");
-    let filePath = path.join(getStorageLocation(), "backup", "data.zip");
-    toast.loading(i18n.t("Restoring..."), {
-      id: "backup",
-    });
-    // 让 UI 有时间渲染 toast
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    let restoreRes = await restoreFromfilePath(filePath);
-    await generateSyncRecord();
-    return restoreRes;
+    return false;
   }
 };
 export const restoreFromSnapshot = async (fileName: string) => {

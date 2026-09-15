@@ -4,8 +4,6 @@ import CryptoJS from "crypto-js";
 import {
   CommonTool,
   ConfigService,
-  SyncUtil,
-  TokenService,
 } from "../assets/lib/kookit-extra-browser.min";
 import {
   ConvertLangMap,
@@ -15,23 +13,10 @@ import Book from "../models/Book";
 import BookUtil from "./file/bookUtil";
 import * as Kookit from "../assets/lib/kookit.min";
 import DatabaseService from "./storage/databaseService";
+import localforage from "localforage";
 import packageJson from "../../package.json";
 import toast from "react-hot-toast";
 import i18n from "../i18n";
-import {
-  encryptToken,
-  getCloudSyncToken,
-  refreshThirdToken,
-} from "./request/thirdparty";
-import {
-  getCloudConfig,
-  getCloudToken,
-  removeCloudConfig,
-} from "./file/common";
-import SyncService from "./storage/syncService";
-import localforage from "localforage";
-import { driveList } from "../constants/driveList";
-import { updateUserConfig } from "./request/user";
 import { languageCNMap, languageENMap } from "../constants/ttsList";
 import { BookHelper } from "../assets/lib/kookit.min";
 declare var window: any;
@@ -679,11 +664,6 @@ export function removeSearchParams() {
   const url = new URL(window.location.href.split("?")[0]);
   window.history.replaceState({}, document.title, url.toString());
 }
-export const getChatLocale = () => {
-  return navigator.language.startsWith("zh") ? "zh_CN" : "en";
-};
-export function addChatBox() {}
-export function removeChatBox() {}
 export const preCacheAllBooks = async (bookList: Book[]) => {
   for (let index = 0; index < bookList.length; index++) {
     const selectedBook = bookList[index];
@@ -901,14 +881,6 @@ export const getDefaultTransTarget = (langList) => {
 export const PROJECT_URL = "https://github.com/V2tin19/CoRead";
 export const WEBSITE_URL = PROJECT_URL;
 export const CN_WEBSITE_URL = PROJECT_URL;
-/**
- * 「上游服务型」入口总开关：在线客服小窗、赞助/客服弹窗。
- *
- * 这些功能全部依赖 koodoreader.com 的后端（客服会话、生成支付链接），
- * 我们没有对应服务，留着只会把用户送去上游站点，因此在 CoRead 里关闭。
- * 想重新打开：改成 true，并把 PROJECT_URL 相关出口恢复到上游地址。
- */
-export const UPSTREAM_SUPPORT_ENABLED = false;
 export const getServerRegion = () => {
   let isUseCN = false;
   if (ConfigService.getItem("serverRegion")) {
@@ -1003,70 +975,6 @@ export const checkBrokenDatabase = async () => {
   }
   return false;
 };
-export const testConnection = async (driveName: string, driveConfig: any) => {
-  toast.loading(i18n.t("Testing connection..."), {
-    id: "testing-connection-id",
-  });
-  if (isElectron) {
-    const { ipcRenderer } = window.require("electron");
-    const fs = window.require("fs");
-    if (!fs.existsSync(getStorageLocation() + "/config")) {
-      fs.mkdirSync(getStorageLocation() + "/config", { recursive: true });
-    }
-    fs.writeFileSync(getStorageLocation() + "/config/test.txt", "Hello world!");
-    let result = await ipcRenderer.invoke("cloud-upload", {
-      ...driveConfig,
-      fileName: "test.txt",
-      service: driveName,
-      type: "config",
-      storagePath: getStorageLocation(),
-      isUseCache: false,
-    });
-    if (fs.existsSync(getStorageLocation() + "/config/test.txt")) {
-      fs.unlinkSync(getStorageLocation() + "/config/test.txt");
-    }
-    if (result) {
-      toast.success(i18n.t("Connection successful"), {
-        id: "testing-connection-id",
-      });
-      await ipcRenderer.invoke("cloud-delete", {
-        ...driveConfig,
-        fileName: "test.txt",
-        service: driveName,
-        type: "config",
-        storagePath: getStorageLocation(),
-        isUseCache: false,
-      });
-    } else {
-      toast.error(i18n.t("Connection failed"), {
-        id: "testing-connection-id",
-      });
-    }
-
-    return result;
-  } else {
-    let syncUtil = new SyncUtil(driveName, driveConfig);
-    // 上传到云端
-    let result = await syncUtil.uploadFile(
-      "test.txt",
-      "config",
-      new Blob(["Hello world!"])
-    );
-    if (!result) {
-      toast.error(i18n.t("Connection failed"), {
-        id: "testing-connection-id",
-      });
-      return false;
-    } else {
-      toast.success(i18n.t("Connection successful"), {
-        id: "testing-connection-id",
-      });
-    }
-
-    // 删除云端文件
-    return await syncUtil.deleteFile("test.txt", "config");
-  }
-};
 export const testCORS = async (url: string) => {
   if (isElectron) return true;
 
@@ -1117,175 +1025,6 @@ export const getPdfPassword = (book: Book) => {
   // 匹配形如 protected PDF: #password# 的内容
   const match = book.description.match(/protected PDF: #(.+?)#/);
   return match ? match[1] : "";
-};
-export const showDownloadProgress = (
-  service: string,
-  type: string,
-  bookSize: number
-) => {
-  if (bookSize === 0) {
-    return setTimeout(() => {
-      console.warn("Book size is 0, skipping download progress.");
-    }, 1000);
-  }
-  let isFirst = true;
-  let timer = setInterval(async () => {
-    let downloadedSize = 0;
-    if (isElectron) {
-      if (type === "cloud") {
-        let tokenConfig = await getCloudConfig(service);
-        let config = {
-          ...tokenConfig,
-          service: service,
-          storagePath: getStorageLocation(),
-        };
-        downloadedSize = await window
-          .require("electron")
-          .ipcRenderer.invoke("cloud-progress", config);
-      } else {
-        let tokenConfig = await getCloudConfig(service);
-        downloadedSize = await window
-          .require("electron")
-          .ipcRenderer.invoke("picker-progress", {
-            ...tokenConfig,
-            baseFolder: "",
-            service: service,
-            currentPath: "",
-            storagePath: getStorageLocation(),
-          });
-      }
-      if (isFirst && downloadedSize > 0) {
-        downloadedSize = 0;
-        isFirst = false;
-      }
-      let progress = downloadedSize / bookSize;
-      toast.loading(
-        i18n.t("Downloading") + " (" + parseInt(progress * 100 + "") + "%)",
-        {
-          id: "offline-book",
-        }
-      );
-    } else {
-      if (type === "cloud") {
-        let syncUtil = await SyncService.getSyncUtil();
-        downloadedSize = await syncUtil.getDownloadedSize();
-      } else {
-        let pickerUtil = await SyncService.getPickerUtil(service);
-        downloadedSize = await pickerUtil.getDownloadedSize();
-      }
-      if (isFirst && downloadedSize > 0) {
-        downloadedSize = 0;
-        isFirst = false;
-      }
-      let progress = downloadedSize / bookSize;
-      toast.loading(
-        i18n.t("Downloading") + " (" + parseInt(progress * 100 + "") + "%)",
-        {
-          id: "offline-book",
-        }
-      );
-    }
-  }, 500);
-  return timer;
-};
-export const showTaskProgress = async (
-  handleSyncStateChange: (isSync: boolean) => void
-) => {
-  let config = {};
-  let timer: any;
-  let service = ConfigService.getItem("defaultSyncOption");
-  if (!service) {
-    toast(i18n.t("Please add data source in the setting"));
-    return null;
-  }
-  if (isElectron) {
-    let tokenConfig = await getCloudConfig(service);
-    config = {
-      ...tokenConfig,
-      service: service,
-      storagePath: getStorageLocation(),
-    };
-    await window.require("electron").ipcRenderer.invoke("cloud-reset", config);
-  } else {
-    let syncUtil = await SyncService.getSyncUtil();
-    syncUtil.resetCounters();
-  }
-  timer = setInterval(async () => {
-    if (isElectron) {
-      let stats = await window
-        .require("electron")
-        .ipcRenderer.invoke("cloud-stats", config);
-      if (stats.total > 0) {
-        toast.loading(
-          i18n.t("Start Transferring Data") +
-            " (" +
-            stats.completed +
-            "/" +
-            stats.total +
-            ")" +
-            " (" +
-            i18n.t(
-              driveList.find(
-                (item) =>
-                  item.value === ConfigService.getItem("defaultSyncOption")
-              )?.label || ""
-            ) +
-            ")",
-          {
-            id: "syncing",
-            position: "bottom-center",
-          }
-        );
-      }
-    } else {
-      let syncUtil = await SyncService.getSyncUtil();
-      let stats = await syncUtil.getStats();
-      if (stats.total > 0) {
-        toast.loading(
-          i18n.t("Start Transferring Data") +
-            " (" +
-            stats.completed +
-            "/" +
-            stats.total +
-            ")" +
-            " (" +
-            i18n.t(
-              driveList.find(
-                (item) =>
-                  item.value === ConfigService.getItem("defaultSyncOption")
-              )?.label || ""
-            ) +
-            ")",
-          {
-            id: "syncing",
-            position: "bottom-center",
-          }
-        );
-      }
-    }
-  }, 1000);
-  return timer;
-};
-export const getTaskStats = async () => {
-  let service = ConfigService.getItem("defaultSyncOption");
-  if (!service) {
-    toast(i18n.t("Please add data source in the setting"));
-    return {};
-  }
-  if (isElectron) {
-    let tokenConfig = await getCloudConfig(service);
-    let config = {
-      ...tokenConfig,
-      service: service,
-      storagePath: getStorageLocation(),
-    };
-    return await window
-      .require("electron")
-      .ipcRenderer.invoke("cloud-stats", config);
-  } else {
-    let syncUtil = await SyncService.getSyncUtil();
-    return await syncUtil.getStats();
-  }
 };
 export const compareVersions = (version1: string, version2: string) => {
   // Split strings by '.' and convert segments to numbers
@@ -1339,67 +1078,6 @@ export const clearAllData = async () => {
     ipcRenderer.invoke("clear-all-data", {});
   }
   await localforage.clear();
-};
-export const resetKoodoSync = async () => {
-  let encryptToken = await TokenService.getToken(
-    ConfigService.getItem("defaultSyncOption") + "_token"
-  );
-  await updateUserConfig({
-    is_enable_koodo_sync: "no",
-    default_sync_option: ConfigService.getItem("defaultSyncOption"),
-    default_sync_token: encryptToken || "",
-  });
-  setTimeout(() => {
-    updateUserConfig({
-      is_enable_koodo_sync: "yes",
-      default_sync_option: ConfigService.getItem("defaultSyncOption"),
-      default_sync_token: encryptToken || "",
-    });
-  }, 1000);
-};
-export const handleAutoCloudSync = async () => {
-  let syncRes = await getCloudSyncToken();
-  if (
-    syncRes.code === 200 &&
-    syncRes.data.default_sync_option &&
-    syncRes.data.default_sync_option !== "icloud" &&
-    syncRes.data.default_sync_token
-  ) {
-    let supportedSources = driveList
-      .filter((item) => {
-        if (isElectron) {
-          return item.support.includes("desktop");
-        } else {
-          return item.support.includes("browser");
-        }
-      })
-      .map((item) => item.value);
-    if (!supportedSources.includes(syncRes.data.default_sync_option)) {
-      return false;
-    }
-    if (
-      !isElectron &&
-      (syncRes.data.default_sync_option === "webdav" ||
-        syncRes.data.default_sync_option === "s3compatible")
-    ) {
-      return false;
-    }
-    ConfigService.setItem(
-      "defaultSyncOption",
-      syncRes.data.default_sync_option
-    );
-    ConfigService.setReaderConfig("isEnableKoodoSync", "yes");
-    await TokenService.setToken(
-      syncRes.data.default_sync_option + "_token",
-      syncRes.data.default_sync_token
-    );
-    ConfigService.setListConfig(
-      syncRes.data.default_sync_option,
-      "dataSourceList"
-    );
-    return true;
-  }
-  return false;
 };
 export const detectLocalLanguage = (text: string): string => {
   const chinesePattern = /[\u4e00-\u9fff\u3000-\u303f\uf900-\ufaff]/g;
@@ -1675,126 +1353,6 @@ export const getICloudDrivePath = () => {
     return iCloudPath;
   }
   return "";
-};
-export const prepareThirdConfig = async (service: string, config: any) => {
-  if (
-    service === "adrive" ||
-    service === "boxnet" ||
-    service === "dropbox" ||
-    service === "dubox" ||
-    service === "google" ||
-    service === "microsoft" ||
-    service === "microsoft_exp" ||
-    service === "google_exp" ||
-    service === "yandex" ||
-    service === "yiyiwu"
-  ) {
-    if (
-      config.access_token &&
-      config.expires_at > new Date().getTime() + 15 * 60 * 1000
-    ) {
-      return config;
-    }
-
-    // Get access token
-    let refreshToken = config.refresh_token;
-    let res = await refreshThirdToken(service, refreshToken);
-    if (!res.data || !res.data.access_token) {
-      toast.error(
-        i18n.t(
-          "The authentication token for your data source is no longer valid, please reauthorize in the settings"
-        ),
-        {
-          id: "syncing",
-          duration: 6000,
-        }
-      );
-      let targetDrive = service;
-      await TokenService.setToken(targetDrive + "_token", "");
-      SyncService.removeSyncUtil(targetDrive);
-      removeCloudConfig(targetDrive);
-      if (isElectron) {
-        const { ipcRenderer } = window.require("electron");
-        await ipcRenderer.invoke("cloud-close", {
-          service: targetDrive,
-        });
-      }
-      ConfigService.deleteListConfig(targetDrive, "dataSourceList");
-      if (targetDrive === ConfigService.getItem("defaultSyncOption")) {
-        ConfigService.removeItem("defaultSyncOption");
-      }
-      reloadManager();
-      return {};
-    }
-    if (
-      service === "adrive" ||
-      service === "boxnet" ||
-      service === "dubox" ||
-      service === "yiyiwu"
-    ) {
-      config.refresh_token = res.data.refresh_token;
-      config.access_token = res.data.access_token;
-      config.expires_at = new Date().getTime() + res.data.expires_in * 1000;
-    } else {
-      config.access_token = res.data.access_token;
-      config.expires_at = new Date().getTime() + res.data.expires_in * 1000;
-    }
-    let response: any = await encryptToken(service, config);
-    if (response.code === 200) {
-      if (
-        ConfigService.getReaderConfig("isEnableKoodoSync") === "yes" &&
-        ConfigService.getItem("defaultSyncOption") === service
-      ) {
-        let syncToken = await TokenService.getToken(service + "_token");
-        await updateUserConfig({
-          is_enable_koodo_sync: "yes",
-          default_sync_option: service,
-          default_sync_token: syncToken || "",
-        });
-      }
-    }
-    SyncService.removeSyncUtil(service);
-    removeCloudConfig(service);
-    if (isElectron) {
-      const { ipcRenderer } = window.require("electron");
-      await ipcRenderer.invoke("cloud-close", {
-        service: service,
-      });
-    }
-
-    return config;
-  } else {
-    return config;
-  }
-};
-export const isTokenExpired = async (service: string): Promise<boolean> => {
-  let config = await getCloudToken(service);
-  if (!config) {
-    return false;
-  }
-
-  if (
-    service === "adrive" ||
-    service === "boxnet" ||
-    service === "dropbox" ||
-    service === "dubox" ||
-    service === "google" ||
-    service === "microsoft" ||
-    service === "microsoft_exp" ||
-    service === "google_exp" ||
-    service === "yandex" ||
-    service === "yiyiwu"
-  ) {
-    if (
-      config.access_token &&
-      config.expires_at > new Date().getTime() + 15 * 60 * 1000
-    ) {
-      return false;
-    }
-    return true;
-  } else {
-    return false;
-  }
 };
 export const langToName = (lang: string) => {
   let regionCode = lang.split("-")[1];

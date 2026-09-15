@@ -1,4 +1,4 @@
-import { getStorageLocation, prepareThirdConfig } from "../common";
+import { getStorageLocation } from "../common";
 import CoverUtil from "./coverUtil";
 import {
   CommonTool,
@@ -10,15 +10,11 @@ import Book from "../../models/Book";
 import Note from "../../models/Note";
 import Bookmark from "../../models/Bookmark";
 import DictHistory from "../../models/DictHistory";
-import { decryptToken } from "../request/thirdparty";
 import toast from "react-hot-toast";
 import i18n from "../../i18n";
 declare var window: any;
 
 // File System Access API type declarations
-
-let configCache: any = {};
-let cloudConfigLocks: { [service: string]: Promise<any> } = {};
 export const changePath = async (newPath: string) => {
   if (isFolderContainsFile(newPath)) {
     toast.error(i18n.t("Please select an empty folder"));
@@ -258,33 +254,4 @@ export const upgradeConfig = (): Boolean => {
     console.error(error);
     return false;
   }
-};
-export const getCloudConfig = (service: string): Promise<any> => {
-  const prev = cloudConfigLocks[service] ?? Promise.resolve();
-  const next = prev.then(async () => {
-    let config = await getCloudToken(service);
-    if (!config) {
-      return {};
-    }
-    return await prepareThirdConfig(service, config);
-  });
-  // 链上错误处理，避免一次失败阻断后续调用
-  cloudConfigLocks[service] = next.catch(() => {});
-  return next;
-};
-export const getCloudToken = async (service: string) => {
-  if (configCache[service]) {
-    return configCache[service];
-  } else {
-    let result = await decryptToken(service);
-    if (result.code !== 200) {
-      return null;
-    }
-    let config = JSON.parse(result.data.token);
-    configCache[service] = config;
-    return config;
-  }
-};
-export const removeCloudConfig = (service: string) => {
-  delete configCache[service];
 };

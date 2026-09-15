@@ -2,7 +2,6 @@ import { isElectron } from "react-device-detect";
 import BookModel from "../../models/Book";
 import { getStorageLocation } from "../common";
 import { Buffer } from "buffer";
-import SyncService from "../storage/syncService";
 import DatabaseService from "../storage/databaseService";
 import Book from "../../models/Book";
 import {
@@ -10,7 +9,6 @@ import {
   ConfigService,
   TokenService,
 } from "../../assets/lib/kookit-extra-browser.min";
-import { getCloudConfig } from "./common";
 import { LocalFileManager } from "./localFile";
 declare var window: any;
 class AsyncQueue {
@@ -313,89 +311,11 @@ class CoverUtil {
 
     return extension;
   }
-  static async downloadCover(cover: string) {
-    if (isElectron) {
-      const { ipcRenderer } = window.require("electron");
-      let service = ConfigService.getItem("defaultSyncOption");
-      if (!service) {
-        return;
-      }
-      let tokenConfig = await getCloudConfig(service);
-
-      let result = await ipcRenderer.invoke("cloud-download", {
-        ...tokenConfig,
-        fileName: cover,
-        service: service,
-        type: "cover",
-        storagePath: getStorageLocation(),
-      });
-      if (!result) {
-        console.error("download cover failed");
-        return;
-      }
-    } else {
-      let syncUtil = await SyncService.getSyncUtil();
-
-      let imgBuffer: ArrayBuffer = await syncUtil.downloadFile(cover, "cover");
-      if (!imgBuffer) {
-        console.error("download cover failed");
-        return;
-      }
-      if (ConfigService.getItem("isUseLocal") === "yes") {
-        await LocalFileManager.saveFile(cover, imgBuffer, "cover");
-      } else {
-        let imgStr = CommonTool.arrayBufferToBase64(imgBuffer);
-        if (!imgStr) {
-          console.error("download cover failed");
-          return;
-        }
-        let base64 = `data:image/${
-          cover.split(".").reverse()[0]
-        };base64,${imgStr}`;
-        await this.saveCover(cover, base64);
-      }
-    }
+  static async downloadCover(_cover: string) {
+    return;
   }
-  static async uploadCover(cover: string) {
-    let isAuthed = await TokenService.getToken("is_authed");
-    if (isAuthed !== "yes") {
-      return;
-    }
-    if (isElectron) {
-      const { ipcRenderer } = window.require("electron");
-      let service = ConfigService.getItem("defaultSyncOption");
-      if (!service) {
-        return;
-      }
-      let tokenConfig = await getCloudConfig(service);
-
-      await ipcRenderer.invoke("cloud-upload", {
-        ...tokenConfig,
-        fileName: cover,
-        service: service,
-        type: "cover",
-        storagePath: getStorageLocation(),
-      });
-    } else {
-      let syncUtil = await SyncService.getSyncUtil();
-      let book = await DatabaseService.getRecord(cover.split(".")[0], "books");
-      if (ConfigService.getItem("isUseLocal") === "yes") {
-        let coverBuffer = await LocalFileManager.readFile(cover, "cover");
-        if (!coverBuffer) {
-          return;
-        }
-        await syncUtil.uploadFile(cover, "cover", coverBuffer);
-      } else {
-        if (book && book.cover) {
-          let base64 = book.cover;
-          let result = await this.convertCoverBase64(base64);
-          let coverBlob = new Blob([result.arrayBuffer], {
-            type: `image/${result.extension}`,
-          });
-          await syncUtil.uploadFile(cover, "cover", coverBlob);
-        }
-      }
-    }
+  static async uploadCover(_cover: string) {
+    return;
   }
   static async saveCover(cover: string, base64: string) {
     await saveCoverQueue.add(async () => {
@@ -437,57 +357,10 @@ class CoverUtil {
     }
   }
   static async getCloudCoverList() {
-    if (isElectron) {
-      // for ftp, sftp etc
-      const { ipcRenderer } = window.require("electron");
-      let service = ConfigService.getItem("defaultSyncOption");
-      if (!service) {
-        return [];
-      }
-      let tokenConfig = await getCloudConfig(service);
-
-      let cloudCoverList = await ipcRenderer.invoke("cloud-list", {
-        ...tokenConfig,
-        service: service,
-        type: "cover",
-        storagePath: getStorageLocation(),
-      });
-      return cloudCoverList;
-    } else {
-      let syncUtil = await SyncService.getSyncUtil();
-      let cloudCoverList = await syncUtil.listFiles("cover");
-      return cloudCoverList;
-    }
+    return [];
   }
-  static async deleteCloudCover(key: string) {
-    let isAuthed = await TokenService.getToken("is_authed");
-    if (isAuthed !== "yes") {
-      return;
-    }
-    let coverList = await this.getCloudCoverList();
-    for (let cover of coverList) {
-      if (cover.startsWith(key)) {
-        if (isElectron) {
-          const { ipcRenderer } = window.require("electron");
-          let service = ConfigService.getItem("defaultSyncOption");
-          if (!service) {
-            return;
-          }
-          let tokenConfig = await getCloudConfig(service);
-
-          await ipcRenderer.invoke("cloud-delete", {
-            ...tokenConfig,
-            fileName: cover,
-            service: service,
-            type: "cover",
-            storagePath: getStorageLocation(),
-          });
-        } else {
-          let syncUtil = await SyncService.getSyncUtil();
-          await syncUtil.deleteFile(cover, "cover");
-        }
-      }
-    }
+  static async deleteCloudCover(_key: string) {
+    return;
   }
 }
 
