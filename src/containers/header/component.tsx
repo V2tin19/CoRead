@@ -7,7 +7,6 @@ import { HeaderProps, HeaderState } from "./interface";
 import {
   ConfigService,
   TokenService,
-  KOReaderUtil,
 } from "../../assets/lib/kookit-extra-browser.min";
 import { restoreFromConfigJson } from "../../utils/file/restore";
 import { backupToConfigJson, generateSnapshot } from "../../utils/file/backup";
@@ -386,45 +385,6 @@ class Header extends React.Component<HeaderProps, HeaderState> {
 
     this.setState({ isSync: false });
   };
-  handleKOReaderSync = async () => {
-    if (ConfigService.getReaderConfig("isEnableKoReaderSync") !== "yes") {
-      return;
-    }
-
-    toast.loading(this.props.t("Start syncing") + " (KOReader)", {
-      id: "koreader-sync",
-      position: "bottom-center",
-    });
-    try {
-      const koReaderUtil = new KOReaderUtil(
-        ConfigService,
-        TokenService,
-        DatabaseService
-      );
-      const summary =
-        await koReaderUtil.syncKOReaderProgress(getBookPartialMd5);
-      if (summary.pulledBooks > 0 || summary.pushedBooks > 0) {
-        this.props.handleFetchBooks();
-      }
-      toast.success(
-        this.props.t("Synchronisation successful") + " (KOReader)",
-        {
-          id: "koreader-sync",
-        }
-      );
-    } catch (error) {
-      console.error(error);
-      toast.error(
-        this.props.t("Sync failed") +
-          " (KOReader): " +
-          (error instanceof Error ? error.message : String(error)),
-        {
-          id: "koreader-sync",
-          duration: 6000,
-        }
-      );
-    }
-  };
   beforeSync = async (userInfo: any) => {
     if (!ConfigService.getItem("defaultSyncOption")) {
       toast.error(this.props.t("Please add data source in the setting"));
@@ -541,7 +501,6 @@ class Header extends React.Component<HeaderProps, HeaderState> {
       this.timer = await showTaskProgress(this.handleSyncStateChange);
       if (!this.timer) {
         this.setState({ isSync: false });
-        this.handleKOReaderSync();
         return false;
       }
 
@@ -549,14 +508,12 @@ class Header extends React.Component<HeaderProps, HeaderState> {
       if (!res) {
         clearInterval(this.timer);
         this.setState({ isSync: false });
-        this.handleKOReaderSync();
         return false;
       }
       let compareResult = await this.getCompareResult();
       await this.handleSync(compareResult);
       clearInterval(this.timer);
       this.setState({ isSync: false });
-      this.handleKOReaderSync();
     } catch (error) {
       console.error(error);
       toast.error(
@@ -566,7 +523,6 @@ class Header extends React.Component<HeaderProps, HeaderState> {
       );
       clearInterval(this.timer);
       this.setState({ isSync: false });
-      this.handleKOReaderSync();
       return false;
     } finally {
       this.isSyncing = false;
@@ -833,7 +789,6 @@ class Header extends React.Component<HeaderProps, HeaderState> {
                 !ConfigService.getItem("defaultSyncOption")
               ) {
                 await this.handleLocalSync();
-                this.handleKOReaderSync();
                 return;
               }
               if (this.props.isAuthed) {

@@ -18,7 +18,6 @@ import { isElectron } from "react-device-detect";
 import { LocalFileManager } from "../../../utils/file/localFile";
 import {
   ConfigService,
-  KOReaderUtil,
   TokenService,
 } from "../../../assets/lib/kookit-extra-browser.min";
 import { changeLibrary, changePath } from "../../../utils/file/common";
@@ -47,8 +46,6 @@ class DataSetting extends React.Component<SettingInfoProps, SettingInfoState> {
       exportHighlightsFormat: "",
       isEnableDiscordRPC:
         ConfigService.getReaderConfig("isEnableDiscordRPC") === "yes",
-      isEnableKoReaderSync:
-        ConfigService.getReaderConfig("isEnableKoReaderSync") === "yes",
       isEnableNotionSync:
         ConfigService.getReaderConfig("isEnableNotionSync") === "yes",
       isEnableYuqueSync:
@@ -90,118 +87,7 @@ class DataSetting extends React.Component<SettingInfoProps, SettingInfoState> {
     toast.success(this.props.t("Change successful"));
   };
 
-  handleKOReaderSyncSetting = async () => {
-    const currentlyEnabled = this.state.isEnableKoReaderSync;
-    if (currentlyEnabled) {
-      this.setState({ isEnableKoReaderSync: false });
-      ConfigService.setReaderConfig("isEnableKoReaderSync", "no");
-      toast.success(this.props.t("Change successful"));
-      return;
-    }
-
-    if (!isElectron) {
-      if (!(await confirmBrowserExtensionAsync())) {
-        return;
-      }
-    }
-
-    const savedConfig =
-      ConfigService.getObjectConfig(
-        "koReaderSyncConfig",
-        "thirdpartyToken",
-        {}
-      ) || {};
-    const labels = {
-      serverUrl: this.props.t("Server address"),
-      username: this.props.t("Username"),
-      password: this.props.t("Password"),
-    };
-    const result = await vexOpenAsync(
-      {
-        serverUrl: {
-          value: savedConfig.serverUrl || "",
-          placeholder: "https://sync.koreader.rocks",
-          type: "text",
-        },
-        username: {
-          value: savedConfig.username || "",
-          placeholder: this.props.t("Enter username"),
-          type: "text",
-        },
-        password: {
-          value: "",
-          placeholder:
-            savedConfig.passwordHash && savedConfig.username
-              ? this.props.t("Leave blank to keep the current password")
-              : this.props.t("Enter password"),
-          type: "password",
-        },
-      },
-      "",
-      labels,
-      // 上游 /add-thirdparty 文档页不再跳转
-      getWebsiteUrl()
-    );
-
-    if (!result) {
-      return;
-    }
-
-    if (!result.serverUrl || !result.username) {
-      toast.error(this.props.t("Please fill in all fields"));
-      return;
-    }
-    if (!result.password && !savedConfig.passwordHash) {
-      toast.error(this.props.t("Please fill in all fields"));
-      return;
-    }
-
-    try {
-      toast.loading(this.props.t("Validating server info..."), {
-        id: "ko-reader-sync",
-      });
-      const koReaderUtil = new KOReaderUtil(
-        ConfigService,
-        TokenService,
-        DatabaseService
-      );
-      const verifiedConfig =
-        await koReaderUtil.verifyAndBuildKOReaderSyncConfig({
-          serverUrl: result.serverUrl,
-          username: result.username,
-          password: result.password,
-          passwordHash:
-            !result.password && savedConfig.username === result.username
-              ? savedConfig.passwordHash
-              : "",
-        });
-      ConfigService.setObjectConfig(
-        "koReaderSyncConfig",
-        verifiedConfig,
-        "thirdpartyToken"
-      );
-      this.setState({ isEnableKoReaderSync: true });
-      ConfigService.setReaderConfig("isEnableKoReaderSync", "yes");
-      toast.success(this.props.t("Validation successful"), {
-        id: "ko-reader-sync",
-      });
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : this.props.t("Validation failed"),
-        {
-          id: "ko-reader-sync",
-        }
-      );
-    }
-  };
-
   handleDataSetting = async (item: any) => {
-    if (item.propName === "isEnableKoReaderSync") {
-      await this.handleKOReaderSyncSetting();
-      return;
-    }
     this.handleSetting(item.propName);
   };
 

@@ -439,28 +439,21 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
       {}
     );
     if (chapterDocs.length > 0) {
-      if (
-        ConfigService.getReaderConfig("isEnableKoReaderSync") === "yes" &&
-        bookLocation.xpath
-      ) {
-        await rendition.goToXpath(bookLocation.xpath);
-      } else {
-        await rendition.goToPosition(
-          JSON.stringify({
-            text: bookLocation.text || "",
-            chapterTitle: bookLocation.chapterTitle || "",
-            page: bookLocation.page || "",
-            chapterDocIndex: bookLocation.chapterDocIndex || 0,
-            chapterHref: bookLocation.chapterHref || "",
-            count: bookLocation.hasOwnProperty("cfi")
-              ? "ignore"
-              : bookLocation.count || 0,
-            percentage: bookLocation.percentage,
-            cfi: bookLocation.cfi,
-            isFirst: true,
-          })
-        );
-      }
+      await rendition.goToPosition(
+        JSON.stringify({
+          text: bookLocation.text || "",
+          chapterTitle: bookLocation.chapterTitle || "",
+          page: bookLocation.page || "",
+          chapterDocIndex: bookLocation.chapterDocIndex || 0,
+          chapterHref: bookLocation.chapterHref || "",
+          count: bookLocation.hasOwnProperty("cfi")
+            ? "ignore"
+            : bookLocation.count || 0,
+          percentage: bookLocation.percentage,
+          cfi: bookLocation.cfi,
+          isFirst: true,
+        })
+      );
     }
     rendition.on("rendered", async () => {
       this.handleLocation();

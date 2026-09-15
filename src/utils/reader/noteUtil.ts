@@ -1,9 +1,6 @@
 import Note from "../../models/Note";
 import DatabaseService from "../storage/databaseService";
-import {
-  ConfigService,
-  NoteSyncManager,
-} from "../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from "../../assets/lib/kookit-extra-browser.min";
 import { getIframeDoc } from "./docUtil";
 import collabClient, { getCollabBookKey } from "../collab/collabClient";
 import { getOrCreateDisplayName } from "../collab/roomBook";
@@ -90,7 +87,5 @@ export async function createHighlight(params: DigestParams): Promise<void> {
   collabClient
     .broadcastNote(getCollabBookKey(currentBook), highlight)
     .catch((error) => console.warn("Failed to broadcast note", error));
-  let noteSyncManager = new NoteSyncManager(DatabaseService, ConfigService);
-  noteSyncManager.syncNote(highlight, bookKey);
   onSuccess?.();
 }
