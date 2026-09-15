@@ -1,4 +1,4 @@
-﻿import Plugin from "../models/Plugin";
+import Plugin from "../models/Plugin";
 import { isElectron } from "react-device-detect";
 import CryptoJS from "crypto-js";
 import {
@@ -677,51 +677,10 @@ export function removeSearchParams() {
   window.history.replaceState({}, document.title, url.toString());
 }
 export const getChatLocale = () => {
-  if (navigator.language.startsWith("zh")) {
-    return "zh_CN";
-  } else {
-    return "en";
-  }
+  return navigator.language.startsWith("zh") ? "zh_CN" : "en";
 };
-export async function addChatBox() {
-  let deviceUuid = await TokenService.getFingerprint();
-  const scriptContent = `
-    (function (d, t) {
-      var BASE_URL = "https://app.chatwoot.com";
-      var g = d.createElement(t),
-        s = d.getElementsByTagName(t)[0];
-      g.src = BASE_URL + "/packs/js/sdk.js";
-      g.defer = true;
-      g.async = true;
-      s.parentNode.insertBefore(g, s);
-      g.onload = function () {
-        window.chatwootSDK.run({
-          websiteToken: "svaD5wxfU5UY1r5ZzpMtLqv2",
-          baseUrl: BASE_URL,
-        });
-        window.addEventListener('chatwoot:ready', function() {
-          window.$chatwoot.setLocale('${getChatLocale()}');
-          window.$chatwoot.setCustomAttributes({
-            version: '${packageJson.version}',
-            client: 'web',
-            device: '${deviceUuid}',
-          });
-        });
-      };
-    })(document, "script");
-  `;
-
-  const scriptElement = document.createElement("script");
-  scriptElement.type = "text/javascript";
-  scriptElement.text = scriptContent;
-  document.head.appendChild(scriptElement);
-}
-export function removeChatBox() {
-  const scriptElement = document.querySelector("script[src*='chatwoot']");
-  if (scriptElement) {
-    scriptElement.remove();
-  }
-}
+export function addChatBox() {}
+export function removeChatBox() {}
 export const preCacheAllBooks = async (bookList: Book[]) => {
   for (let index = 0; index < bookList.length; index++) {
     const selectedBook = bookList[index];

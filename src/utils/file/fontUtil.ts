@@ -1,5 +1,5 @@
 import { isElectron } from "react-device-detect";
-import { getServerRegion, getStorageLocation, loadFontData } from "../common";
+import { getStorageLocation, loadFontData } from "../common";
 import { ConfigService } from "../../assets/lib/kookit-extra-browser.min";
 import { LocalFileManager } from "./localFile";
 import localforage from "localforage";
@@ -230,11 +230,7 @@ class FontUtil {
   }
 
   static getFeaturedFontUrl(fontPath: string, isAuthed: boolean): string {
-    const base =
-      getServerRegion() === "china" && isAuthed
-        ? "https://storage.koodoreader.cn"
-        : "https://storage.koodoreader.com";
-    return `${base}/fonts${fontPath}`;
+    return "";
   }
 
   static async downloadFeaturedFont(
@@ -247,66 +243,7 @@ class FontUtil {
     isAuthed: boolean,
     onProgress?: (progress: number) => void
   ): Promise<boolean> {
-    const url = this.getFeaturedFontUrl(font.url, isAuthed);
-    const response = await fetch(url, {
-      headers: {
-        "Cache-Control": "no-transform",
-        "Accept-Encoding": "identity",
-      },
-    });
-    if (!response.ok) return false;
-
-    const contentLength = Number(response.headers.get("Content-Length") || 0);
-    const reader = response.body?.getReader();
-    if (!reader) {
-      const buffer = await response.arrayBuffer();
-      await this.saveFont(font.id, buffer, "ttf");
-      const label =
-        i18n.t(font.fontName) +
-        " " +
-        font.style
-          .split(" ")
-          .map((subStyle) => i18n.t(subStyle))
-          .join(" ");
-      this.saveFontMeta(font.id, { label, value: font.id, type: "ttf" });
-      this.addFontId(font.id);
-      this.notifyFontListChanged();
-      return true;
-    }
-
-    const chunks: Uint8Array[] = [];
-    let received = 0;
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      if (value) {
-        chunks.push(value);
-        received += value.length;
-        if (contentLength > 0 && onProgress) {
-          onProgress(received / contentLength);
-        }
-      }
-    }
-
-    const buffer = new Uint8Array(received);
-    let offset = 0;
-    for (const chunk of chunks) {
-      buffer.set(chunk, offset);
-      offset += chunk.length;
-    }
-
-    await this.saveFont(font.id, buffer.buffer, "ttf");
-    const label =
-      i18n.t(font.fontName) +
-      " " +
-      font.style
-        .split(" ")
-        .map((subStyle) => i18n.t(subStyle))
-        .join(" ");
-    this.saveFontMeta(font.id, { label, value: font.id, type: "ttf" });
-    this.addFontId(font.id);
-    this.notifyFontListChanged();
-    return true;
+    return false;
   }
 }
 

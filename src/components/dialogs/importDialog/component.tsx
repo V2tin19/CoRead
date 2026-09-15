@@ -294,18 +294,7 @@ class ImportDialog extends React.Component<
       toast.dismiss("google-picker");
 
       if (isElectron) {
-        openExternalUrl(
-          "https://dl.koodoreader.com/websites/google-picker.html?access_token=" +
-            pickerUtil.remote.config.access_token
-        );
-        const { ipcRenderer } = window.require("electron");
-        ipcRenderer.once("picker-finished", async (event: any, config: any) => {
-          if (config && config.action === "picked" && config.docs) {
-            for (const file of config.docs) {
-              await this.handleImportGoogleFile(file);
-            }
-          }
-        });
+        toast.error(this.props.t("Google Drive OAuth proxy has been removed"));
       } else {
         await this.googlePickerUtil.createPicker(this.handlePickerCallback);
       }
