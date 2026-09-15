@@ -52,8 +52,8 @@ async function run() {
   const pdfjsWorkerPath = path.join(ROOT, "public", "lib", "pdfjs", "pdf.worker.mjs");
   assert(fs.existsSync(pdfjsPath) && fs.existsSync(pdfjsWorkerPath), "契约 5: 本地 PDF.js 核心库及 Worker 存在");
 
-  const kookitBaselinePath = path.join(ROOT, "src", "assets", "lib", "kookit.min.js");
-  assert(fs.existsSync(kookitBaselinePath), "内核基线: src/assets/lib/kookit.min.js 完好");
+  const kookitLegacyPath = path.join(ROOT, "src", "assets", "lib", "kookit.min.js");
+  assert(!fs.existsSync(kookitLegacyPath), "内核换代: 老黑盒产物 kookit.min.js 已彻底移除");
 
   // Phase 2: 自建纯净内核 Bundle 与核心架构层存在性断言
   const vendorBundlePath = path.join(ROOT, "src", "vendor", "kookit.esm.js");
