@@ -294,6 +294,19 @@ async function waitForServer(timeoutMs = 8000) {
 
     // 多人同页：撤销 / 清空必须只作用在自己画的笔迹上
     const PAGE_P1 = "chap1.xhtml#p1";
+    // ⚠️ 房间内的写操作现在要求发起者是房间成员（服务端校验 clientId，
+    //    见 [12] 段）。以前这段测试里的「阿明 / 小美」从来没入过房 ——
+    //    那正是漏洞本身：非成员可以随便往别人的房间里画。
+    await post(`/rooms/${roomId}/join`, {
+      clientId: "c-a",
+      name: "阿明",
+      bookKey: "md5-abc",
+    });
+    await post(`/rooms/${roomId}/join`, {
+      clientId: "c-b",
+      name: "小美",
+      bookKey: "md5-abc",
+    });
     const drawAs = (clientId, name, id, pageKey) =>
       post(`/rooms/${roomId}/doodle`, {
         clientId,
@@ -450,6 +463,21 @@ async function waitForServer(timeoutMs = 8000) {
     check("GET /rooms 无 token 放行", readNoToken.status === 200, readNoToken.body);
     const healthNoToken = await json("/health");
     check("GET /health 无 token 放行", healthNoToken.status === 200);
+
+    // SSE：实时数据流，配了 token 就必须带（走 ?token= —— EventSource
+    // 不能带自定义请求头）。不带 token 也能连上，就等于任何人只要拿到
+    // 别人的 clientId，就能明文听走他的聊天与翻页（实测可复现）。
+    const sseNoToken = await fetch(`${BASE}/events?clientId=someone`);
+    check("GET /events 无 token → 401", sseNoToken.status === 401, sseNoToken.status);
+    await sseNoToken.body?.cancel?.();
+    const sseBadToken = await fetch(`${BASE}/events?clientId=someone&token=wrong`);
+    check("GET /events 错误 token → 401", sseBadToken.status === 401, sseBadToken.status);
+    await sseBadToken.body?.cancel?.();
+    const sseOk = await fetch(
+      `${BASE}/events?clientId=someone&token=${encodeURIComponent(TOKEN)}`
+    );
+    check("GET /events 正确 token → 200", sseOk.status === 200, sseOk.status);
+    await sseOk.body?.cancel?.();
 
     // 写操作必须有 token
     const createNoToken = await post("/rooms", { clientId: "x", name: "n", roomName: "r" });
@@ -937,6 +965,189 @@ async function waitForServer(timeoutMs = 8000) {
       }
     );
     corsOn.kill();
+
+    // ── 12. 越权 / 信息泄露回归 ─────────────────────────────────────────
+    // 这一段的每一条都对应一个**实测确实能打穿**的问题（2026-09-16 探针）：
+    // 非会员能往别人的房间发消息 / 拖走全房间的阅读位置 / 注入笔记 /
+    // 删掉别人的笔记；/rooms 会下发成员设备 id；SSE 可匿名订阅并截获明文聊天。
+    // 断言留在这里，防止哪天改回去。
+    console.log("\n[12] 越权 / 信息泄露回归");
+    await waitForPortFree();
+    const child12 = spawnWithEnv({}, "sec");
+    await waitForServer();
+    {
+      const owner = await postR("/rooms", {
+        clientId: "sec-owner",
+        name: "房主",
+        roomName: "私密房",
+        bookKey: "book-sec",
+      });
+      const secRoom = owner.body.roomId;
+      await postR(`/rooms/${secRoom}/join`, {
+        clientId: "sec-member",
+        name: "成员",
+        bookKey: "book-sec",
+      });
+
+      // 12.1 非成员写：一律 403
+      const outsiderWrites = [
+        ["message", { text: "我是外人" }],
+        ["location", { location: { chapterDocIndex: 999 } }],
+        ["notes", { note: { key: "evil", range: "[1,2]" } }],
+        ["doodle", { pageKey: "p1", op: "add", stroke: { id: "x1", points: [[0, 0]] } }],
+        ["leader", { targetId: "sec-owner" }],
+      ];
+      for (const [action, extra] of outsiderWrites) {
+        const r = await postR(`/rooms/${secRoom}/${action}`, {
+          clientId: "sec-outsider",
+          name: "外人",
+          ...extra,
+        });
+        check(`非成员 ${action} → 403`, r.status === 403, r);
+      }
+      const outsiderClose = await postR(
+        `/rooms/${secRoom}`,
+        { clientId: "sec-outsider" },
+        "DELETE"
+      );
+      check("非成员解散房间 → 403", outsiderClose.status === 403, outsiderClose);
+
+      // 非成员不能靠伪造 authorId 混进来
+      const spoofAuthor = await postR(`/rooms/${secRoom}/doodle`, {
+        clientId: "sec-outsider",
+        authorId: "sec-member",
+        pageKey: "p1",
+        op: "add",
+        stroke: { id: "x2", points: [[0, 0]] },
+      });
+      check("非成员伪造 authorId 也进不来 → 403", spoofAuthor.status === 403, spoofAuthor);
+
+      // 12.2 笔记归属：作者由服务端盖章，改删只限作者
+      const mine = await postR(`/rooms/${secRoom}/notes`, {
+        clientId: "sec-member",
+        name: "成员",
+        note: { key: "note-mine", range: "[1,2]", authorId: "sec-owner" },
+      });
+      check("成员写笔记 → 201", mine.status === 201, mine);
+      check(
+        "笔记作者由服务端盖章（客户端自报的 authorId 被覆盖）",
+        mine.body.note && mine.body.note.authorId === "sec-member",
+        mine.body
+      );
+      const stealDelete = await postR(`/rooms/${secRoom}/note-delete`, {
+        clientId: "sec-owner",
+        noteKey: "note-mine",
+      });
+      check("房主删成员的笔记 → 403", stealDelete.status === 403, stealDelete);
+      const stealUpdate = await postR(`/rooms/${secRoom}/note-update`, {
+        clientId: "sec-owner",
+        note: { key: "note-mine", range: "[3,4]" },
+      });
+      check("房主改成员的笔记 → 403", stealUpdate.status === 403, stealUpdate);
+      const ownDelete = await postR(`/rooms/${secRoom}/note-delete`, {
+        clientId: "sec-member",
+        noteKey: "note-mine",
+      });
+      check("作者删自己的笔记 → 200", ownDelete.status === 200, ownDelete);
+      const delMissing = await postR(`/rooms/${secRoom}/note-delete`, {
+        clientId: "sec-member",
+        noteKey: "not-exist",
+      });
+      check("删不存在的笔记保持幂等 200", delMissing.status === 200, delMissing);
+      const badKey = await postR(`/rooms/${secRoom}/notes`, {
+        clientId: "sec-member",
+        note: { key: "../../evil", range: "[1,2]" },
+      });
+      check("畸形笔记 key → 400", badKey.status === 400, badKey);
+
+      // 12.3 房间列表不下发任何 clientId
+      const list = await jsonR("/rooms");
+      const brief = (list.body.rooms || []).find((r) => r.roomId === secRoom) || {};
+      check(
+        "房间列表不含 ownerId / memberIds / leaderId",
+        !("ownerId" in brief) && !("memberIds" in brief) && !("leaderId" in brief),
+        brief
+      );
+      const serialized = JSON.stringify(brief);
+      check(
+        "房间列表里搜不到任何 clientId",
+        !serialized.includes("sec-owner") && !serialized.includes("sec-member"),
+        serialized
+      );
+      const asOwner = (await jsonR(`/rooms?clientId=sec-owner`)).body.rooms.find(
+        (r) => r.roomId === secRoom
+      );
+      check("房主看到 canManage=true", asOwner && asOwner.canManage === true, asOwner);
+      const asOutsider = (
+        await jsonR(`/rooms?clientId=sec-outsider`)
+      ).body.rooms.find((r) => r.roomId === secRoom);
+      check(
+        "非成员看到 canManage=false",
+        asOutsider && asOutsider.canManage === false,
+        asOutsider
+      );
+
+      // 12.4 clientId 必填（老实现会塞进一个 id 为 undefined 的幽灵成员）
+      const noClient = await postR("/rooms", { name: "x", roomName: "y" });
+      check("建房不带 clientId → 400", noClient.status === 400, noClient);
+      const joinNoClient = await postR(`/rooms/${secRoom}/join`, { name: "x" });
+      check("入房不带 clientId → 400", joinNoClient.status === 400, joinNoClient);
+      const ghost = (await jsonR(`/rooms/${secRoom}`)).body.members || [];
+      check(
+        "成员表里没有 clientId 为空的幽灵成员",
+        ghost.every((m) => typeof m.clientId === "string" && m.clientId),
+        ghost
+      );
+
+      // 12.5 路径形状：房间 ID 只接受 A-Z0-9
+      const badRoomId = await jsonR("/rooms/..%2F..%2Fpackage.json");
+      check("畸形 roomId → 404（不会落到别的目录）", badRoomId.status === 404, badRoomId);
+      const traverseName = await jsonR(
+        `/rooms/${secRoom}/books/..%2F..%2Froom.json/file`
+      );
+      check(
+        "畸形书名穿越 → 404（拿不到 room.json）",
+        traverseName.status === 404,
+        traverseName
+      );
+
+      // 12.6 资源上限：单笔点数被截断（否则一个 2MB 请求就能让同伴端卡死）
+      const huge = await postR(`/rooms/${secRoom}/doodle`, {
+        clientId: "sec-member",
+        pageKey: "p-huge",
+        op: "add",
+        stroke: {
+          id: "h1",
+          points: Array.from({ length: 30000 }, () => [0.1, 0.1]),
+        },
+      });
+      const hugePoints = ((huge.body.strokes || [])[0] || {}).points || [];
+      check(
+        "单笔点数被截到上限（防同伴端被拖死）",
+        hugePoints.length === 20000,
+        hugePoints.length
+      );
+
+      // 12.7 个人云涂鸦：脏点被剔除、removedIds 非数组不再当成字符遍历
+      const dirty = await postR(
+        "/doodles/md5-dirty",
+        {
+          pageKey: "p1",
+          strokes: [{ id: "d1", points: [["a", "b"], [1, 2], [3], null] }],
+          removedIds: "not-an-array",
+        },
+        "PUT"
+      );
+      check(
+        "涂鸦点数组被归一化（脏点剔除、只留合法数字对）",
+        dirty.body.strokes &&
+          dirty.body.strokes[0].points.length === 1 &&
+          dirty.body.strokes[0].points[0][0] === 1,
+        dirty.body
+      );
+    }
+    child12.kill();
+    await waitForPortFree();
   } finally {
     try {
       child.kill();

@@ -105,7 +105,11 @@ class CloudLibrary extends React.Component<
     }
     this.setState({ isLoading: true, error: "" });
     try {
-      const response = await fetch(`${this.baseUrl}/rooms`);
+      // 带上 clientId，服务端才会把 canManage（「我能不能解散这个房间」）算出来。
+      // 不带的话列表里所有房间的「删除」都不会显示。
+      const response = await fetch(
+        `${this.baseUrl}/rooms?clientId=${encodeURIComponent(collabClient.clientId)}`
+      );
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       // 地址填错时可能收到 HTML（打进别的站点 / SPA fallback 吐回 index.html），
       // 别让 json() 抛语法错、把提示搞成 "Unexpected token <"
@@ -173,7 +177,8 @@ class CloudLibrary extends React.Component<
         name: roomName,
         bookKey: "",
         bookCount: 0,
-        ownerId: collabClient.clientId,
+        // 自己刚建的房间，当然能解散
+        canManage: true,
         members: [],
         createdAt: Date.now(),
       });
@@ -199,7 +204,9 @@ class CloudLibrary extends React.Component<
         `${this.baseUrl}/rooms/${encodeURIComponent(code)}/books`
       );
       if (!response.ok) throw new Error("房间不存在，请确认房间号");
-      const roomsResponse = await fetch(`${this.baseUrl}/rooms`);
+      const roomsResponse = await fetch(
+        `${this.baseUrl}/rooms?clientId=${encodeURIComponent(collabClient.clientId)}`
+      );
       const roomsData = roomsResponse.ok ? await roomsResponse.json() : {};
       const info = (roomsData.rooms || []).find(
         (room: CollabRoomBrief) => room.roomId === code
@@ -211,7 +218,7 @@ class CloudLibrary extends React.Component<
           name: "",
           bookKey: "",
           bookCount: 0,
-          ownerId: "",
+          canManage: false,
           members: [],
           createdAt: 0,
         }
@@ -816,9 +823,9 @@ class CloudLibrary extends React.Component<
             {rooms.map((room) => {
               // 只有房主或仍在房内的成员才显示「删除」：服务端只允许这两种身份解散，
               // 给非成员显示等于摆一个点了必然 403 的按钮。
-              const canManage =
-                room.ownerId === collabClient.clientId ||
-                (room.memberIds || []).includes(collabClient.clientId);
+              // 判断由服务端按我们随请求带上去的 clientId 算好（canManage），
+              // 前端拿不到也拿不到别人的设备 id。
+              const canManage = Boolean(room.canManage);
               return (
                 <li
                   key={room.roomId}

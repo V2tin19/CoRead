@@ -1,7 +1,7 @@
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
-const { randomUUID } = require("crypto");
+const { randomUUID, randomBytes } = require("crypto");
 const { once } = require("events");
 
 // ── 云端书库（共享书籍）配置 ──────────────────────────────────────────────
@@ -63,6 +63,55 @@ function ensureDoodlesDir() {
 function extOf(name) {
   const idx = name.lastIndexOf(".");
   return idx >= 0 ? name.slice(idx + 1).toLowerCase() : "";
+}
+
+// ── 房间 ID 的形状校验 ──────────────────────────────────────────────────
+// 房间目录是 path.join(ROOMS_DIR, roomId)，所以路径段必须先收敛成「只含
+// A-Z0-9」。实测 `..` / `%2e%2e` 这类片段会被 WHATWG URL 的点段解析提前
+// 吃掉，但那是**别人的实现细节**在替我们兜底，不该依赖；这里自己拦一道。
+// 长度放宽到 1~12 是因为老版本用 Math.random().toString(36).slice(2,8)
+// 生成，极端情况下可能不足 6 位，收紧到恰好 6 位会让老房间的 URL 全 404。
+const ROOM_ID_PATTERN = /^[0-9A-Z]{1,12}$/;
+
+function normalizeRoomId(raw) {
+  const id = String(raw == null ? "" : raw).toUpperCase();
+  return ROOM_ID_PATTERN.test(id) ? id : "";
+}
+
+// 路径里的房间 ID 统一从这里取：形状不合法等同于「房间不存在」
+function roomIdFromPath(raw) {
+  const roomId = normalizeRoomId(raw);
+  if (!roomId) {
+    const error = new Error("Room not found");
+    error.statusCode = 404;
+    throw error;
+  }
+  return roomId;
+}
+
+// ── 新建房间 ID ─────────────────────────────────────────────────────────
+// 用 crypto.randomBytes 而不是 Math.random：Math.random 是可预测的
+// （V8 的 xorshift128+，观测到若干输出即可推后续值），而 roomId 是
+// 「进房间」的唯一凭据 —— 与房间相关的读接口不带 token，认的就是它。
+const ROOM_ID_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+function generateRoomId() {
+  const bytes = randomBytes(6);
+  let id = "";
+  for (let i = 0; i < 6; i++) {
+    id += ROOM_ID_ALPHABET[bytes[i] % ROOM_ID_ALPHABET.length];
+  }
+  return id;
+}
+
+// 路径段解码：畸形百分号编码（如 `%zz`）会让 decodeURIComponent 抛 URIError，
+// 老实现直接冒到外层 catch 变成 500。这里统一按「空值」处理。
+function decodePathSegment(raw) {
+  try {
+    return decodeURIComponent(String(raw == null ? "" : raw));
+  } catch (e) {
+    return "";
+  }
 }
 
 // 房间目录里属于「房间自身」的文件（元数据、写盘临时文件），不是书：
@@ -212,6 +261,12 @@ function listRoomBooks(room) {
 const MAX_DOODLE_PAGES = Number(process.env.MAX_DOODLE_PAGES || 5000);
 const MAX_STROKES_PER_PAGE = Number(
   process.env.MAX_STROKES_PER_PAGE || 5000
+);
+// 单笔点数上限：客户端正常一笔手写也就几百个点。不加这道闸，一个 2MB 的
+// 请求就能塞进「一笔几十万个点」，服务端如实合并后推给同伴 —— 对方的浏览器
+// 要逐点重建路径，直接卡死。
+const MAX_POINTS_PER_STROKE = Number(
+  process.env.MAX_POINTS_PER_STROKE || 20000
 );
 const doodleWriteTimers = new Map();
 const DOODLE_WRITE_DELAY = Number(process.env.DOODLE_WRITE_DELAY || 800);
@@ -375,31 +430,79 @@ function mergeDoodlePage(existing, incoming, removedIds) {
   return Array.from(byId.values());
 }
 
+// 笔迹的点数组归一化：只保留标准的 [x, y] 数字对，并截到上限。
+// 个人云（PUT /doodles）与房间共享（POST /rooms/:id/doodle）都走这里。
+function normalizeStrokePoints(points) {
+  if (!Array.isArray(points)) return [];
+  const out = [];
+  for (const point of points.slice(0, MAX_POINTS_PER_STROKE)) {
+    if (!Array.isArray(point) || point.length < 2) continue;
+    const x = Number(point[0]);
+    const y = Number(point[1]);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+    out.push([x, y]);
+  }
+  return out;
+}
+
+// 笔记 key 的形状校验（与前端 src/utils/collab/remoteNote.ts 的白名单一致）。
+// key 是笔记的唯一标识，note-update / note-delete 都按它匹配 —— 放任意值进来，
+// 「这条笔记归谁」的判断就形同虚设。
+const NOTE_KEY_PATTERN = /^[0-9A-Za-z_-]{1,200}$/;
+
 const PORT = Number(process.env.COLLAB_PORT || 17390);
 const HOST = process.env.COLLAB_HOST || "127.0.0.1";
 
 // ── 轻量级鉴权 ───────────────────────────────────────────────────────────
-// 公网部署时设置 COLLAB_TOKEN 环境变量,所有写操作必须带 x-collab-token 头。
-// 未设置 = 本地开发模式,不校验(保证 npm run dev 零配置可用)。
-// 只校验写操作(POST/PUT/DELETE);读操作(GET)放行,避免打断 SSE 长连接与文件直链。
+// 公网部署时设置 COLLAB_TOKEN 环境变量。未设置 = 本地开发模式，一律放行
+// （保证 npm run dev 零配置可用）。
+//
+// 校验范围（为什么要分这么细）：
+//   · 写操作（POST/PUT/DELETE）—— 必须带 token。
+//   · `/events`（SSE 实时流）—— 必须带 token。
+//     它是「订阅别人的实时数据」，未授权就连上等于给了一个窃听管道：
+//     实测不带 token 也能建连接，然后明文收到房间里所有人的聊天与翻页。
+//     而且 `clientId` 就在 `/rooms` 与房间快照里明文下发（见那里注释），
+//     攻击者拿别人的 clientId 就能订走别人的事件流。
+//     EventSource 不能带自定义头，所以这里额外接受 `?token=` 查询参数。
+//   · 其余 GET（房间列表 / 快照 / 涂鸦 / 书籍与封面直链）—— 保持放行。
+//     直链要能直接塞进 `<img src>`、且跨域时裸 GET 是「简单请求」不触发
+//     预检；给它们统一加鉴权会牵动 URL 拼装与部署白名单，属于独立改动。
 const COLLAB_TOKEN = String(process.env.COLLAB_TOKEN || "").trim();
 const TOKEN_REQUIRED = COLLAB_TOKEN.length > 0;
 
-function isAuthorized(req) {
-  if (!TOKEN_REQUIRED) return true;
-  const method = (req.method || "GET").toUpperCase();
-  if (method === "GET" || method === "OPTIONS") return true;
+function tokenFromRequest(req, url) {
   const provided = req.headers["x-collab-token"];
-  const value = Array.isArray(provided) ? provided[0] : provided;
-  if (typeof value !== "string" || value.length !== COLLAB_TOKEN.length) {
+  const header = Array.isArray(provided) ? provided[0] : provided;
+  if (typeof header === "string" && header) return header;
+  // SSE（EventSource）只能走查询参数；直链场景同理
+  const query = url ? url.searchParams.get("token") : "";
+  return typeof query === "string" ? query : "";
+}
+
+// 定长时间比较,避免通过响应耗时逐字符爆破 token
+function tokenMatches(provided) {
+  if (typeof provided !== "string" || provided.length !== COLLAB_TOKEN.length) {
     return false;
   }
-  // 定长时间比较,避免通过响应耗时逐字符爆破 token
   let diff = 0;
   for (let i = 0; i < COLLAB_TOKEN.length; i++) {
-    diff |= COLLAB_TOKEN.charCodeAt(i) ^ value.charCodeAt(i);
+    diff |= COLLAB_TOKEN.charCodeAt(i) ^ provided.charCodeAt(i);
   }
   return diff === 0;
+}
+
+function isAuthorized(req, url) {
+  if (!TOKEN_REQUIRED) return true;
+  const method = (req.method || "GET").toUpperCase();
+  if (method === "OPTIONS") return true;
+  // 健康检查永远放行：部署探针 / 反代的 healthcheck 不该被 token 卡住
+  if (method === "GET" && url && url.pathname === "/health") return true;
+  const isWrite = method !== "GET";
+  const isEventStream = Boolean(url) && url.pathname === "/events";
+  // 其余 GET 放行（理由见上方注释）
+  if (!isWrite && !isEventStream) return true;
+  return tokenMatches(tokenFromRequest(req, url));
 }
 
 // 空房保留时长:移动端息屏/切后台会让 SSE 瞬断,若立刻删房,另一端将加入失败。
@@ -452,6 +555,10 @@ function corsHeadersFor(req) {
 // CORS 头在请求入口按 Origin 统一 setHeader（见 createServer），这里不再重复，
 // 否则 writeHead 会用那份固定的 header 盖掉按 Origin 算出来的结果。
 function sendJson(res, status, data) {
+  // 连接可能已经被掐断（例如请求体超限时我们 destroy 过 socket）。
+  // 往已销毁/已结束的响应上写会抛 ERR_STREAM_WRITE_AFTER_END，
+  // 而从 async handler 里抛出等于 unhandledRejection —— 会拖崩进程。
+  if (res.destroyed || res.writableEnded || res.headersSent) return;
   const body = JSON.stringify(data);
   res.writeHead(status, {
     "content-type": "application/json; charset=utf-8",
@@ -749,12 +856,20 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (!isAuthorized(req)) {
-    sendJson(res, 401, { error: "Missing or invalid collaboration token" });
+  // 先解析 URL：鉴权需要看 pathname（`/events` 是唯一要求鉴权的 GET）。
+  // 畸形 URL 直接 400，别让它抛到 async handler 外面变成未捕获异常。
+  let url;
+  try {
+    url = new URL(req.url, `http://${req.headers.host || "127.0.0.1"}`);
+  } catch (e) {
+    sendJson(res, 400, { error: "Malformed request URL" });
     return;
   }
 
-  const url = new URL(req.url, `http://${req.headers.host}`);
+  if (!isAuthorized(req, url)) {
+    sendJson(res, 401, { error: "Missing or invalid collaboration token" });
+    return;
+  }
 
   try {
     if (req.method === "GET" && url.pathname === "/health") {
@@ -831,17 +946,23 @@ const server = http.createServer(async (req, res) => {
 
     // ── 房间列表 ───────────────────────────────────────────────────────────
     if (req.method === "GET" && url.pathname === "/rooms") {
+      // 房间列表是免鉴权的，所以这里**不下发任何 clientId**：
+      // ownerId / leaderId / memberIds 三个字段全都是 clientId，而 clientId
+      // 正是 `/events?clientId=` 认的身份。把它们摊在一个公开列表上，等于
+      // 告诉任何访客「这台设备的身份是什么」，配合 `/events` 就能订走别人的
+      // 事件流（实测确实能截获明文聊天）。前端真正需要的只是
+      // 「这个房间我能不能解散」—— 由服务端按请求者算成这一个布尔值。
+      // 调用方要带上自己的 clientId：`GET /rooms?clientId=xxx`。
+      const requester = String(url.searchParams.get("clientId") || "");
       const list = Array.from(rooms.values()).map((room) => ({
         roomId: room.roomId,
         name: room.roomName || "",
         bookKey: room.bookKey,
         bookCount: listRoomBooks(room).length,
-        ownerId: room.ownerId,
         members: Array.from(room.members.values()).map((member) => member.name),
-        // 成员 id：前端据此判断「这个房间我能不能解散」，避免给非成员
-        // 也显示一个点了必然 403 的「删除」按钮
-        memberIds: Array.from(room.members.keys()),
-        leaderId: room.leaderId || "",
+        canManage:
+          Boolean(requester) &&
+          (room.ownerId === requester || room.members.has(requester)),
         createdAt: room.createdAt,
       }));
       sendJson(res, 200, { rooms: list });
@@ -850,12 +971,19 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "POST" && url.pathname === "/rooms") {
       const body = await readBody(req);
-      const roomId = Math.random().toString(36).slice(2, 8).toUpperCase();
+      // clientId 是这台设备的身份标识，后面的入房/广播全靠它。老实现不校验，
+      // 传空值时 map 的 key 会变成 undefined（成员表里出现一个没有 id 的幽灵成员）。
+      const clientId = String(body.clientId || "").slice(0, 128);
+      if (!clientId) {
+        sendJson(res, 400, { error: "clientId is required" });
+        return;
+      }
+      const roomId = generateRoomId();
       const room = {
         roomId,
         roomName: String(body.roomName || "").slice(0, 60),
-        bookKey: body.bookKey || "",
-        ownerId: body.clientId,
+        bookKey: String(body.bookKey || "").slice(0, 200),
+        ownerId: clientId,
         currentLocation: null,
         members: new Map(),
         messages: [],
@@ -877,7 +1005,7 @@ const server = http.createServer(async (req, res) => {
         sendJson(res, 201, { roomId, name: room.roomName });
         return;
       }
-      joinRoom(room, body.clientId, body.name);
+      joinRoom(room, clientId, body.name);
       sendJson(res, 201, roomSnapshot(room));
       return;
     }
@@ -892,7 +1020,7 @@ const server = http.createServer(async (req, res) => {
     };
     const coverUpload = url.pathname.match(/^\/rooms\/([^/]+)\/books\/cover$/);
     if (coverUpload && req.method === "POST") {
-      const roomId = coverUpload[1].toUpperCase();
+      const roomId = roomIdFromPath(coverUpload[1]);
       const room = ensureRoom(roomId);
       const name = sanitizeBookName(url.searchParams.get("filename") || "");
       const ext = String(url.searchParams.get("ext") || "jpg")
@@ -929,13 +1057,9 @@ const server = http.createServer(async (req, res) => {
       /^\/rooms\/([^/]+)\/books\/([^/]+)\/cover$/
     );
     if (coverGet && req.method === "GET") {
-      const roomId = coverGet[1].toUpperCase();
-      let name = "";
-      try {
-        name = sanitizeBookName(decodeURIComponent(coverGet[2]));
-      } catch (e) {
-        // 畸形编码一律按无封面处理
-      }
+      const roomId = roomIdFromPath(coverGet[1]);
+      // 畸形编码一律按无封面处理（decodePathSegment 内部已兜住 URIError）
+      const name = sanitizeBookName(decodePathSegment(coverGet[2]));
       const coverDir = path.join(roomBooksDir(roomId), "covers");
       let found = "";
       if (name && fs.existsSync(coverDir)) {
@@ -964,7 +1088,7 @@ const server = http.createServer(async (req, res) => {
       /^\/rooms\/([^/]+)\/books\/upload$/
     );
     if (roomBookUpload && req.method === "POST") {
-      const roomId = roomBookUpload[1].toUpperCase();
+      const roomId = roomIdFromPath(roomBookUpload[1]);
       const room = ensureRoom(roomId);
       const result = await receiveRoomBook(
         req,
@@ -984,7 +1108,7 @@ const server = http.createServer(async (req, res) => {
       /^\/rooms\/([^/]+)\/books\/reorder$/
     );
     if (roomBooksReorder && req.method === "POST") {
-      const roomId = roomBooksReorder[1].toUpperCase();
+      const roomId = roomIdFromPath(roomBooksReorder[1]);
       const room = ensureRoom(roomId);
       const body = await readBody(req);
       const names = Array.isArray(body.names) ? body.names : [];
@@ -1004,8 +1128,8 @@ const server = http.createServer(async (req, res) => {
       /^\/rooms\/([^/]+)\/books\/([^/]+)\/file$/
     );
     if (roomBookFile && req.method === "GET") {
-      const roomId = roomBookFile[1].toUpperCase();
-      const name = sanitizeBookName(decodeURIComponent(roomBookFile[2]));
+      const roomId = roomIdFromPath(roomBookFile[1]);
+      const name = sanitizeBookName(decodePathSegment(roomBookFile[2]));
       const file = path.join(roomBooksDir(roomId), name);
       if (
         !name ||
@@ -1032,7 +1156,7 @@ const server = http.createServer(async (req, res) => {
     // 房间书架列表 / 上传 / 单本操作
     const roomBookList = url.pathname.match(/^\/rooms\/([^/]+)\/books$/);
     if (roomBookList && req.method === "GET") {
-      const roomId = roomBookList[1].toUpperCase();
+      const roomId = roomIdFromPath(roomBookList[1]);
       const room = ensureRoom(roomId);
       sendJson(res, 200, { books: listRoomBooks(room) });
       return;
@@ -1042,9 +1166,9 @@ const server = http.createServer(async (req, res) => {
       /^\/rooms\/([^/]+)\/books\/([^/]+)$/
     );
     if (roomBookItem && req.method === "DELETE") {
-      const roomId = roomBookItem[1].toUpperCase();
+      const roomId = roomIdFromPath(roomBookItem[1]);
       const room = ensureRoom(roomId);
-      const name = sanitizeBookName(decodeURIComponent(roomBookItem[2]));
+      const name = sanitizeBookName(decodePathSegment(roomBookItem[2]));
       const file = path.join(roomBooksDir(roomId), name);
       // 白名单：只删「扩展名在允许列表里」的真书；room.json / *.tmp 显式拦住
       if (
@@ -1079,15 +1203,15 @@ const server = http.createServer(async (req, res) => {
     // ── 随心笔记（涂鸦）：个人云，与房间无关 ─────────────────────────────
     const doodleBook = url.pathname.match(/^\/doodles\/([^/]+)$/);
     if (doodleBook && req.method === "GET") {
-      const bookKey = decodeURIComponent(doodleBook[1]);
+      const bookKey = decodePathSegment(doodleBook[1]);
       sendJson(res, 200, { bookKey, pages: loadDoodles(bookKey) });
       return;
     }
     if (doodleBook && req.method === "PUT") {
-      const bookKey = decodeURIComponent(doodleBook[1]);
+      const bookKey = decodePathSegment(doodleBook[1]).slice(0, 200);
       // 涂鸦单页可以很密（客户端上限 2000 笔），给到 4MB；一般请求仍是 1MB
       const body = await readBody(req, 4 * 1024 * 1024);
-      const pageKey = String(body.pageKey || "");
+      const pageKey = String(body.pageKey || "").slice(0, 500);
       if (!pageKey) {
         sendJson(res, 400, { error: "pageKey is required" });
         return;
@@ -1097,10 +1221,15 @@ const server = http.createServer(async (req, res) => {
         sendJson(res, 413, { error: "这本书的笔记页数已达上限" });
         return;
       }
+      const incomingStrokes = (Array.isArray(body.strokes) ? body.strokes : [])
+        .map((stroke) =>
+          stroke ? { ...stroke, points: normalizeStrokePoints(stroke.points) } : stroke
+        );
+      const removedIds = Array.isArray(body.removedIds) ? body.removedIds : [];
       pages[pageKey] = mergeDoodlePage(
         pages[pageKey],
-        body.strokes,
-        body.removedIds
+        incomingStrokes,
+        removedIds
       );
       if (pages[pageKey].length > MAX_STROKES_PER_PAGE) {
         pages[pageKey] = pages[pageKey].slice(-MAX_STROKES_PER_PAGE);
@@ -1114,7 +1243,7 @@ const server = http.createServer(async (req, res) => {
     // ── 房间共享涂鸦 ───────────────────────────────────────────────────────
     const roomDoodle = url.pathname.match(/^\/rooms\/([^/]+)\/doodle$/);
     if (roomDoodle && req.method === "GET") {
-      const roomId = roomDoodle[1].toUpperCase();
+      const roomId = roomIdFromPath(roomDoodle[1]);
       const room = ensureRoom(roomId);
       sendJson(res, 200, { doodles: room.doodles || {} });
       return;
@@ -1123,7 +1252,7 @@ const server = http.createServer(async (req, res) => {
     // 房间快照：客户端重连/面板重新打开时主动拉取,不再只依赖 SSE 推送
     const roomInfo = url.pathname.match(/^\/rooms\/([^/]+)$/);
     if (roomInfo && req.method === "GET") {
-      const room = ensureRoom(roomInfo[1].toUpperCase());
+      const room = ensureRoom(roomIdFromPath(roomInfo[1]));
       sendJson(res, 200, roomSnapshot(room));
       return;
     }
@@ -1132,7 +1261,12 @@ const server = http.createServer(async (req, res) => {
       /^\/rooms\/([^/]+)(?:\/([^/]+))?$/
     );
     if (roomMatch && req.method === "DELETE") {
-      const roomId = roomMatch[1].toUpperCase();
+      const roomId = normalizeRoomId(roomMatch[1]);
+      // 形状不合法的 ID 不可能对应任何房间，按幂等「已删除」处理
+      if (!roomId) {
+        sendJson(res, 200, { ok: true, alreadyGone: true });
+        return;
+      }
       // 房间不存在时直接当作已删除,不要用 ensureRoom 凭空造房再删(会造成噪声写入)
       const room = rooms.get(roomId);
       if (!room) {
@@ -1140,8 +1274,9 @@ const server = http.createServer(async (req, res) => {
         return;
       }
       const body = await readBody(req);
-      const isOwner = !!body.clientId && room.ownerId === body.clientId;
-      const isMember = room.members.has(body.clientId);
+      const clientId = String(body.clientId || "").slice(0, 128);
+      const isOwner = !!clientId && room.ownerId === clientId;
+      const isMember = room.members.has(clientId);
       // 只有房主或仍在房内的成员能解散;空房(房主掉线后的 TTL 残留)也须由房主本人清理,
       // 防止他人枚举 roomId 清掉别人的房间书架。
       if (!isOwner && !isMember) {
@@ -1150,21 +1285,43 @@ const server = http.createServer(async (req, res) => {
         });
         return;
       }
-      broadcast(roomId, "room-deleted", { roomId, closedBy: body.clientId });
+      broadcast(roomId, "room-deleted", { roomId, closedBy: clientId });
       deleteRoom(roomId);
       sendJson(res, 200, { ok: true });
       return;
     }
 
     if (roomMatch && req.method === "POST") {
-      const roomId = roomMatch[1].toUpperCase();
+      const roomId = roomIdFromPath(roomMatch[1]);
       const action = roomMatch[2] || "join";
       const room = ensureRoom(roomId);
       // 房间内的 POST 包含涂鸦收笔的完整笔迹（可能较大），给到 2MB
       const body = await readBody(req, 2 * 1024 * 1024);
+      const clientId = String(body.clientId || "").slice(0, 128);
+
+      // 除 join / leave 之外，房间内的写操作**必须由房间成员发起**。
+      // 老实现完全不看 clientId 是不是这个房间的人 —— 而 `/rooms` 是公开的，
+      // 谁都能拿到 roomId，于是任何人都能往别人的房间里发消息、把全房间的
+      // 阅读位置拖到任意页、注入笔记、删掉别人的笔记（以上均实测成功）。
+      // clientId 由客户端自称、无法真正认证，这里能做到的是「至少得先真的
+      // 进过这个房间」—— 把越权面从「全互联网」收窄到「房间内成员」，
+      // 这也是这条链上唯一不需要引入账号体系的闸门。
+      if (action !== "join" && action !== "leave") {
+        if (!clientId || !room.members.has(clientId)) {
+          sendJson(res, 403, {
+            error: "Join this room before sending changes to it",
+          });
+          return;
+        }
+      }
 
       if (action === "join") {
-        if (body.bookKey && room.bookKey && body.bookKey !== room.bookKey) {
+        if (!clientId) {
+          sendJson(res, 400, { error: "clientId is required" });
+          return;
+        }
+        const incomingBook = String(body.bookKey || "").slice(0, 200);
+        if (incomingBook && room.bookKey && incomingBook !== room.bookKey) {
           sendJson(res, 409, {
             error: "This room is reading a different local book.",
             roomBookKey: room.bookKey,
@@ -1172,14 +1329,14 @@ const server = http.createServer(async (req, res) => {
           return;
         }
         // 先加入的书写进房间，后来者按同一本比对
-        if (!room.bookKey && body.bookKey) room.bookKey = body.bookKey;
-        joinRoom(room, body.clientId, body.name);
+        if (!room.bookKey && incomingBook) room.bookKey = incomingBook;
+        joinRoom(room, clientId, body.name);
         sendJson(res, 200, roomSnapshot(room));
         return;
       }
 
       if (action === "leave") {
-        removeMember(roomId, body.clientId);
+        removeMember(roomId, clientId);
         sendJson(res, 200, { ok: true });
         return;
       }
@@ -1206,82 +1363,133 @@ const server = http.createServer(async (req, res) => {
         const message = {
           id: randomUUID(),
           roomId,
-          senderId: body.clientId,
+          senderId: clientId,
           senderName: String(body.name || "Reader").slice(0, 40),
           text: String(body.text || "").slice(0, 2000),
           createdAt: Date.now(),
         };
         room.messages.push(message);
         room.messages = room.messages.slice(-200);
-        broadcast(roomId, "chat-message", message, body.clientId);
+        broadcast(roomId, "chat-message", message, clientId);
         sendJson(res, 201, message);
         return;
       }
 
       if (action === "location") {
-        room.currentLocation = body.location || null;
+        // 只收对象：接收端会直接读它的字段，放字符串进来会让那边拿到
+        // 一堆 undefined（老实现原样透传 body 里的任意值）
+        const location =
+          body.location && typeof body.location === "object"
+            ? body.location
+            : null;
+        room.currentLocation = location;
         broadcast(
           roomId,
           "page-change",
           {
             roomId,
-            senderId: body.clientId,
-            location: room.currentLocation,
+            senderId: clientId,
+            location,
           },
-          body.clientId
+          clientId
         );
         sendJson(res, 200, { ok: true });
         return;
       }
 
-      // 笔记：带上作者信息（authorId/authorName），接收端才能显示「谁写的」
+      // 笔记：作者由**服务端盖章**。客户端自报的 authorId / authorName 一律不信 ——
+      // 否则任何人都能把笔记伪造成「别人写的」，而 note-delete / note-update 的
+      // 归属判断正是靠 authorId，伪造就等于白拿了改删别人笔记的权限。
       if (action === "notes") {
+        const raw = body.note;
+        const noteKey =
+          raw && typeof raw === "object" ? String(raw.key || "") : "";
+        if (!NOTE_KEY_PATTERN.test(noteKey)) {
+          sendJson(res, 400, { error: "Invalid note key" });
+          return;
+        }
+        const note = {
+          ...raw,
+          key: noteKey,
+          authorId: clientId,
+          authorName: String(body.name || raw.authorName || "").slice(0, 40),
+        };
         const noteEvent = {
           roomId,
-          senderId: body.clientId,
-          note: body.note,
+          senderId: clientId,
+          note,
           createdAt: Date.now(),
         };
-        room.notes.push(noteEvent.note);
+        room.notes.push(note);
         room.notes = room.notes.slice(-500);
-        broadcast(roomId, "note-created", noteEvent, body.clientId);
+        broadcast(roomId, "note-created", noteEvent, clientId);
         sendJson(res, 201, noteEvent);
         return;
       }
 
       if (action === "note-update") {
+        const raw = body.note;
+        const noteKey =
+          raw && typeof raw === "object" ? String(raw.key || "") : "";
+        if (!NOTE_KEY_PATTERN.test(noteKey)) {
+          sendJson(res, 400, { error: "Invalid note key" });
+          return;
+        }
+        const existing = room.notes.find((item) => item && item.key === noteKey);
+        // 只能改自己写的。authorId 为空的历史笔记按「无主」处理，房内成员可改。
+        if (existing && existing.authorId && existing.authorId !== clientId) {
+          sendJson(res, 403, { error: "Only the author can update this note" });
+          return;
+        }
+        const note = {
+          ...raw,
+          key: noteKey,
+          authorId: (existing && existing.authorId) || clientId,
+          authorName: String(body.name || raw.authorName || "").slice(0, 40),
+        };
         const noteEvent = {
           roomId,
-          senderId: body.clientId,
-          note: body.note,
+          senderId: clientId,
+          note,
           updatedAt: Date.now(),
         };
-        room.notes = room.notes.map((note) =>
-          note && body.note && note.key === body.note.key ? body.note : note
+        room.notes = room.notes.map((item) =>
+          item && item.key === noteKey ? note : item
         );
-        broadcast(roomId, "note-updated", noteEvent, body.clientId);
+        broadcast(roomId, "note-updated", noteEvent, clientId);
         sendJson(res, 200, noteEvent);
         return;
       }
 
       if (action === "note-delete") {
+        const noteKey = String(body.noteKey || "");
+        if (!NOTE_KEY_PATTERN.test(noteKey)) {
+          sendJson(res, 400, { error: "Invalid note key" });
+          return;
+        }
+        const existing = room.notes.find((item) => item && item.key === noteKey);
+        // 只有作者能删。删一条不存在的笔记保持幂等 200（客户端重试/重复删除）。
+        if (existing && existing.authorId && existing.authorId !== clientId) {
+          sendJson(res, 403, { error: "Only the author can delete this note" });
+          return;
+        }
         const noteEvent = {
           roomId,
-          senderId: body.clientId,
-          noteKey: body.noteKey,
+          senderId: clientId,
+          noteKey,
           chapterDocIndex: body.chapterDocIndex,
           deletedAt: Date.now(),
         };
-        room.notes = room.notes.filter((note) => note.key !== body.noteKey);
-        broadcast(roomId, "note-deleted", noteEvent, body.clientId);
+        room.notes = room.notes.filter((item) => !item || item.key !== noteKey);
+        broadcast(roomId, "note-deleted", noteEvent, clientId);
         sendJson(res, 200, noteEvent);
         return;
       }
 
-      // 共享涂鸦：op = add / undo / clear，按笔 id 合并
+      // 共享涂鸦：op = add / append / undo / clear，按笔 id 合并
       if (action === "doodle") {
-        const bookKey = body.bookKey || "";
-        const pageKey = String(body.pageKey || "");
+        const bookKey = String(body.bookKey || "").slice(0, 200);
+        const pageKey = String(body.pageKey || "").slice(0, 500);
         if (!pageKey) {
           sendJson(res, 400, { error: "pageKey is required" });
           return;
@@ -1294,15 +1502,21 @@ const server = http.createServer(async (req, res) => {
           sendJson(res, 413, { error: "房间笔记页数已达上限" });
           return;
         }
-        // 房间笔迹按「页 -> 笔」存，并记录作者
+        // 房间笔迹按「页 -> 笔」存，并记录作者。
+        // ⚠️ operatorId 必须是服务端认定的 clientId，不能采信 body.authorId：
+        // 下游 undo / clear 的「只动自己画的笔迹」判断（isMine）读的就是它，
+        // 一旦采信客户端自报，任何人只要把自己的 authorId 填成别人，就又能
+        // 撤销/清空别人的笔迹 —— 那正是这段逻辑本身要防的事。
         const pageStrokes = room.doodles[pageKey] || [];
-        const operatorId = body.authorId || body.clientId || "";
+        const operatorId = clientId;
+        const displayName = String(body.authorName || "").slice(0, 40);
         const authored = (stroke) =>
           stroke
             ? {
                 ...stroke,
+                points: normalizeStrokePoints(stroke.points),
                 authorId: operatorId,
-                authorName: body.authorName || "",
+                authorName: displayName,
               }
             : stroke;
         // 撤销 / 清空必须限定在「操作者自己画的」笔迹上。
@@ -1338,7 +1552,8 @@ const server = http.createServer(async (req, res) => {
         } else if (body.op === "append") {
           // 「一笔一划」：同伴正在写的这一笔，分片推过来的新增点。
           // from = 这一笔此前已有几点（用来拼接），rev = 单调序号（用来丢乱序/重复包）。
-          const incoming = body.stroke || {};
+          const raw = body.stroke || {};
+          const incoming = { ...raw, points: normalizeStrokePoints(raw.points) };
           const from = Math.max(0, Number(body.from) || 0);
           const rev = Number(body.rev) || 0;
           if (!incoming.id) {
@@ -1402,10 +1617,10 @@ const server = http.createServer(async (req, res) => {
             from: body.from,
             rev: body.rev,
             authorId: operatorId,
-            authorName: body.authorName || "",
+            authorName: displayName,
             at: Date.now(),
           },
-          body.clientId
+          clientId
         );
         sendJson(res, 200, { ok: true, strokes: room.doodles[pageKey] || [] });
         return;
@@ -1486,7 +1701,7 @@ const server = http.createServer(async (req, res) => {
 
     const bookMatch = url.pathname.match(/^\/books\/([^/]+)$/);
     if (bookMatch && req.method === "GET") {
-      const name = sanitizeBookName(decodeURIComponent(bookMatch[1]));
+      const name = sanitizeBookName(decodePathSegment(bookMatch[1]));
       const file = path.join(BOOKS_DIR, name);
       if (!name || !fs.existsSync(file) || !fs.statSync(file).isFile()) {
         sendJson(res, 404, { error: "Book not found" });
@@ -1506,7 +1721,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (bookMatch && req.method === "DELETE") {
-      const name = sanitizeBookName(decodeURIComponent(bookMatch[1]));
+      const name = sanitizeBookName(decodePathSegment(bookMatch[1]));
       const file = path.join(BOOKS_DIR, name);
       if (!name || !fs.existsSync(file) || !fs.statSync(file).isFile()) {
         sendJson(res, 404, { error: "Book not found" });
@@ -1537,9 +1752,7 @@ loadRoomsFromDisk();
 function flushAllPendingWrites() {
   for (const timer of pendingMetaWrites.values()) clearTimeout(timer);
   pendingMetaWrites.clear();
-  for (const room of rooms.values()) {
-    if (room.bookOrder && room.bookOrder.length >= 0) flushRoomMeta(room);
-  }
+  for (const room of rooms.values()) flushRoomMeta(room);
   for (const timer of doodleWriteTimers.values()) clearTimeout(timer);
   doodleWriteTimers.clear();
   for (const [bookKey, pages] of doodleCache) saveDoodles(bookKey, pages);

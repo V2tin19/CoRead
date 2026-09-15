@@ -16,12 +16,15 @@ export interface CollabRoomBrief {
   name: string;
   bookKey: string;
   bookCount: number;
-  ownerId: string;
+  /** 成员昵称列表（服务端只下发名字，不下发设备 id） */
   members: string[];
-  /** 成员设备 id：用来判断「这个房间我能不能解散」 */
-  memberIds?: string[];
-  /** 房间领读设备 id */
-  leaderId?: string;
+  /**
+   * 这个房间「我」能不能解散 —— 由服务端按请求里带的 clientId 算好。
+   * 服务端不再下发 ownerId / memberIds / leaderId：它们都是 clientId，
+   * 而 clientId 就是 `/events?clientId=` 认的身份，摆在公开的房间列表上
+   * 等于把「谁是谁」交给任何访客（已被实测可用于窃听别人的事件流）。
+   */
+  canManage?: boolean;
   createdAt: number;
 }
 

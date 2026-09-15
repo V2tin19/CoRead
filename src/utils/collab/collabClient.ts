@@ -23,9 +23,13 @@ export interface CollabMember {
 
 export interface CollabRoomBrief {
   roomId: string;
+  name?: string;
   bookKey: string;
-  ownerId: string;
+  /** 成员昵称列表（服务端不下发设备 id） */
   members: string[];
+  bookCount?: number;
+  /** 服务端按请求里带的 clientId 算好的「我能不能解散这个房间」 */
+  canManage?: boolean;
   createdAt: number;
 }
 
@@ -187,8 +191,13 @@ class CollabClient {
       this.events = null;
     }
     this.lastEventAt = Date.now();
+    // token 只能走查询参数：EventSource 不能带自定义请求头。
+    // 服务端配了 COLLAB_TOKEN 时会校验它 —— SSE 是「订阅别人的实时数据」，
+    // 不能匿名连上（否则拿到别人的 clientId 就能听走他的聊天和翻页）。
+    const token = this.token;
     const eventSource = new EventSource(
-      `${serverUrl}/events?clientId=${encodeURIComponent(this.clientId)}`
+      `${serverUrl}/events?clientId=${encodeURIComponent(this.clientId)}` +
+        (token ? `&token=${encodeURIComponent(token)}` : "")
     );
     this.events = eventSource;
     const touch = () => {
@@ -516,7 +525,14 @@ class CollabClient {
     if (!serverUrl) {
       throw new CollabServerUnconfiguredError();
     }
-    const response = await fetch(`${serverUrl}/rooms`);
+    // 带上 clientId：服务端据此算出每个房间的 canManage（「我能不能解散」），
+    // 它自己不再下发 ownerId / memberIds —— 那些都是 clientId，不该出现在
+    // 一个免鉴权的公开列表上。
+    // 用查询参数而不是自定义请求头：跨域时裸 GET 属于「简单请求」，加了头就
+    // 多一次 OPTIONS 预检，服务端白名单没配全的地方会直接失败。
+    const response = await fetch(
+      `${serverUrl}/rooms?clientId=${encodeURIComponent(this.clientId)}`
+    );
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
       throw new CollabRequestError(
