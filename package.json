@@ -94,6 +94,7 @@
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "collab:server": "node collab-server/server.js",
+    "build:kookit": "node tools/build-kookit.mjs",
     "scan": "node tools/scan-sensitive.mjs",
     "scan:all": "node tools/scan-sensitive.mjs --include-vendor"
   },
