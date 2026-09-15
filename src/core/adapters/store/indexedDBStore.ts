@@ -92,7 +92,7 @@ export class IndexedDBNoteStore implements INoteStore {
  * 基于 ConfigService 与 DatabaseService 的阅读进度与时长适配器
  */
 export class ReadingProgressStore implements IReadingProgressStore {
-  async getProgress(bookKey: string): Promise<RenderPosition | null> {
+  getProgressSync(bookKey: string): RenderPosition | null {
     const raw = ConfigService.getObjectConfig(bookKey, "recordLocation", null);
     if (!raw) return null;
 
@@ -105,9 +105,14 @@ export class ReadingProgressStore implements IReadingProgressStore {
     return {
       chapterIndex: isNaN(chapterIndex) ? 0 : chapterIndex,
       progress: isNaN(progress) ? 0 : progress,
-      text: raw.visibleText || "",
+      percentage: raw.percentage ?? progress,
+      text: raw.visibleText || raw.text || "",
       location: raw,
     };
+  }
+
+  async getProgress(bookKey: string): Promise<RenderPosition | null> {
+    return this.getProgressSync(bookKey);
   }
 
   async saveProgress(bookKey: string, pos: RenderPosition): Promise<void> {

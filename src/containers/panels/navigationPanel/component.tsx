@@ -9,7 +9,8 @@ import OperationPanel from "../operationPanel";
 import Parser from "html-react-parser";
 import DOMPurify from "dompurify";
 import EmptyCover from "../../../components/emptyCover";
-import { ConfigService, HighlightUtil } from '../../../services';
+import { HighlightUtil } from '../../../services';
+import { configStore } from '../../../core/ports/stores';
 import CoverUtil from "../../../utils/file/coverUtil";
 import {
   NAV_TAB_TOGGLE_EVENT,
@@ -85,7 +86,7 @@ class NavigationPanel extends React.Component<
   highlightUtil: any;
   constructor(props: NavigationPanelProps) {
     super(props);
-    this.highlightUtil = new HighlightUtil(ConfigService);
+    this.highlightUtil = new HighlightUtil(configStore);
     this.state = {
       currentTab: "contents",
       chapters: [],
@@ -105,7 +106,7 @@ class NavigationPanel extends React.Component<
     if (state) {
       this.props.handleSearch(true);
     } else {
-      if (ConfigService.getReaderConfig("isNavLocked") !== "yes") {
+      if (configStore.getReaderConfig("isNavLocked") !== "yes") {
         this.props.handleSearch(false);
       }
     }
@@ -177,7 +178,7 @@ class NavigationPanel extends React.Component<
   };
   handleLock = () => {
     this.props.handleNavLock(!this.props.isNavLocked);
-    ConfigService.setReaderConfig(
+    configStore.setReaderConfig(
       "isNavLocked",
       !this.props.isNavLocked ? "yes" : "no"
     );
@@ -214,7 +215,7 @@ class NavigationPanel extends React.Component<
     );
     let style = this.highlightUtil.buildSearchHighlightStyle(
       this.props.currentBook.format === "PDF" &&
-        !ConfigService.getAllListConfig("convertPDFBooks").includes(
+        !configStore.getAllListConfig("convertPDFBooks").includes(
           this.props.currentBook.key
         )
     );
@@ -297,7 +298,7 @@ class NavigationPanel extends React.Component<
             ? this.props.backgroundColor
             : "",
           color: this.props.isNavLocked
-            ? ConfigService.getReaderConfig("textColor")
+            ? configStore.getReaderConfig("textColor")
             : "",
         }}
         onMouseLeave={(event) => {

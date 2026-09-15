@@ -1,7 +1,7 @@
 import NoteModel from "../../models/Note";
 import BookmarkModel from "../../models/Bookmark";
 import HtmlBookModel from "../../models/HtmlBook";
-import { ConfigService } from '../../services';
+import { configStore } from "../../core/ports/stores";
 import DatabaseService from "../../utils/storage/databaseService";
 import ConfigUtil from "../../utils/file/configUtil";
 import Note from "../../models/Note";
@@ -128,7 +128,7 @@ export function handleFetchNotes() {
     dispatch: (arg0: { type: string; payload: NoteModel[] }) => void
   ) => {
     let noteSortCodeStr =
-      ConfigService.getReaderConfig("noteSortCode") || '{"sort":1,"order":2}';
+      configStore.getReaderConfig("noteSortCode") || '{"sort":1,"order":2}';
     let noteSortCode = JSON.parse(noteSortCodeStr);
     let sortField = noteSortCode.sort === 1 ? "key" : "percentage";
     let sortOrder = noteSortCode.order === 1 ? "ASC" : "DESC";
@@ -145,7 +145,7 @@ export function handleFetchNotes() {
       sortField,
       sortOrder
     );
-    let deletedBookKeys = ConfigService.getAllListConfig("deletedBooks");
+    let deletedBookKeys = configStore.getAllListConfig("deletedBooks");
     notes = notes.filter((note) => !deletedBookKeys.includes(note.bookKey));
     highlights = highlights.filter(
       (highlight) => !deletedBookKeys.includes(highlight.bookKey)
@@ -160,7 +160,7 @@ export function handleFetchBookmarks() {
     dispatch: (arg0: { type: string; payload: BookmarkModel[] }) => void
   ) => {
     DatabaseService.getAllRecords("bookmarks").then((bookmarks: Bookmark[]) => {
-      let deletedBookKeys = ConfigService.getAllListConfig("deletedBooks");
+      let deletedBookKeys = configStore.getAllListConfig("deletedBooks");
       bookmarks = bookmarks.filter(
         (bookmark) => !deletedBookKeys.includes(bookmark.bookKey)
       );

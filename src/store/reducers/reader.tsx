@@ -1,5 +1,7 @@
-import { ConfigService, HighlightUtil } from '../../services';
-const highlightUtil = new HighlightUtil(ConfigService);
+import { HighlightUtil } from '../../services';
+import { configStore } from '../../core/ports/stores';
+
+const highlightUtil = new HighlightUtil(configStore);
 const initState = {
   bookmarks: [],
   notes: [],
@@ -9,13 +11,13 @@ const initState = {
   currentChapterIndex: 0,
   highlight: highlightUtil.getNoteHighlightValue(),
   backgroundColor:
-    ConfigService.getReaderConfig("isMergeWord") === "yes"
+    configStore.getReaderConfig("isMergeWord") === "yes"
       ? "rgba(0,0,0,0)"
-      : ConfigService.getReaderConfig("backgroundColor")
-        ? ConfigService.getReaderConfig("backgroundColor")
-        : ConfigService.getReaderConfig("appSkin") === "night" ||
-            (ConfigService.getReaderConfig("appSkin") === "system" &&
-              ConfigService.getReaderConfig("isOSNight") === "yes")
+      : configStore.getReaderConfig("backgroundColor")
+        ? configStore.getReaderConfig("backgroundColor")
+        : configStore.getReaderConfig("appSkin") === "night" ||
+            (configStore.getReaderConfig("appSkin") === "system" &&
+              configStore.getReaderConfig("isOSNight") === "yes")
           ? "rgba(44,47,49,1)"
           : "rgba(255,255,255,1)",
   noteKey: "",
@@ -23,8 +25,8 @@ const initState = {
   originalSentence: "",
   quoteText: "",
   htmlBook: null,
-  scale: ConfigService.getReaderConfig("scale") || "1",
-  margin: ConfigService.getReaderConfig("margin") || "0",
+  scale: configStore.getReaderConfig("scale") || "1",
+  margin: configStore.getReaderConfig("margin") || "0",
   section: null,
   readerMode: "double",
   isConvertOpen: false,
@@ -32,24 +34,24 @@ const initState = {
   isSpeechOpen: false,
   speechStartText: "",
   isSpeechAutoStart: false,
-  isNavLocked: ConfigService.getReaderConfig("isNavLocked") === "yes",
-  isSettingLocked: ConfigService.getReaderConfig("isSettingLocked") === "yes",
-  isHideFooter: ConfigService.getReaderConfig("isHideFooter") === "yes",
-  isHideBackground: ConfigService.getReaderConfig("isHideBackground") === "yes",
-  isHidePageButton: ConfigService.getReaderConfig("isHidePageButton") === "yes",
-  isHideMenuButton: ConfigService.getReaderConfig("isHideMenuButton") === "yes",
+  isNavLocked: configStore.getReaderConfig("isNavLocked") === "yes",
+  isSettingLocked: configStore.getReaderConfig("isSettingLocked") === "yes",
+  isHideFooter: configStore.getReaderConfig("isHideFooter") === "yes",
+  isHideBackground: configStore.getReaderConfig("isHideBackground") === "yes",
+  isHidePageButton: configStore.getReaderConfig("isHidePageButton") === "yes",
+  isHideMenuButton: configStore.getReaderConfig("isHideMenuButton") === "yes",
   isHideAudiobookButton:
-    ConfigService.getReaderConfig("isHideAudiobookButton") === "yes",
-  isHideAIButton: ConfigService.getReaderConfig("isHideAIButton") === "yes",
+    configStore.getReaderConfig("isHideAudiobookButton") === "yes",
+  isHideAIButton: configStore.getReaderConfig("isHideAIButton") === "yes",
   isHideScaleButton:
-    ConfigService.getReaderConfig("isHideScaleButton") === "yes",
+    configStore.getReaderConfig("isHideScaleButton") === "yes",
   isHidePDFConvertButton:
-    ConfigService.getReaderConfig("isHidePDFConvertButton") === "yes",
-  isShowPageBorder: ConfigService.getReaderConfig("isShowPageBorder") === "yes",
-  textOrientation: ConfigService.getReaderConfig("textOrientation") || "",
+    configStore.getReaderConfig("isHidePDFConvertButton") === "yes",
+  isShowPageBorder: configStore.getReaderConfig("isShowPageBorder") === "yes",
+  textOrientation: configStore.getReaderConfig("textOrientation") || "",
   jumpPosition: null as object | null,
   readerBackgroundImage:
-    ConfigService.getReaderConfig("readerBackgroundImage") || "",
+    configStore.getReaderConfig("readerBackgroundImage") || "",
 };
 export function reader(
   state = initState,

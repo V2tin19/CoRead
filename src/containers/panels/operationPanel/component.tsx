@@ -4,7 +4,7 @@ import Bookmark from "../../../models/Bookmark";
 import { Trans } from "react-i18next";
 
 import { OperationPanelProps, OperationPanelState } from "./interface";
-import { ConfigService } from '../../../services';
+import { configStore, readingProgressStore } from "../../../core/ports/stores";
 import { withRouter } from "react-router-dom";
 import toast from "react-hot-toast";
 import TTSUtil from "../../../utils/reader/ttsUtil";
@@ -23,22 +23,15 @@ class OperationPanel extends React.Component<
 
   constructor(props: OperationPanelProps) {
     super(props);
+    const initialLocation = readingProgressStore.getProgressSync(
+      this.props.currentBook?.key || ""
+    );
     this.state = {
       isBookmark: false,
       time: 0,
-      currentPercentage: ConfigService.getObjectConfig(
-        this.props.currentBook.key,
-        "recordLocation",
-        {}
-      )
-        ? ConfigService.getObjectConfig(
-            this.props.currentBook.key,
-            "recordLocation",
-            {}
-          ).percentage
-        : 0,
+      currentPercentage: (initialLocation?.percentage as any) || 0,
       timeLeft: 0,
-      isFullscreen: ConfigService.getReaderConfig("isFullscreen") === "yes",
+      isFullscreen: configStore.getReaderConfig("isFullscreen") === "yes",
     };
     this.timeStamp = Date.now();
     this.speed = 30000;
@@ -47,7 +40,7 @@ class OperationPanel extends React.Component<
   handleFullscreenChange = () => {
     const isNowFullscreen = !!document.fullscreenElement;
     if (!isNowFullscreen) {
-      ConfigService.setReaderConfig("isFullscreen", "no");
+      configStore.setReaderConfig("isFullscreen", "no");
     }
     this.setState({ isFullscreen: isNowFullscreen });
   };
@@ -76,18 +69,18 @@ class OperationPanel extends React.Component<
 
   handleShortcut() {}
   handleScreen() {
-    const entering = ConfigService.getReaderConfig("isFullscreen") !== "yes";
+    const entering = configStore.getReaderConfig("isFullscreen") !== "yes";
     entering ? handleFullScreen() : handleExitFullScreen();
     if (entering) {
-      ConfigService.setReaderConfig("isFullscreen", "yes");
+      configStore.setReaderConfig("isFullscreen", "yes");
       this.setState({ isFullscreen: true });
     } else {
-      ConfigService.setReaderConfig("isFullscreen", "no");
+      configStore.setReaderConfig("isFullscreen", "no");
       this.setState({ isFullscreen: false });
     }
   }
   async handleExit() {
-    ConfigService.setReaderConfig("isFullscreen", "no");
+    configStore.setReaderConfig("isFullscreen", "no");
     this.props.handleReadingState(false);
     this.props.handleSearch(false);
     window.speechSynthesis && window.speechSynthesis.cancel();
@@ -97,23 +90,19 @@ class OperationPanel extends React.Component<
       this.props.handleHtmlBook(null);
     }
     if (isElectron) {
-      if (ConfigService.getReaderConfig("isOpenInMain") === "yes") {
+      if (configStore.getReaderConfig("isOpenInMain") === "yes") {
         window.require("electron").ipcRenderer.invoke("exit-tab", "ping");
       } else {
         window.close();
       }
     } else {
-      ConfigService.setReaderConfig("isFinishWebReading", "yes");
+      configStore.setReaderConfig("isFinishWebReading", "yes");
       window.close();
     }
   }
   handleAddBookmark = async () => {
     let bookKey = this.props.currentBook.key;
-    let bookLocation: BookLocation = ConfigService.getObjectConfig(
-      bookKey,
-      "recordLocation",
-      {}
-    );
+    let bookLocation: any = readingProgressStore.getProgress(bookKey) || {};
     let text = bookLocation.text;
     let chapter = bookLocation.chapterTitle;
     let percentage = bookLocation.percentage;
@@ -161,19 +150,8 @@ class OperationPanel extends React.Component<
   };
   async handleDisplayBookmark() {
     this.props.handleShowBookmark(false);
-    let bookLocation: {
-      text: string;
-      count: string;
-      chapterTitle: string;
-      chapterDocIndex: string;
-      chapterHref: string;
-      percentage: string;
-      cfi: string;
-    } = ConfigService.getObjectConfig(
-      this.props.currentBook.key,
-      "recordLocation",
-      {}
-    );
+    let bookLocation: any =
+      readingProgressStore.getProgress(this.props.currentBook.key) || {};
     let bookmarks = await DatabaseService.getRecordsByBookKey(
       this.props.currentBook.key,
       "bookmarks"

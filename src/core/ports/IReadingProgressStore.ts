@@ -10,6 +10,11 @@ export interface IReadingProgressStore {
   getProgress(bookKey: string): Promise<RenderPosition | null>;
 
   /**
+   * 同步获取指定书籍的最后阅读位置（供渲染器与UI初始化瞬时读取）
+   */
+  getProgressSync(bookKey: string): RenderPosition | null;
+
+  /**
    * 保存指定书籍的阅读位置
    */
   saveProgress(bookKey: string, pos: RenderPosition): Promise<void>;

@@ -3,7 +3,7 @@ import "./progressPanel.css";
 import { Trans } from "react-i18next";
 import { ProgressPanelProps, ProgressPanelState } from "./interface";
 import _ from "underscore";
-import { ConfigService } from '../../../services';
+import { configStore, readingProgressStore } from "../../../core/ports/stores";
 import { scrollContents } from "../../../utils/common";
 import { toggleReadingPanel } from "../../../utils/reader/mouseEvent";
 class ProgressPanel extends React.Component<
@@ -35,19 +35,11 @@ class ProgressPanel extends React.Component<
         this.handleCurrentChapterIndex(nextProps.htmlBook.rendition);
       });
       this.handleCurrentChapterIndex(nextProps.htmlBook.rendition);
-      let bookLocation: {
-        text: string;
-        chapterTitle: string;
-        chapterDocIndex: string;
-        chapterHref: string;
-        percentage: string;
-      } = ConfigService.getObjectConfig(
-        this.props.currentBook.key,
-        "recordLocation",
-        {}
+      let bookLocation = await readingProgressStore.getProgress(
+        this.props.currentBook.key
       );
-      if (bookLocation.percentage) {
-        let percentage = (parseFloat(bookLocation.percentage) * 100).toFixed(2);
+      if (bookLocation && bookLocation.percentage) {
+        let percentage = (parseFloat(bookLocation.percentage as any) * 100).toFixed(2);
         this.setState({ currentPercentage: parseFloat(percentage) });
       }
     }
@@ -58,10 +50,9 @@ class ProgressPanel extends React.Component<
   }
   handleLocation = () => {
     let position = this.props.htmlBook.rendition.getPosition();
-    ConfigService.setObjectConfig(
+    readingProgressStore.saveProgress(
       this.props.currentBook.key,
-      position,
-      "recordLocation"
+      position
     );
     this.props.handleCurrentChapter(position.chapterTitle);
     setTimeout(() => {
@@ -165,12 +156,12 @@ class ProgressPanel extends React.Component<
     }
     let readerMode =
       (this.props.currentBook.format === "PDF" &&
-        !ConfigService.getAllListConfig("convertPDFBooks").includes(
+        !configStore.getAllListConfig("convertPDFBooks").includes(
           this.props.currentBook.key
         )) ||
       this.props.currentBook.format.startsWith("CB")
-        ? ConfigService.getReaderConfig("pdfReaderMode") || "scroll"
-        : ConfigService.getReaderConfig("readerMode") || "double";
+        ? configStore.getReaderConfig("pdfReaderMode") || "scroll"
+        : configStore.getReaderConfig("readerMode") || "double";
     return (
       <div className="progress-panel">
         <div className="progress-row progress-row-info">

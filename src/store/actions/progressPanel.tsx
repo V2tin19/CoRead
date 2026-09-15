@@ -1,13 +1,13 @@
 import BookModel from "../../models/Book";
-import { ConfigService } from '../../services';
+import { readingProgressStore } from "../../core/ports/stores";
+
 export function handlePercentage(percentage: number) {
   return { type: "HANDLE_PERCENTAGE", payload: percentage };
 }
 export function handleFetchPercentage(book: BookModel) {
   return (dispatch: (arg0: { type: string; payload: any }) => void) => {
-    let percentage =
-      ConfigService.getObjectConfig(book.key, "recordLocation", {})
-        .percentage || 0;
+    const location = readingProgressStore.getProgressSync(book.key);
+    let percentage = (location?.percentage as any) || 0;
 
     dispatch(handlePercentage(percentage));
   };

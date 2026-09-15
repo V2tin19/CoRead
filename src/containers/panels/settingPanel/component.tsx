@@ -8,9 +8,9 @@ import SettingSwitch from "../../../components/readerSettings/settingSwitch";
 import { SettingPanelProps, SettingPanelState } from "./interface";
 import { Trans } from "react-i18next";
 import {
-  ConfigService,
   KookitConfig,
 } from '../../../services';
+import { configStore } from '../../../core/ports/stores';
 import { sliderConfigs } from "../../../constants/dropdownList";
 import toast from "react-hot-toast";
 
@@ -22,7 +22,7 @@ class SettingPanel extends React.Component<
     super(props);
     this.state = {
       isSettingLocked:
-        ConfigService.getReaderConfig("isSettingLocked") === "yes"
+        configStore.getReaderConfig("isSettingLocked") === "yes"
           ? true
           : false,
       isShowMenu: false,
@@ -31,7 +31,7 @@ class SettingPanel extends React.Component<
 
   handleLock = () => {
     this.props.handleSettingLock(!this.props.isSettingLocked);
-    ConfigService.setReaderConfig(
+    configStore.setReaderConfig(
       "isSettingLocked",
       !this.props.isSettingLocked ? "yes" : "no"
     );
@@ -42,20 +42,20 @@ class SettingPanel extends React.Component<
 
   handleClearAllStyle = () => {
     if (
-      ConfigService.getAllListConfig("seperateStyleBooks").includes(
+      configStore.getAllListConfig("seperateStyleBooks").includes(
         this.props.currentBook.key
       )
     ) {
-      ConfigService.deleteObjectConfig(
+      configStore.deleteObjectConfig(
         this.props.currentBook.key,
         "seperateStyleConfig"
       );
     } else {
       const readerConfig = JSON.parse(
-        localStorage.getItem("readerConfig") || "{}"
+        configStore.getItem("readerConfig") || "{}"
       );
       KookitConfig.StyleKeys.forEach((key) => delete readerConfig[key]);
-      localStorage.setItem("readerConfig", JSON.stringify(readerConfig));
+      configStore.setItem("readerConfig", JSON.stringify(readerConfig));
     }
 
     toast.success(this.props.t("Clear successful"));
@@ -71,7 +71,7 @@ class SettingPanel extends React.Component<
             ? this.props.backgroundColor
             : "",
           color: this.props.isSettingLocked
-            ? ConfigService.getReaderConfig("textColor")
+            ? configStore.getReaderConfig("textColor")
             : "",
         }}
       >
@@ -96,7 +96,7 @@ class SettingPanel extends React.Component<
             .filter((item) => {
               if (
                 this.props.currentBook.format === "PDF" &&
-                !ConfigService.getAllListConfig("convertPDFBooks").includes(
+                !configStore.getAllListConfig("convertPDFBooks").includes(
                   this.props.currentBook.key
                 )
               ) {

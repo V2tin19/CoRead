@@ -5,6 +5,7 @@
 export interface RenderPosition {
   chapterIndex: number;
   progress: number;
+  percentage?: number | string;
   text?: string;
   location?: any;
 }
