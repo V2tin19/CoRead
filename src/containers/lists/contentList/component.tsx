@@ -1,7 +1,7 @@
 import React from "react";
 import "./contentList.css";
 import { ContentListProps, ContentListState } from "./interface";
-import { ConfigService } from "../../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../../services';
 import { scrollContents } from "../../../utils/common";
 import { Trans } from "react-i18next";
 import i18n from "../../../i18n";

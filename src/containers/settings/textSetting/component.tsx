@@ -2,7 +2,7 @@ import React from "react";
 import { TextRule, TextSettingProps, TextSettingState } from "./interface";
 import { Trans } from "react-i18next";
 import toast from "react-hot-toast";
-import { ConfigService } from "../../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../../services';
 import BookUtil from "../../../utils/file/bookUtil";
 
 class TextSetting extends React.Component<TextSettingProps, TextSettingState> {

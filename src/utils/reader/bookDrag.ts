@@ -1,4 +1,4 @@
-import { ConfigService } from "../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../services';
 
 export const BOOK_DRAG_TYPE = "application/x-koodo-book";
 

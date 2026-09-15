@@ -1,5 +1,5 @@
 import i18n from "../i18n";
-import { KookitConfig } from "../assets/lib/kookit-extra-browser.min";
+import { KookitConfig } from '../services';
 
 export const fullTranslationLangList = (() => {
   const seen = new Set<string>();

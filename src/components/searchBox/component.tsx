@@ -1,7 +1,7 @@
 import React from "react";
 import "./searchBox.css";
 import { SearchBoxProps, SearchBoxState } from "./interface";
-import { ConfigService } from "../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../services';
 import ConfigUtil from "../../utils/file/configUtil";
 import BookUtil from "../../utils/file/bookUtil";
 

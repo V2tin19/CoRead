@@ -1,4 +1,4 @@
-import { CommonTool } from "../../assets/lib/kookit-extra-browser.min";
+import { CommonTool } from '../../services';
 import DatabaseService from "../storage/databaseService";
 import Book from "../../models/Book";
 import CoverUtil from "./coverUtil";

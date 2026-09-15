@@ -1,14 +1,14 @@
 import {
   ConfigService,
   TokenService,
-} from "../../assets/lib/kookit-extra-browser.min";
+} from '../../services';
 import { isElectron } from "react-device-detect";
 import localforage from "localforage";
 import BookModel from "../../models/Book";
 import toast from "react-hot-toast";
 import { getStorageLocation } from "../common";
 import { Buffer } from "buffer";
-import { CommonTool } from "../../assets/lib/kookit-extra-browser.min";
+import { CommonTool } from '../../services';
 import DatabaseService from "../storage/databaseService";
 import Book from "../../models/Book";
 import i18n from "../../i18n";

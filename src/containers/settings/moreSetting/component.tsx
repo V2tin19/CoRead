@@ -2,7 +2,7 @@ import React from "react";
 import { Trans } from "react-i18next";
 import { MoreSettingProps, MoreSettingState } from "./interface";
 import toast from "react-hot-toast";
-import { TokenService } from "../../../assets/lib/kookit-extra-browser.min";
+import { TokenService } from '../../../services';
 import {
   clearProtection,
   getBiometricCapability,

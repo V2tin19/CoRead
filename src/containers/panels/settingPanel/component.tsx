@@ -10,7 +10,7 @@ import { Trans } from "react-i18next";
 import {
   ConfigService,
   KookitConfig,
-} from "../../../assets/lib/kookit-extra-browser.min";
+} from '../../../services';
 import { sliderConfigs } from "../../../constants/dropdownList";
 import toast from "react-hot-toast";
 

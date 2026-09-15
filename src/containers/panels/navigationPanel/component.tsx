@@ -9,7 +9,7 @@ import OperationPanel from "../operationPanel";
 import Parser from "html-react-parser";
 import DOMPurify from "dompurify";
 import EmptyCover from "../../../components/emptyCover";
-import { ConfigService, HighlightUtil } from "../../../assets/lib/kookit-extra-browser.min";
+import { ConfigService, HighlightUtil } from '../../../services';
 import CoverUtil from "../../../utils/file/coverUtil";
 import {
   NAV_TAB_TOGGLE_EVENT,

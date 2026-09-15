@@ -4,7 +4,7 @@ import NoteList from "../lists/noteList";
 import {
   ConfigService,
   ReadingTimeUtil,
-} from "../../assets/lib/kookit-extra-browser.min";
+} from '../../services';
 import {
   getOrCreateDisplayName,
   saveDisplayName,

@@ -4,7 +4,7 @@ import { PopupReferProps, PopupReferStates } from "./interface";
 import { getIframeDoc } from "../../../utils/reader/docUtil";
 import { openExternalUrl } from "../../../utils/common";
 import Parser from "html-react-parser";
-import { ConfigService } from "../../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../../services';
 
 class PopupRefer extends React.Component<PopupReferProps, PopupReferStates> {
   highlighter: any;

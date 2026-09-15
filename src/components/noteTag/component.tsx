@@ -3,7 +3,7 @@ import "./noteTag.css";
 import { NoteTagProps, NoteTagState } from "./interface";
 import DeleteIcon from "../deleteIcon";
 import { Trans } from "react-i18next";
-import { ConfigService } from "../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../services';
 
 class NoteTag extends React.Component<NoteTagProps, NoteTagState> {
   constructor(props: NoteTagProps) {

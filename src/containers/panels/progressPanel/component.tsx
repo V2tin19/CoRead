@@ -3,7 +3,7 @@ import "./progressPanel.css";
 import { Trans } from "react-i18next";
 import { ProgressPanelProps, ProgressPanelState } from "./interface";
 import _ from "underscore";
-import { ConfigService } from "../../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../../services';
 import { scrollContents } from "../../../utils/common";
 import { toggleReadingPanel } from "../../../utils/reader/mouseEvent";
 class ProgressPanel extends React.Component<

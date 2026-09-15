@@ -5,7 +5,7 @@ import toast from "react-hot-toast";
 import {
   ConfigService,
   KookitConfig,
-} from "../../../assets/lib/kookit-extra-browser.min";
+} from '../../../services';
 
 class ChapterSetting extends React.Component<
   SettingInfoProps,

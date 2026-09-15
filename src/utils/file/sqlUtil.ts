@@ -1,5 +1,5 @@
 import { isElectron } from "react-device-detect";
-import { SqlStatement } from "../../assets/lib/kookit-extra-browser.min";
+import { SqlStatement } from '../../services';
 declare var window: any;
 function addColonToKeys(obj: any): any {
   const newObj: any = {};

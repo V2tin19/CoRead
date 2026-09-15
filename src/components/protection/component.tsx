@@ -1,6 +1,6 @@
 import React from "react";
 import "./protection.css";
-import { TokenService } from "../../assets/lib/kookit-extra-browser.min";
+import { TokenService } from '../../services';
 import {
   getBiometricErrorMessage,
   promptBiometricAuth,

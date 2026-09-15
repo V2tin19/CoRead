@@ -21,7 +21,7 @@ import {
   throttle,
 } from "../../utils/common";
 import _ from "underscore";
-import { ConfigService } from "../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../services';
 import * as Kookit from "../../assets/lib/kookit.min";
 import PopupRefer from "../../components/popups/popupRefer";
 import {

@@ -9,7 +9,7 @@ import { DropdownListProps, DropdownListState } from "./interface";
 import {
   ConfigService,
   KookitConfig,
-} from "../../../assets/lib/kookit-extra-browser.min";
+} from '../../../services';
 import FontUtil from "../../../utils/file/fontUtil";
 import toast from "react-hot-toast";
 declare var window: any;

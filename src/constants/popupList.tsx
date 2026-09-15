@@ -1,4 +1,4 @@
-import { ConfigService } from "../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../services';
 
 export const POPUP_OPTION_LIMIT = 11;
 export const POPUP_OPTION_ORDER_CONFIG = "popupOptionOrder";

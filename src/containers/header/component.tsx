@@ -4,7 +4,7 @@ import SearchBox from "../../components/searchBox";
 import ImportLocal from "../../components/importLocal";
 import RoomImportButton from "../../components/roomImportButton";
 import { HeaderProps, HeaderState } from "./interface";
-import { ConfigService } from "../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../services';
 import { generateSnapshot } from "../../utils/file/backup";
 import { isElectron } from "react-device-detect";
 import { upgradeConfig, upgradeStorage } from "../../utils/file/common";

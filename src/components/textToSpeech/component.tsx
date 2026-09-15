@@ -6,7 +6,7 @@ import {
   ConfigService,
   HighlightUtil,
   KookitConfig,
-} from "../../assets/lib/kookit-extra-browser.min";
+} from '../../services';
 import {
   checkReachPageEnd,
   getAllVoices,

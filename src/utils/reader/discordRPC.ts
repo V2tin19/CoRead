@@ -1,4 +1,4 @@
-import { ConfigService } from "../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../services';
 import BookModel from "../../models/Book";
 
 declare var window: any;

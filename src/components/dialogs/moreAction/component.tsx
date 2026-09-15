@@ -14,7 +14,7 @@ import {
 } from "../../../utils/file/export";
 import { isElectron } from "react-device-detect";
 import DatabaseService from "../../../utils/storage/databaseService";
-import { ConfigService } from "../../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../../services';
 import * as Kookit from "../../../assets/lib/kookit.min";
 import {
   getPdfPassword,

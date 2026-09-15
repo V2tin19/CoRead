@@ -7,7 +7,7 @@ import { ThemeListProps, ThemeListState } from "./interface";
 import {
   ConfigService,
   KookitConfig,
-} from "../../../assets/lib/kookit-extra-browser.min";
+} from '../../../services';
 import { HexColorPicker } from "react-colorful";
 import toast from "react-hot-toast";
 import { normalizePickerColor, parseColorInput } from "../../../utils/common";

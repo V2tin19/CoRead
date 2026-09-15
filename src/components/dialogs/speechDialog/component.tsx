@@ -1,7 +1,7 @@
 import React from "react";
 import { SpeechDialogProps, SpeechDialogState } from "./interface";
 import "./speechDialog.css";
-import { ConfigService } from "../../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../../services';
 import TextToSpeech from "../../textToSpeech";
 
 class SpeechDialog extends React.Component<

@@ -8,7 +8,7 @@ import { Redirect } from "react-router-dom";
 import BookUtil from "../../../utils/file/bookUtil";
 import toast from "react-hot-toast";
 import BookModel from "../../../models/Book";
-import { ConfigService } from "../../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../../services';
 import DatabaseService from "../../../utils/storage/databaseService";
 import Note from "../../../models/Note";
 class CardList extends React.Component<CardListProps, CardListStates> {

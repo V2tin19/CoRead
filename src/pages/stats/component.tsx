@@ -6,7 +6,7 @@ import { Trans } from "react-i18next";
 import {
   ConfigService,
   ReadingTimeUtil,
-} from "../../assets/lib/kookit-extra-browser.min";
+} from '../../services';
 import DatabaseService from "../../utils/storage/databaseService";
 import {
   Line,

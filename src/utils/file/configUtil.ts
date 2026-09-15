@@ -2,7 +2,7 @@ import {
   ConfigService,
   CommonTool,
   SqlStatement,
-} from "../../assets/lib/kookit-extra-browser.min";
+} from '../../services';
 import DatabaseService from "../storage/databaseService";
 import { isElectron } from "react-device-detect";
 import { getStorageLocation } from "../common";

@@ -1,6 +1,6 @@
 import DatabaseService from "../storage/databaseService";
 import collabClient from "../collab/collabClient";
-import { ConfigService } from "../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../services';
 import toast from "react-hot-toast";
 
 // 随心笔记(涂鸦)的存储与定位工具 —— v3:按「页」存 + 画布锚定书页

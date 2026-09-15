@@ -5,7 +5,7 @@ import CoverUtil from "./coverUtil";
 import {
   CommonTool,
   ConfigService,
-} from "../../assets/lib/kookit-extra-browser.min";
+} from '../../services';
 import DatabaseService from "../storage/databaseService";
 import { saveAs } from "file-saver";
 import JSZip from "jszip";

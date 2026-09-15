@@ -1,6 +1,6 @@
 import Note from "../../models/Note";
 import DatabaseService from "../storage/databaseService";
-import { ConfigService } from "../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../services';
 import { getIframeDoc } from "./docUtil";
 import collabClient, { getCollabBookKey } from "../collab/collabClient";
 import { getOrCreateDisplayName } from "../collab/roomBook";

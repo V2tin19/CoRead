@@ -1,7 +1,7 @@
 import React from "react";
 import "./modeControl.css";
 import { ModeControlProps, ModeControlState } from "./interface";
-import { ConfigService } from "../../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../../services';
 import { Trans } from "react-i18next";
 import collabClient from "../../../utils/collab/collabClient";
 import toast from "react-hot-toast";

@@ -1,7 +1,7 @@
 import React from "react";
 import "./popupTrans.css";
 import { PopupTransProps, PopupTransState } from "./interface";
-import { ConfigService } from "../../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../../services';
 import { DefaultPrompts } from "../../../constants/aiConfig";
 import axios from "axios";
 import { Trans } from "react-i18next";

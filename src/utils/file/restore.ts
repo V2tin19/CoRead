@@ -6,7 +6,7 @@ import DatabaseService from "../storage/databaseService";
 import {
   CommonTool,
   ConfigService,
-} from "../../assets/lib/kookit-extra-browser.min";
+} from '../../services';
 import toast from "react-hot-toast";
 import i18n from "../../i18n";
 import { isElectron } from "react-device-detect";

@@ -1,7 +1,7 @@
 import {
   ConfigService,
   TokenService,
-} from "../../assets/lib/kookit-extra-browser.min";
+} from '../../services';
 import BookModel from "../../models/Book";
 import PluginModel from "../../models/Plugin";
 import { Dispatch } from "redux";

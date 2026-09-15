@@ -2,7 +2,7 @@ import React from "react";
 import { SettingInfoProps, SettingInfoState } from "./interface";
 import { Trans } from "react-i18next";
 import toast from "react-hot-toast";
-import { ConfigService } from "../../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../../services';
 import packageJson from "../../../../package.json";
 
 import { getWebsiteUrl, openExternalUrl } from "../../../utils/common";

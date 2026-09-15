@@ -10,8 +10,7 @@ import { getIframeDoc } from "../../../utils/reader/docUtil";
 import {
   ConfigService,
   HighlightUtil,
-  NoteSyncManager,
-} from "../../../assets/lib/kookit-extra-browser.min";
+} from '../../../services';
 import DatabaseService from "../../../utils/storage/databaseService";
 import ColorOption from "../../colorOption";
 import copy from "copy-text-to-clipboard";
@@ -202,12 +201,6 @@ class PopupNote extends React.Component<PopupNoteProps, PopupNoteState> {
           note,
           this.handleNoteClick
         );
-        // Auto-sync note to enabled destinations
-        let noteSyncManager = new NoteSyncManager(
-          DatabaseService,
-          ConfigService
-        );
-        noteSyncManager.syncNote(note, bookKey);
       });
     }
   }

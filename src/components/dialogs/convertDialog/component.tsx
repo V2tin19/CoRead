@@ -3,7 +3,7 @@ import { Trans } from "react-i18next";
 import { ConvertDialogProps, ConvertDialogState } from "./interface";
 import { isElectron } from "react-device-detect";
 import "./convertDialog.css";
-import { ConfigService } from "../../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../../services';
 import BookUtil from "../../../utils/file/bookUtil";
 import {
   getOcrPaddleLangList,

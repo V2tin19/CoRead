@@ -1,4 +1,4 @@
-import { ConfigService } from "../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../services';
 
 // CSS selectors grouped by style rule
 const BG_SOLID_SELECTORS = [

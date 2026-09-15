@@ -3,7 +3,7 @@ import { SettingInfoProps, SettingInfoState, AIModelConfig } from "./interface";
 import { Trans } from "react-i18next";
 import toast from "react-hot-toast";
 import { handleContextMenu, vexTextareaAsync } from "../../../utils/common";
-import { ConfigService } from "../../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../../services';
 import {
   DefaultPrompts,
   AiProviderList,

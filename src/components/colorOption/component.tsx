@@ -5,7 +5,7 @@ import {
   ConfigService,
   HighlightUtil,
   KookitConfig,
-} from "../../assets/lib/kookit-extra-browser.min";
+} from '../../services';
 
 class ColorOption extends React.Component<ColorProps> {
   highlightUtil: any;

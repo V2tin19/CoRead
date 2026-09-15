@@ -17,7 +17,7 @@ import {
 import CoverUtil from "../../utils/file/coverUtil";
 import { BookHelper } from "../../assets/lib/kookit.min";
 import * as Kookit from "../../assets/lib/kookit.min";
-import { ConfigService } from "../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../services';
 import DOMPurify from "dompurify";
 import { Readability } from "@mozilla/readability";
 import toast from "react-hot-toast";

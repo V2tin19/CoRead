@@ -13,7 +13,7 @@ import DOMPurify from "dompurify";
 import {
   CommonTool,
   ConfigService,
-} from "../../assets/lib/kookit-extra-browser.min";
+} from '../../services';
 import CoverUtil from "../../utils/file/coverUtil";
 import { Readability } from "@mozilla/readability";
 import {

@@ -1,7 +1,7 @@
 import React from "react";
 import "./background.css";
 import { BackgroundProps, BackgroundState } from "./interface";
-import { ConfigService } from "../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../services';
 import { getPageWidth, throttle } from "../../utils/common";
 import BackgroundUtil from "../../utils/file/backgroundUtil";
 class Background extends React.Component<BackgroundProps, BackgroundState> {

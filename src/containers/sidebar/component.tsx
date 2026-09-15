@@ -3,7 +3,7 @@ import "./sidebar.css";
 import { sideMenu } from "../../constants/sideMenu";
 import { SidebarProps, SidebarState } from "./interface";
 import { withRouter } from "react-router-dom";
-import { ConfigService } from "../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../services';
 import { getWebsiteUrl, openInBrowser } from "../../utils/common";
 import toast from "react-hot-toast";
 import {

@@ -11,7 +11,7 @@ import {
 } from "../../../constants/settingList";
 
 import toast from "react-hot-toast";
-import { ConfigService } from "../../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../../services';
 
 declare var window: any;
 class GeneralSetting extends React.Component<

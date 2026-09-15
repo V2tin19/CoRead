@@ -1,7 +1,7 @@
 import NoteModel from "../../models/Note";
 import BookmarkModel from "../../models/Bookmark";
 import HtmlBookModel from "../../models/HtmlBook";
-import { ConfigService } from "../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../services';
 import DatabaseService from "../../utils/storage/databaseService";
 import ConfigUtil from "../../utils/file/configUtil";
 import Note from "../../models/Note";

@@ -7,7 +7,7 @@ import toast from "react-hot-toast";
 import {
   ConfigService,
   HighlightUtil,
-} from "../../../assets/lib/kookit-extra-browser.min";
+} from '../../../services';
 import DatabaseService from "../../../utils/storage/databaseService";
 import ConfigUtil from "../../../utils/file/configUtil";
 import Book from "../../../models/Book";

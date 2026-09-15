@@ -8,7 +8,7 @@ import animationSafe from "../../../assets/lotties/safe.json";
 import _ from "underscore";
 import toast from "react-hot-toast";
 import { isElectron } from "react-device-detect";
-import { ConfigService } from "../../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../../services';
 import {
   exportToLocalFile,
   LocalFileManager,

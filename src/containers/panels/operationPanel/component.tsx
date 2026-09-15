@@ -4,7 +4,7 @@ import Bookmark from "../../../models/Bookmark";
 import { Trans } from "react-i18next";
 
 import { OperationPanelProps, OperationPanelState } from "./interface";
-import { ConfigService } from "../../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../../services';
 import { withRouter } from "react-router-dom";
 import toast from "react-hot-toast";
 import TTSUtil from "../../../utils/reader/ttsUtil";

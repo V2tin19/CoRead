@@ -3,7 +3,7 @@ import CoverUtil from "./coverUtil";
 import {
   CommonTool,
   ConfigService,
-} from "../../assets/lib/kookit-extra-browser.min";
+} from '../../services';
 import DatabaseService from "../storage/databaseService";
 import localforage from "localforage";
 import Book from "../../models/Book";

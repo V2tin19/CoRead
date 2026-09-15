@@ -7,7 +7,7 @@ import { getIframeDoc } from "../../../utils/reader/docUtil";
 import {
   ConfigService,
   HighlightUtil,
-} from "../../../assets/lib/kookit-extra-browser.min";
+} from '../../../services';
 import {
   getSelection,
   getSelectionSentence,

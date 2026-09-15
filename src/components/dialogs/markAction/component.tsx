@@ -3,7 +3,7 @@ import "../actionDialog/actionDialog.css";
 import { Trans } from "react-i18next";
 import { MarkActionProps } from "./interface";
 import toast from "react-hot-toast";
-import { ConfigService } from "../../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../../services';
 
 const MENU_ITEM_HEIGHT = 33;
 const MENU_CONTAINER_PADDING = 5;

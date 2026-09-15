@@ -2,7 +2,7 @@ import React from "react";
 import "./fontSetting.css";
 import { SettingInfoProps, SettingInfoState, InstalledFont } from "./interface";
 import { Trans } from "react-i18next";
-import { ConfigService } from "../../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../../services';
 import toast from "react-hot-toast";
 import FontUtil, {
   translateFontName,

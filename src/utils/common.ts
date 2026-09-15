@@ -4,7 +4,7 @@ import CryptoJS from "crypto-js";
 import {
   CommonTool,
   ConfigService,
-} from "../assets/lib/kookit-extra-browser.min";
+} from '../services';
 import {
   ConvertLangMap,
   ContentRegxConfig,

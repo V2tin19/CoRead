@@ -1,4 +1,4 @@
-import { ConfigService } from "../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../services';
 
 export const getIframeDoc = (format: string, bookKey?: string) => {
   let pageArea = document.getElementById("page-area");

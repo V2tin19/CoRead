@@ -3,7 +3,7 @@ import { Trans } from "react-i18next";
 import { PdfCropDialogProps, PdfCropDialogState } from "./interface";
 import "../../readerSettings/sliderList/sliderList.css";
 import BookUtil from "../../../utils/file/bookUtil";
-import { ConfigService } from "../../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../../services';
 
 const cropSliderConfigs = [
   {

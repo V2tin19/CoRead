@@ -7,7 +7,7 @@ import { saveAs } from "file-saver";
 import {
   ConfigService,
   HighlightUtil,
-} from "../../assets/lib/kookit-extra-browser.min";
+} from '../../services';
 import { isElectron } from "react-device-detect";
 import i18n from "../../i18n";
 import toast from "react-hot-toast";

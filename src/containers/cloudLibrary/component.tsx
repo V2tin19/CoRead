@@ -14,7 +14,7 @@ import BookUtil from "../../utils/file/bookUtil";
 import CoverUtil from "../../utils/file/coverUtil";
 import { uploadRoomCover } from "../../utils/collab/roomBook";
 import DatabaseService from "../../utils/storage/databaseService";
-import { ConfigService } from "../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../services';
 import {
   calculateFileMD5,
   getFileNameWithoutExtension,

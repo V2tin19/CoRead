@@ -19,7 +19,7 @@ import { LocalFileManager } from "../../../utils/file/localFile";
 import {
   ConfigService,
   TokenService,
-} from "../../../assets/lib/kookit-extra-browser.min";
+} from '../../../services';
 import { changeLibrary, changePath } from "../../../utils/file/common";
 import { getSnapshots } from "../../../utils/file/backup";
 import { restoreFromSnapshot } from "../../../utils/file/restore";

@@ -6,7 +6,7 @@ import { withRouter } from "react-router-dom";
 import EmptyCover from "../emptyCover";
 import ActionDialog from "../dialogs/actionDialog";
 import toast from "react-hot-toast";
-import { ConfigService } from "../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../services';
 import { useBookItem } from "../bookItem/useBookItem";
 import { getFileNameWithoutExtension } from "../../utils/common";
 

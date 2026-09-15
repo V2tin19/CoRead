@@ -1,5 +1,5 @@
 import { getIframeDoc } from "./docUtil";
-import { ConfigService } from "../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../services';
 import { applyThemeColor, removeThemeColor } from "./themeUtil";
 import { StyleHelper } from "../../assets/lib/kookit.min";
 import FontUtil from "../file/fontUtil";

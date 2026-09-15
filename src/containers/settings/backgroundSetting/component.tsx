@@ -6,7 +6,7 @@ import {
   BackgroundImage,
 } from "./interface";
 import { Trans } from "react-i18next";
-import { ConfigService } from "../../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../../services';
 import toast from "react-hot-toast";
 import { applyAppBackgroundImage } from "../../../utils/reader/launchUtil";
 import BackgroundUtil from "../../../utils/file/backgroundUtil";

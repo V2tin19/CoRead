@@ -7,7 +7,7 @@ import {
   popupOptionMap,
   PopupOptionKey,
 } from "../../../constants/popupList";
-import { ConfigService, HighlightUtil } from "../../../assets/lib/kookit-extra-browser.min";
+import { ConfigService, HighlightUtil } from '../../../services';
 import toast from "react-hot-toast";
 import {
   getSelection,

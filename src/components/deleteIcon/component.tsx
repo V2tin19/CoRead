@@ -4,7 +4,7 @@ import { DeleteIconProps, DeleteIconStates } from "./interface";
 import DeletePopup from "../dialogs/deletePopup";
 import toast from "react-hot-toast";
 import DatabaseService from "../../utils/storage/databaseService";
-import { ConfigService } from "../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../services';
 import ConfigUtil from "../../utils/file/configUtil";
 import { book } from "../../store/reducers";
 import collabClient, {

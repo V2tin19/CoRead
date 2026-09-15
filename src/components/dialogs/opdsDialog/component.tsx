@@ -3,7 +3,7 @@ import "./opdsDialog.css";
 import { Trans } from "react-i18next";
 import toast from "react-hot-toast";
 import CryptoJS from "crypto-js";
-import { ConfigService } from "../../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../../services';
 import {
   OPDSCatalog,
   OPDSEntry,

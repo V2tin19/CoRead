@@ -1,7 +1,7 @@
 import React from "react";
 import "./popupAssist.css";
 import { PopupAssistProps, PopupAssistState, AiChatMessage } from "./interface";
-import { ConfigService } from "../../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../../services';
 import { DefaultPrompts } from "../../../constants/aiConfig";
 import Parser from "html-react-parser";
 import DOMPurify from "dompurify";

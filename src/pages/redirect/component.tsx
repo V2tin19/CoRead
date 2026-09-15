@@ -10,7 +10,7 @@ import emptyDark from "../../assets/images/empty-dark.svg";
 import emptyLight from "../../assets/images/empty-light.svg";
 import animationSuccess from "../../assets/lotties/success.json";
 import toast, { Toaster } from "react-hot-toast";
-import { ConfigService } from "../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../services';
 import * as Kookit from "../../assets/lib/kookit.min";
 import { removeSearchParams } from "../../utils/common";
 import { BookHelper } from "../../assets/lib/kookit.min";

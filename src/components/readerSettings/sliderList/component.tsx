@@ -2,7 +2,7 @@ import React from "react";
 import { Trans } from "react-i18next";
 import { SliderListProps, SliderListState } from "./interface";
 import "./sliderList.css";
-import { ConfigService } from "../../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../../services';
 class SliderList extends React.Component<SliderListProps, SliderListState> {
   // 拖动/输入停止后的重绘定时器:所有输入路径(鼠标/触摸/键盘)统一走
   // 防抖重绘,不再单独依赖 onMouseUp —— 手机上触摸拖滑杆浏览器不派发

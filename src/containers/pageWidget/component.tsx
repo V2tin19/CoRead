@@ -1,7 +1,7 @@
 import React from "react";
 import "./pageWidget.css";
 import { PageWidgetProps, PageWidgetState } from "./interface";
-import { ConfigService } from "../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../services';
 import { Trans } from "react-i18next";
 class PageWidget extends React.Component<PageWidgetProps, PageWidgetState> {
   isFirst: Boolean;

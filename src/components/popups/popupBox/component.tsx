@@ -7,7 +7,7 @@ import { PopupBoxProps, PopupBoxStates } from "./interface";
 import { getIframeDoc } from "../../../utils/reader/docUtil";
 import PopupAssist from "../popupAssist";
 import { isElectron } from "react-device-detect";
-import { ConfigService } from "../../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../../services';
 
 const POPUP_SIZE_KEY = "popupBoxSize";
 const DEFAULT_WIDTH = 500;

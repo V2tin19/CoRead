@@ -6,7 +6,7 @@ import Parser from "html-react-parser";
 import DOMPurify from "dompurify";
 import EmptyCover from "../../emptyCover";
 import CoverUtil from "../../../utils/file/coverUtil";
-import { ConfigService } from "../../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../../services';
 class DetailDialog extends React.Component<
   DetailDialogProps,
   DetailDialogState

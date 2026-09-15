@@ -5,7 +5,7 @@ import {
   osName,
   osVersion,
 } from "react-device-detect";
-import { ConfigService } from "../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../services';
 import packageJson from "../../../package.json";
 import BackgroundUtil from "../file/backgroundUtil";
 import FontUtil from "../file/fontUtil";

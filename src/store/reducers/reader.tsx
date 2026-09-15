@@ -1,4 +1,4 @@
-import { ConfigService, HighlightUtil } from "../../assets/lib/kookit-extra-browser.min";
+import { ConfigService, HighlightUtil } from '../../services';
 const highlightUtil = new HighlightUtil(ConfigService);
 const initState = {
   bookmarks: [],

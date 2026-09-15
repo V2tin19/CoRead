@@ -1,5 +1,5 @@
 import { Dispatch } from "redux";
-import { ConfigService } from "../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../services';
 
 export function handleBackupDialog(mode: boolean) {
   return { type: "HANDLE_BACKUP", payload: mode };

@@ -8,7 +8,7 @@ import {
   CommonTool,
   ConfigService,
   TokenService,
-} from "../../assets/lib/kookit-extra-browser.min";
+} from '../../services';
 import { LocalFileManager } from "./localFile";
 declare var window: any;
 class AsyncQueue {

@@ -2,7 +2,7 @@ import { isElectron } from "react-device-detect";
 import { getStorageLocation } from "../common";
 import localforage from "localforage";
 import SqlUtil from "../file/sqlUtil";
-import { ConfigService } from "../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../services';
 import { LocalFileManager } from "../file/localFile";
 declare var window: any;
 

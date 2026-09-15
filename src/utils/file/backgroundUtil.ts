@@ -1,6 +1,6 @@
 import { isElectron } from "react-device-detect";
 import { getStorageLocation } from "../common";
-import { ConfigService } from "../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../services';
 import { LocalFileManager } from "./localFile";
 import localforage from "localforage";
 import { Buffer } from "buffer";

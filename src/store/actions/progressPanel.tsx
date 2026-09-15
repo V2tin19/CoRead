@@ -1,5 +1,5 @@
 import BookModel from "../../models/Book";
-import { ConfigService } from "../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../services';
 export function handlePercentage(percentage: number) {
   return { type: "HANDLE_PERCENTAGE", payload: percentage };
 }

@@ -7,7 +7,7 @@ import { ReaderProps, ReaderState } from "./interface";
 import {
   ConfigService,
   ReadingTimeUtil,
-} from "../../assets/lib/kookit-extra-browser.min";
+} from '../../services';
 import Viewer from "../../containers/viewer";
 import { Tooltip } from "react-tooltip";
 import "./index.css";

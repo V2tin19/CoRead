@@ -7,7 +7,7 @@ import BookUtil from "../../../utils/file/bookUtil";
 import toast from "react-hot-toast";
 import CoverUtil from "../../../utils/file/coverUtil";
 import DatabaseService from "../../../utils/storage/databaseService";
-import { ConfigService } from "../../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../../services';
 import { isElectron } from "react-device-detect";
 
 class DeleteDialog extends React.Component<

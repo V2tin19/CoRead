@@ -4,7 +4,7 @@ import { BookCardProps } from "./interface";
 import ActionDialog from "../dialogs/actionDialog";
 import { withRouter } from "react-router-dom";
 import EmptyCover from "../emptyCover";
-import { ConfigService } from "../../assets/lib/kookit-extra-browser.min";
+import { ConfigService } from '../../services';
 import { useBookItem } from "../bookItem/useBookItem";
 import { getFileNameWithoutExtension } from "../../utils/common";
 
