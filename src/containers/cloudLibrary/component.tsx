@@ -20,8 +20,8 @@ import {
   getFileNameWithoutExtension,
   getTextRules,
 } from "../../utils/common";
-import { BookHelper } from "../../assets/lib/kookit.min";
-import * as Kookit from "../../assets/lib/kookit.min";
+import { BookHelper } from "../../vendor/kookit.esm";
+import * as Kookit from "../../vendor/kookit.esm";
 import EmptyCover from "../../components/emptyCover";
 import BookModel from "../../models/Book";
 import ViewMode from "../../components/viewMode";

@@ -11,9 +11,9 @@ import emptyLight from "../../assets/images/empty-light.svg";
 import animationSuccess from "../../assets/lotties/success.json";
 import toast, { Toaster } from "react-hot-toast";
 import { ConfigService } from '../../services';
-import * as Kookit from "../../assets/lib/kookit.min";
+import * as Kookit from "../../vendor/kookit.esm";
 import { removeSearchParams } from "../../utils/common";
-import { BookHelper } from "../../assets/lib/kookit.min";
+import { BookHelper } from "../../vendor/kookit.esm";
 declare var window: any;
 
 class Redirect extends React.Component<RedirectProps, RedirectState> {

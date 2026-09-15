@@ -55,6 +55,24 @@ async function run() {
   const kookitBaselinePath = path.join(ROOT, "src", "assets", "lib", "kookit.min.js");
   assert(fs.existsSync(kookitBaselinePath), "内核基线: src/assets/lib/kookit.min.js 完好");
 
+  // Phase 2: 自建纯净内核 Bundle 与核心架构层存在性断言
+  const vendorBundlePath = path.join(ROOT, "src", "vendor", "kookit.esm.js");
+  const vendorBundleStat = fs.existsSync(vendorBundlePath) && fs.statSync(vendorBundlePath);
+  assert(
+    Boolean(vendorBundleStat && vendorBundleStat.size > 100000),
+    "Phase 2: 自建纯净内核 src/vendor/kookit.esm.js 就绪",
+    vendorBundleStat ? `${(vendorBundleStat.size / 1024).toFixed(1)} KB` : "未找到"
+  );
+
+  const renderPortPath = path.join(ROOT, "src", "core", "ports", "IRenderService.ts");
+  assert(fs.existsSync(renderPortPath), "Phase 2: 核心渲染端口 IRenderService.ts 存在");
+
+  const renderAdapterPath = path.join(ROOT, "src", "core", "adapters", "render", "kookitRenderAdapter.ts");
+  assert(fs.existsSync(renderAdapterPath), "Phase 2: 渲染适配器 KookitRenderAdapter 存在");
+
+  const renderLoaderPath = path.join(ROOT, "src", "core", "adapters", "render", "kookitLoader.ts");
+  assert(fs.existsSync(renderLoaderPath), "Phase 2: 内核加载器 kookitLoader 存在");
+
   // 3. 静态服务启动与路由探测
   const testPort = 3199;
   const server = createStaticServer(ROOT);

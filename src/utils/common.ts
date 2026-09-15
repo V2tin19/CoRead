@@ -11,14 +11,14 @@ import {
 } from "../constants/commonConfig";
 import Book from "../models/Book";
 import BookUtil from "./file/bookUtil";
-import * as Kookit from "../assets/lib/kookit.min";
+import * as Kookit from "../vendor/kookit.esm";
 import DatabaseService from "./storage/databaseService";
 import localforage from "localforage";
 import packageJson from "../../package.json";
 import toast from "react-hot-toast";
 import i18n from "../i18n";
 import { languageCNMap, languageENMap } from "../constants/ttsList";
-import { BookHelper } from "../assets/lib/kookit.min";
+import { BookHelper } from "../vendor/kookit.esm";
 declare var window: any;
 export const supportedFormats = [
   ".epub",

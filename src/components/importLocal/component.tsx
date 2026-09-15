@@ -3,7 +3,7 @@ import "./importLocal.css";
 import BookModel from "../../models/Book";
 import { Trans } from "react-i18next";
 import Dropzone from "react-dropzone";
-import * as Kookit from "../../assets/lib/kookit.min";
+import * as Kookit from "../../vendor/kookit.esm";
 import { ImportLocalProps, ImportLocalState } from "./interface";
 import { isElectron } from "react-device-detect";
 import { withRouter } from "react-router-dom";
@@ -25,7 +25,7 @@ import {
   vexPromptAsync,
 } from "../../utils/common";
 import DatabaseService from "../../utils/storage/databaseService";
-import { BookHelper } from "../../assets/lib/kookit.min";
+import { BookHelper } from "../../vendor/kookit.esm";
 
 // Convert supportedFormats to react-dropzone v14+ accept format
 // Key is MIME type, value is array of file extensions

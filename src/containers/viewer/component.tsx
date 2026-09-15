@@ -22,14 +22,14 @@ import {
 } from "../../utils/common";
 import _ from "underscore";
 import { ConfigService } from '../../services';
-import * as Kookit from "../../assets/lib/kookit.min";
+import * as Kookit from "../../vendor/kookit.esm";
 import PopupRefer from "../../components/popups/popupRefer";
 import {
   ocrEngineList,
   ocrTesseractLangList,
 } from "../../constants/dropdownList";
 import DatabaseService from "../../utils/storage/databaseService";
-import { BookHelper } from "../../assets/lib/kookit.min";
+import { BookHelper } from "../../vendor/kookit.esm";
 import { parseWithSystemOCR } from "../../utils/request/common";
 import collabClient, { getCollabBookKey } from "../../utils/collab/collabClient";
 import toast from "react-hot-toast";

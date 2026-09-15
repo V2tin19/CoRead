@@ -15,13 +15,13 @@ import {
 import { isElectron } from "react-device-detect";
 import DatabaseService from "../../../utils/storage/databaseService";
 import { ConfigService } from '../../../services';
-import * as Kookit from "../../../assets/lib/kookit.min";
+import * as Kookit from "../../../vendor/kookit.esm";
 import {
   getPdfPassword,
   getStorageLocation,
   getTextRules,
 } from "../../../utils/common";
-import { BookHelper } from "../../../assets/lib/kookit.min";
+import { BookHelper } from "../../../vendor/kookit.esm";
 declare var window: any;
 class MoreAction extends React.Component<MoreActionProps, MoreActionState> {
   constructor(props: MoreActionProps) {

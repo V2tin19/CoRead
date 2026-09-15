@@ -15,8 +15,8 @@ import {
   getTextRules,
 } from "../../utils/common";
 import CoverUtil from "../../utils/file/coverUtil";
-import { BookHelper } from "../../assets/lib/kookit.min";
-import * as Kookit from "../../assets/lib/kookit.min";
+import { BookHelper, StyleHelper } from "../../vendor/kookit.esm";
+import * as Kookit from "../../vendor/kookit.esm";
 import { ConfigService } from '../../services';
 import DOMPurify from "dompurify";
 import { Readability } from "@mozilla/readability";
