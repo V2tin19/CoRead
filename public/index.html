@@ -61,8 +61,16 @@
     ></script>
     <script defer src="%PUBLIC_URL%/lib/vex-js/vex.combined.min.js"></script>
     <script>
-      vex.defaultOptions.className = "vex-theme-wireframe";
-      vex.defaultOptions.overlayClosesOnClick = false;
+      // 原来这两行是内联直接执行的，但 vex 用的是 defer，
+      // 于是内联脚本先跑、vex 还没定义 —— 控制台一直报 "vex is not defined"。
+      // defer 脚本会在 DOMContentLoaded 之前按序执行完，所以放到这里等它。
+      window.addEventListener("DOMContentLoaded", function () {
+        if (!window.vex) {
+          return;
+        }
+        window.vex.defaultOptions.className = "vex-theme-wireframe";
+        window.vex.defaultOptions.overlayClosesOnClick = false;
+      });
     </script>
     <link rel="stylesheet" href="%PUBLIC_URL%/lib/vex-js/vex.min.css" />
     <link

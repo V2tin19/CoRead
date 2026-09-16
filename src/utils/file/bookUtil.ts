@@ -3,6 +3,10 @@ import {
   TokenService,
 } from '../../services';
 import { isElectron } from "react-device-detect";
+// isElectron 决定「图书文件」走哪条路（桌面端用原生 fs，这条要保留）；
+// isElectronStorage 决定「书架记录」走哪条路（桌面端仍用 IndexedDB）。
+// 详情见 utils/platform.ts 顶部说明。
+import { isElectronStorage } from "../platform";
 import localforage from "localforage";
 import BookModel from "../../models/Book";
 import toast from "react-hot-toast";
@@ -321,7 +325,7 @@ class BookUtil {
     if (bookKeys.length === 0) {
       return {};
     }
-    if (isElectron) {
+    if (isElectronStorage) {
       const { ipcRenderer } = window.require("electron");
       let placeholders = bookKeys.map(() => "?").join(",");
       let query = `SELECT key, name FROM books WHERE key IN (${placeholders})`;
@@ -349,7 +353,7 @@ class BookUtil {
     }
   }
   static async getBookKeysWithSort(sortField: string, orderField: string) {
-    if (isElectron) {
+    if (isElectronStorage) {
       const { ipcRenderer } = window.require("electron");
       // Get all books first, then sort in JavaScript for natural sorting
       let results = await ipcRenderer.invoke("custom-database-command", {
@@ -424,7 +428,7 @@ class BookUtil {
     }
   }
   static async getBookByMd5(md5: string) {
-    if (isElectron) {
+    if (isElectronStorage) {
       const { ipcRenderer } = window.require("electron");
       return await ipcRenderer.invoke("custom-database-command", {
         query: `SELECT * FROM books WHERE md5=? LIMIT 1`,
@@ -444,7 +448,7 @@ class BookUtil {
     }
   }
   static async searchBooksByKeyword(keyword: string) {
-    if (isElectron) {
+    if (isElectronStorage) {
       const { ipcRenderer } = window.require("electron");
       return await ipcRenderer.invoke("custom-database-command", {
         query: `SELECT * FROM books WHERE name LIKE ? OR author LIKE ?`,
@@ -469,7 +473,7 @@ class BookUtil {
     }
   }
   static async getBookList() {
-    if (isElectron) {
+    if (isElectronStorage) {
       const { ipcRenderer } = window.require("electron");
       return await ipcRenderer.invoke("custom-database-command", {
         query: `SELECT key, format, md5, path FROM books`,

@@ -4,7 +4,9 @@ import {
   SqlStatement,
 } from '../../services';
 import DatabaseService from "../storage/databaseService";
-import { isElectron } from "react-device-detect";
+// 桌面端把配置/笔记存在 IndexedDB，不走主进程原生 SQLite，
+// 所以这里用 isElectronStorage 而不是 isElectron（原因见 utils/platform.ts）
+import { isElectronStorage as isElectron } from "../platform";
 import { getStorageLocation } from "../common";
 import Note from "../../models/Note";
 

@@ -1,7 +1,9 @@
 {
   "name": "coread-web",
+  "productName": "CoRead",
   "version": "2.3.9",
   "description": "CoRead 网页端（自建阅读内核路线；Koodo Reader 定制分支的后续重构）",
+  "main": "main.js",
   "author": {
     "name": "V2tin19",
     "email": "177174168+V2tin19@users.noreply.github.com"
@@ -70,6 +72,8 @@
     "@types/underscore": "^1.13.0",
     "@types/ws": "^8.5.5",
     "classnames": "^2.2.6",
+    "electron": "^34.5.8",
+    "electron-builder": "^25.1.8",
     "html-react-parser": "^5.1.10",
     "i18next": "^23.11.5",
     "lottie-react": "^2.4.0",
@@ -96,7 +100,71 @@
     "collab:server": "node collab-server/server.js",
     "build:kookit": "node tools/build-kookit.mjs",
     "scan": "node tools/scan-sensitive.mjs",
-    "scan:all": "node tools/scan-sensitive.mjs --include-vendor"
+    "scan:all": "node tools/scan-sensitive.mjs --include-vendor",
+    "ele": "electron .",
+    "pack": "npm run build && electron-builder --win --dir",
+    "release": "npm run build && electron-builder --win"
+  },
+  "build": {
+    "extends": null,
+    "appId": "com.coread.desktop",
+    "productName": "CoRead",
+    "copyright": "AGPL-3.0",
+    "asar": true,
+    "compression": "maximum",
+    "directories": {
+      "output": "dist",
+      "buildResources": "assets"
+    },
+    "publish": null,
+    "files": [
+      "build/**/*",
+      "main.js",
+      "assets/**/*",
+      "!node_modules/@capacitor/**",
+      "!**/*.map",
+      "!**/LICENSE.txt",
+      "!vendor/**/*",
+      "!src/**/*",
+      "!collab-server/**/*",
+      "!tools/**/*"
+    ],
+    "win": {
+      "icon": "assets/icons/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerLanguages": [
+        "zh_CN"
+      ],
+      "deleteAppDataOnUninstall": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "CoRead",
+      "installerIcon": "assets/icons/icon.ico",
+      "uninstallerIcon": "assets/icons/icon.ico",
+      "include": "assets/windows/installer.nsh",
+      "artifactName": "CoRead-${version}-Setup.${ext}"
+    },
+    "portable": {
+      "artifactName": "CoRead-${version}-Portable.${ext}"
+    }
   },
   "eslintConfig": {
     "extends": "react-app",

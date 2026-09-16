@@ -57,7 +57,14 @@ class CoverUtil {
       if (!fs.existsSync(imageFilePath)) {
         return book.cover;
       }
-      return imageFilePath;
+      // 不能返回裸的磁盘路径：页面跑在 app://coread 上，<img src="C:\...">
+      // 解析不出来，封面就是空白。转成同源的 app:// URL，
+      // 由主进程把 /__local__/ 映射到 <userData>/uploads/data。
+      return (
+        "app://coread" +
+        "/__local__/cover/" +
+        encodeURIComponent(imageFiles[0])
+      );
     } else {
       if (ConfigService.getItem("isUseLocal") === "yes") {
         let coverList = await this.getLocalCoverList();
