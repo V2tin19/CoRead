@@ -116,6 +116,23 @@ class GeneralParser {
               : "";
       try {
         const blob = await this.book.getCover();
+        // ── CoRead 本地补丁（2026-09-16）──────────────────────────────
+        // 没有封面时 `getCover()` 会解析成 null/undefined（很多 EPUB 的 OPF 里
+        // 压根没有 cover 项，这是完全正常的情况），而 `readAsDataURL(null)` 是
+        // **同步抛错**的。上游靠下面那个 catch 兜住，功能没坏，但每导入一本无封面的
+        // 书都会 console.error 一条 "parameter 1 is not of type 'Blob'"，
+        // 把「没有封面」这件正常事报成异常，干扰真错误排查。这里提前判空走同一条分支。
+        if (!blob) {
+          resolve({
+            ...metadata,
+            name: metadata.title,
+            author: author,
+            description: metadata.description,
+            publisher: metadata.publisher,
+            cover: "",
+          });
+          return;
+        }
         var reader = new FileReader();
         reader.readAsDataURL(blob);
         reader.onloadend = () => {

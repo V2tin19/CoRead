@@ -11,6 +11,10 @@
  *
  * 退出码：0 = 干净；1 = 有命中（必须处理后再提交）
  *
+ * 跳过范围 = `.gitignore` 里的东西（node_modules / dist / build / .workbuddy / 本地数据目录 …）。
+ * 判断标准只有一条：**这份内容会不会进仓库**。不会进的东西（agent 工作目录、本机诊断日志、
+ * 用户导入的书和笔记）根本没有"泄露"可言，扫它们只会把真问题埋掉。
+ *
  * 为什么默认跳过 vendor/ 与 public/lib/：这两处是第三方固化源码（kookit 上游、pdf.js 等），
  * 我们不维护、也不该为了"扫描通过"去改写它们；而且它们内部天然含上游自己的 CDN 地址与作者
  * 本机路径。这些内容的处置写在 REFACTOR-BRIEF.md 第 5.4 节，不靠本脚本兜底。
@@ -36,6 +40,26 @@ const SKIP_DIRS = new Set([
   "dist",
   ".next",
   ".cache",
+  // ── 本地工作目录：都在 .gitignore 里，永远不会进仓库，凭据/路径都无所谓 ──
+  // （2026-09-16 体检发现：少了这几项，扫描会被本机诊断日志淹没 ——
+  //   实测 6773 处命中里 6753 处来自 .workbuddy/，退出码恒为 1，
+  //   这道「提交前门槛」等于没有：真泄露会被噪音埋掉）
+  ".workbuddy",
+  ".claude",
+  ".zcode",
+  ".freebuff",
+  ".superpowers",
+  ".vscode",
+]);
+
+// 仓库根目录下的本地数据目录（.gitignore 里用 /xxx/ 锚定在根，不是任意层级）
+const SKIP_ROOT_DIRS = new Set([
+  ".local-books",
+  "books",
+  "rooms",
+  "doodles",
+  "rooms-doodles",
+  "data",
 ]);
 
 // 第三方自带资产目录：内容不由我们维护（见文件头说明）。--include-vendor 时不再跳过。
@@ -56,6 +80,8 @@ const ALLOWED_HOSTS = new Set([
   "stackoverflow.com", "underscorejs.org", "danml.com", "kripken.github.io",
   "emscripten.org", "support.microsoft.com", "en.wikipedia.org",
   "reactjs.org", "react.dev", "npmjs.com", "www.npmjs.com", "registry.npmjs.org",
+  // npm 国内镜像（打包脚本 ELECTRON_BUILDER_BINARIES_MIRROR / ELECTRON_MIRROR 用的就是它）
+  "registry.npmmirror.com", "npmmirror.com", "cdn.npmmirror.com",
   "schema.org", "openstreetmap.org", "meyerweb.com", "www.robotstxt.org", "robotstxt.org",
   // 合法第三方服务（阅读相关）
   "tessdata.projectnaptha.com", "www.gutenberg.org", "manybooks.net",
@@ -124,13 +150,15 @@ const PATTERNS = [
     id: "win-abs-path",
     label: "本机绝对路径",
     re: /\b[A-Za-z]:\\(?:[^\\\s"']+\\?)+/g,
-    allow: () => false,
+    // 打码的占位路径不算泄露：文档/注释里写 `C:\...\cover\1.jpeg` 是为了说明
+    // 「这里曾经是磁盘绝对路径」，一个真实的泄露路径里不会出现省略号。
+    allow: (v) => v.includes("..."),
   },
   {
     id: "unix-home-path",
     label: "本机 home 路径",
     re: /(?:\/Users\/|\/home\/)[A-Za-z0-9._-]+/g,
-    allow: () => false,
+    allow: (v) => v.includes("..."),
   },
   {
     id: "email",
@@ -171,11 +199,17 @@ function loadBanned() {
 }
 
 function walk(dir, out = []) {
+  const isRoot = path.resolve(dir) === path.resolve(ROOT);
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, e.name);
     const rel = path.relative(ROOT, full).split(path.sep).join("/");
     if (e.isDirectory()) {
       if (SKIP_DIRS.has(e.name)) continue;
+      // 本地数据目录与 tmp-* 只在仓库根成立（.gitignore 里是 /xxx/ 锚定的写法）
+      if (isRoot && (SKIP_ROOT_DIRS.has(e.name) || /^tmp-/.test(e.name))) {
+        skipped.localData++;
+        continue;
+      }
       walk(full, out);
       continue;
     }
@@ -192,7 +226,7 @@ function walk(dir, out = []) {
   return out;
 }
 
-const skipped = { thirdParty: 0, minified: 0, nonText: 0, tooLarge: 0, names: 0 };
+const skipped = { thirdParty: 0, minified: 0, nonText: 0, tooLarge: 0, names: 0, localData: 0 };
 
 const files = walk(ROOT);
 const banned = loadBanned();
@@ -232,8 +266,9 @@ console.log(`[scan] 扫描文件数：${files.length}`);
 if (!INCLUDE_VENDOR) {
   console.log(
     `[scan] 已跳过：第三方目录 ${skipped.thirdParty} 个文件、压缩产物 ${skipped.minified} 个、` +
-      `锁文件 ${skipped.names} 个、非文本 ${skipped.nonText} 个`
+      `锁文件 ${skipped.names} 个、非文本 ${skipped.nonText} 个、本地数据目录 ${skipped.localData} 个`
   );
+  console.log("[scan] 本地工作目录（.workbuddy/ 等）与 data/books/rooms/doodles 恒不扫描：它们在 .gitignore 里");
   console.log("[scan] 想连第三方目录一起看：npm run scan:all（结果只作参考，不是提交门槛）");
 } else {
   console.log("[scan] 已开启 --include-vendor：第三方目录/压缩产物也在扫描范围内（仅供参考）");
