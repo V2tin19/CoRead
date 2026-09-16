@@ -576,7 +576,12 @@ export async function loadDoodlePage(
   }
 
   // 本地有、云端没有的,顺手补传上去,别让离线笔迹永远留在本地
-  if (cloud) {
+  // （没配服务器、或者刚失败过在退避窗口里，就都不发这个请求）
+  if (
+    cloud &&
+    collabClient.isServerConfigured &&
+    Date.now() >= syncBackoffUntil
+  ) {
     const synced = syncedIdsFor(bookKey, pageKey);
     // 云端已有的笔迹 = 已经同步过了，记下来，后面落盘时不必重传
     for (const stroke of cloud[pageKey] || []) {
@@ -592,9 +597,14 @@ export async function loadDoodlePage(
         .then((ok) => {
           // 成功才记入「已同步」；失败就留着，下次落盘再带上去
           if (ok) {
+            clearSyncBackoff();
             for (const stroke of pageCopy) {
               if (stroke && stroke.id) synced.add(stroke.id);
             }
+          } else {
+            // 后台补传失败不打扰用户（提示留给显式落盘那条路径），
+            // 但要进退避：否则每次翻页都会再打一遍注定失败的请求
+            syncBackoffUntil = Date.now() + SYNC_BACKOFF_MS;
           }
         });
     }
@@ -621,6 +631,15 @@ export async function saveDoodlePage(
   );
   // 没有新增、也没有删除：这一页早就同步过了，一个请求都不用发
   if (delta.length === 0 && removedIds.length === 0) return;
+  // 没配共读服务器 = 本地阅读器模式（打包客户端、没填个人云地址都算）。
+  // 这时云端同步本来就不存在，"只有本地存储"是设计而不是失败 —— 不提示。
+  if (!collabClient.isServerConfigured) return;
+  // 刚失败过：退避窗口内不再尝试云端写入（本地已经存好了，数据不丢）。
+  // 这是治「翻页时提示不断冒出来」的关键 —— 翻页会带着上一页的笔迹走一遍
+  // 落盘，不退避的话每个带笔迹的页都会重发一次注定失败的请求。
+  // 例外：删除类操作（撤销/清空）不受退避限制，否则被删的笔迹会在云端
+  // 残留，下次拉取时又合并回来「复活」。
+  if (removedIds.length === 0 && Date.now() < syncBackoffUntil) return;
   const ok = await collabClient.saveBookDoodlePage(
     bookKey,
     pageKey,
@@ -628,9 +647,11 @@ export async function saveDoodlePage(
     removedIds
   );
   if (ok) {
+    clearSyncBackoff();
     for (const stroke of delta) synced.add(stroke.id);
     for (const id of removedIds) synced.delete(id);
   } else {
+    syncBackoffUntil = Date.now() + SYNC_BACKOFF_MS;
     notifyDoodleSyncFailure();
   }
 }
@@ -649,15 +670,45 @@ function syncedIdsFor(bookKey: string, pageKey: string): Set<string> {
   return set;
 }
 
-// 同步失败要让人看得见（但要节流，别一失败就刷屏）。
-let lastSyncFailAt = 0;
+// ── 云端同步失败：退避 + 只打扰一次 ──────────────────────────────────
+// 背景（原来的行为）：失败时只是弹个 toast，并且失败的那几笔不会进「已同步」
+// 表 —— 于是「翻页 → 落盘上一页 → 又发一遍注定失败的请求 → 又弹一次」，
+// 掉线时连着翻几页就像提示刷屏。这里补两件事：
+//   · 退避窗口：失败后这段时间内不再尝试云端写入（本地照存，不丢数据）
+//   · 提示配额：同一段掉线只提示一次（间隔 SYNC_WARN_GAP_MS 以上才再提示）
+const SYNC_BACKOFF_MS = 30 * 1000;
+const SYNC_WARN_GAP_MS = 5 * 60 * 1000;
+
+let syncBackoffUntil = 0;
+let lastSyncWarnAt = 0;
+
+function clearSyncBackoff() {
+  syncBackoffUntil = 0;
+}
+
+// 重新联网就立刻解除退避 —— "联网后会自动补传"这句承诺要真的成立，
+// 不能干等退避窗口到期。
+if (typeof window !== "undefined" && !(window as any).__doodleOnlineHooked) {
+  (window as any).__doodleOnlineHooked = true;
+  window.addEventListener("online", clearSyncBackoff);
+}
+
 function notifyDoodleSyncFailure() {
   const now = Date.now();
-  if (now - lastSyncFailAt < 8000) return;
-  lastSyncFailAt = now;
-  toast.error("笔记暂时同步到云端失败，已存在本地；联网后会自动补传", {
+  if (now - lastSyncWarnAt < SYNC_WARN_GAP_MS) return;
+  lastSyncWarnAt = now;
+  toast.error("云端暂时连不上，笔记已存本地，联网后会自动补传", {
     id: "doodle-sync-fail",
-    duration: 4000,
+    duration: 2000,
+    // 这条提示要"存在感低"：默认 toast 在阅读器里又大又占地方
+    style: {
+      fontSize: "12px",
+      lineHeight: 1.35,
+      padding: "6px 10px",
+      maxWidth: "240px",
+      borderRadius: "6px",
+      wordBreak: "break-word",
+    },
   });
 }
 
