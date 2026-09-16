@@ -10,16 +10,8 @@ export const textList = [
   "rgba(89, 68, 41,1)",
   "rgba(54, 80, 62,1)",
 ];
-export const themeList = [
-  { id: 0, color: "default", title: "Default" },
-  { id: 1, color: "#0179CA", title: "Blue" },
-  { id: 2, color: "#008F91", title: "Green" },
-  { id: 3, color: "#F16464", title: "Red" },
-  { id: 4, color: "#6867D1", title: "Purple" },
-  { id: 5, color: "#F97316", title: "Orange" },
-  { id: 6, color: "#EC4899", title: "Pink" },
-  { id: 7, color: "#EAB308", title: "Yellow" },
-  { id: 8, color: "#8B5CF6", title: "Violet" },
-  { id: 9, color: "#0EA5E9", title: "Sky" },
-  { id: 10, color: "#64748B", title: "Slate" },
-];
+// 只保留「默认」一种预设主题色。
+// 原来还有 Blue/Green/Red/… 共 10 个彩色预设，属于本次要清理的「多余外观色」：
+// 冷暖两套外观已经由右上角白天/黑夜开关承担，主题色不再提供额外档位。
+// 需要个性色时仍然可以用设置里的「自定义」取色器。
+export const themeList = [{ id: 0, color: "default", title: "Default" }];

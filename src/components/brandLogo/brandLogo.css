@@ -9,7 +9,10 @@
   top: 22px;
   left: 56px;
   height: 44px;
-  color: var(--color-alpha-beta, #09090b);
+  /* 原来写的是 var(--color-alpha-beta, #09090b)：这个变量全仓库没有任何地方赋值，
+     于是永远落到 #09090b（近黑）—— 黑夜模式下深色背景上就看不见 logo 了。
+     改成继承文字色，颜色由组件按当前外观（白天/黑夜）显式指定。 */
+  color: inherit;
 }
 
 .coread-brand-logo:hover {

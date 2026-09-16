@@ -19,8 +19,8 @@ import FontUtil from "../../../utils/file/fontUtil";
 import {
   applyCustomSystemCSS,
   applyCustomSystemFont,
-  syncNativeThemeSource,
 } from "../../../utils/reader/launchUtil";
+import { applySkin, resolveAppSkin } from "../../../utils/theme";
 
 class AppearanceSetting extends React.Component<
   SettingInfoProps,
@@ -89,26 +89,11 @@ class AppearanceSetting extends React.Component<
   };
 
   changeSkin = (skin: string) => {
-    ConfigService.setReaderConfig("appSkin", skin);
-    syncNativeThemeSource(skin);
-
-    if (
-      skin === "night" ||
-      (ConfigService.getReaderConfig("appSkin") === "system" &&
-        ConfigService.getReaderConfig("isOSNight") === "yes")
-    ) {
-      ConfigService.setReaderConfig("backgroundColor", "rgba(44,47,49,1)");
-      ConfigService.setReaderConfig("textColor", "rgba(255,255,255,1)");
-    } else if (
-      skin === "light" ||
-      (ConfigService.getReaderConfig("appSkin") === "system" &&
-        ConfigService.getReaderConfig("isOSNight") !== "yes")
-    ) {
-      ConfigService.setReaderConfig("backgroundColor", "rgba(255,255,255,1)");
-      ConfigService.setReaderConfig("textColor", "rgba(0,0,0,1)");
-    }
-
-    reloadManager();
+    // 外观只剩白天 / 黑夜两种，写入与刷新统一交给 utils/theme，
+    // 右上角开关和这里走的是同一条代码路径，行为不会分叉。
+    const next: "light" | "night" = skin === "night" ? "night" : "light";
+    this.setState({ appSkin: next });
+    applySkin(next);
   };
 
   changeFont = async (font: string) => {
@@ -512,8 +497,7 @@ class AppearanceSetting extends React.Component<
             <li
               key={item.value}
               className={
-                item.value ===
-                (ConfigService.getReaderConfig("appSkin") || "system")
+                item.value === resolveAppSkin()
                   ? "skin-setting-item active-skin-item"
                   : "skin-setting-item"
               }

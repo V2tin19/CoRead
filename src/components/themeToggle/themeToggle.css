@@ -1,0 +1,32 @@
+.coread-theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  /* 跟页面文字色走：深色主题下自动变浅色，不会像写死 #09090b 那样看不见 */
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.75;
+  transition: opacity 0.2s ease, transform 0.2s ease,
+    background-color 0.2s ease;
+}
+
+.coread-theme-toggle:hover {
+  opacity: 1;
+  background: rgba(128, 128, 128, 0.18);
+  transform: translateY(-1px);
+}
+
+.coread-theme-toggle:active {
+  transform: translateY(0);
+}
+
+.coread-theme-toggle.is-night {
+  /* 黑夜模式下图标带一点暖色，视觉上更接近「月亮」 */
+  color: #f0d9a8;
+}

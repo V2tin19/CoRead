@@ -1,5 +1,8 @@
 .header-search-box {
-  width: calc(100% - 20px);
+  /* 必须和外层容器同宽：放大镜是绝对定位在外层 div 上、靠 right:0 贴边的，
+     只要输入框比外层窄 20px，图标中心就会正好落在输入框右边缘上 → 半个图标
+     飘到框外（2026-09-16 实测输 200px / 容器 220px / 图标溢出 11px）。 */
+  width: 100%;
   height: 38px;
   border-radius: 22px;
   border: 1px solid rgba(120, 120, 120, 0.22);

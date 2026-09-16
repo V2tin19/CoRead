@@ -424,14 +424,12 @@ export const searchList = [
   { label: "Baidu Baike", value: "baike" },
   { label: "Wikipedia", value: "wiki" },
 ];
+// 只保留两种外观：默认（白天）与黑夜。
+// 原来的「追随系统」去掉了 —— 现在右上角有常驻的白天/黑夜开关，
+// 跟随系统会让这个开关的语义变得别扭（点了也不一定变）。
 export const skinList = [
   {
-    label: "Follow OS",
-    value: "system",
-    icon: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12 3a9 9 0 1 0 0 18A9 9 0 0 0 12 3zm0 2v14A7 7 0 0 1 12 5zm0 0"/></svg>`,
-  },
-  {
-    label: "Light mode",
+    label: "Default mode",
     value: "light",
     icon: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0-13a1 1 0 0 0 1-1V2a1 1 0 0 0-2 0v1a1 1 0 0 0 1 1zm0 14a1 1 0 0 0-1 1v1a1 1 0 0 0 2 0v-1a1 1 0 0 0-1-1zm9-8h-1a1 1 0 0 0 0 2h1a1 1 0 0 0 0-2zm-17 1a1 1 0 0 0-1-1H2a1 1 0 0 0 0 2h1a1 1 0 0 0 1-1zm13.66-6.07-.71.71a1 1 0 1 0 1.41 1.41l.71-.71a1 1 0 0 0-1.41-1.41zM6.34 17.66l-.71.71a1 1 0 1 0 1.41 1.41l.71-.71a1 1 0 0 0-1.41-1.41zm12.73.71-.71-.71a1 1 0 0 0-1.41 1.41l.71.71a1 1 0 0 0 1.41-1.41zM5.64 6.35l-.71-.71a1 1 0 0 0-1.41 1.41l.71.71A1 1 0 0 0 5.64 6.35z"/></svg>`,
   },

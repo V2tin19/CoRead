@@ -3,6 +3,7 @@ import "./header.css";
 import SearchBox from "../../components/searchBox";
 import ImportLocal from "../../components/importLocal";
 import RoomImportButton from "../../components/roomImportButton";
+import ThemeToggle from "../../components/themeToggle";
 import { HeaderProps, HeaderState } from "./interface";
 import { ConfigService } from '../../services';
 import { generateSnapshot } from "../../utils/file/backup";
@@ -182,6 +183,10 @@ class Header extends React.Component<HeaderProps, HeaderState> {
           className="setting-icon-parrent"
           style={this.props.isCollapsed ? { marginLeft: "430px" } : {}}
         >
+          {/* 白天 / 黑夜开关：常驻右上角，不用进设置里翻 */}
+          <div className="setting-icon-container" style={{ marginRight: "2px" }}>
+            <ThemeToggle />
+          </div>
           <div
             className="setting-icon-container"
             onClick={() => {

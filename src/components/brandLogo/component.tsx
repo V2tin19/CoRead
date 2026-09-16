@@ -1,5 +1,6 @@
 import React from "react";
 import "./brandLogo.css";
+import { isDarkModeNow } from "../../utils/theme";
 
 interface BrandLogoProps {
   onClick?: () => void;
@@ -12,11 +13,15 @@ const BrandLogo: React.FC<BrandLogoProps> = ({
   className = "",
   style,
 }) => {
+  // logo 通体用 currentColor 上色，所以只要把这里统一设成「当前外观的前景色」：
+  // 黑夜模式给浅色，白天模式给近黑色，深色背景上就不会糊成一团。
+  const isDark = isDarkModeNow();
+
   return (
     <div
       className={`coread-brand-logo ${className}`}
       onClick={onClick}
-      style={style}
+      style={{ ...style, color: isDark ? "#f2f4f7" : "#09090b" }}
       title="CoRead 团队共读平台"
     >
       <svg
