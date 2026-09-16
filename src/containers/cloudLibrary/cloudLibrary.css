@@ -50,7 +50,10 @@
   height: 36px;
   padding: 0 14px;
   font-size: 14px;
-  color: var(--color-alpha-beta, #333);
+  /* 原来写的是 var(--color-alpha-beta, #333)：这个变量全仓库没有任何地方赋值，
+     于是永远落到 #333 —— 深色主题下「灰色文字 + 透明背景」等于按钮上的字看不见
+     （只剩一个空胶囊）。改成继承页面文字色，深浅两种主题都对。 */
+  color: inherit;
   background: transparent;
   border: 1px solid rgba(120, 120, 120, 0.4);
   border-radius: 6px;

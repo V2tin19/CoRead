@@ -117,7 +117,7 @@ class SortShelfDialog extends React.Component<
           <DeletePopup {...(deletePopupProps as any)} />
         )}
         <div className="backup-dialog-title">
-          <Trans>Manage shelf</Trans>
+          <Trans i18nKey="Manage groups">管理分组</Trans>
         </div>
         <div className="import-dialog-option">
           {

@@ -7,6 +7,7 @@ import DOMPurify from "dompurify";
 import EmptyCover from "../../emptyCover";
 import CoverUtil from "../../../utils/file/coverUtil";
 import { ConfigService } from '../../../services';
+import { requestFocusGroup } from "../../../utils/group/bookGroup";
 class DetailDialog extends React.Component<
   DetailDialogProps,
   DetailDialogState
@@ -38,11 +39,20 @@ class DetailDialog extends React.Component<
   handleClose = () => {
     this.props.handleDetailDialog(false);
   };
+  /**
+   * 点「所在分组」标签 → 回「我的图书」并定位到那一组。
+   *
+   * 老实现是 `handleMode("shelf")` + `history.push("/manager/shelf")`，
+   * 但 CoRead 已经没有 /manager/shelf 这条路由了：点完只剩一片空白内容区
+   * （实测 innerText 只数得出侧边栏那几十个字），这就是「书架标签点了没反应」。
+   * 现在改成回首页 + 让分组标题行自己滚进视野，一次跳转都不白跑。
+   */
   handleShelfClick = (shelfTitle: string) => {
     this.props.handleDetailDialog(false);
-    this.props.handleShelf(shelfTitle);
-    this.props.handleMode("shelf");
-    this.props.history.push("/manager/shelf");
+    this.props.handleShelf("");
+    this.props.handleMode("home");
+    this.props.history.push("/manager/home");
+    requestFocusGroup(shelfTitle);
   };
   render() {
     const renderShelfLocation = (shelfLocation: string[]) => {

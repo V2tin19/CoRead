@@ -1,0 +1,77 @@
+/* 分组段标题行 —— 个人书架（float 布局的 ul）与房间书架（flex 布局的 ul）共用。
+   两边的容器排布方式不同，所以这里同时给出 clear:both（float 需要）和
+   flex: 0 0 100%（flex-wrap 需要），谁生效由父容器决定。
+   颜色一律继承：这个组件落在别人的主题容器里，写死颜色会在深色主题下瞎。 */
+.book-group-header {
+  clear: both;
+  flex: 0 0 100%;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 10px 0 6px;
+  padding: 4px 2px 6px;
+  list-style: none;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  color: inherit;
+  cursor: pointer;
+  user-select: none;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.25);
+  border-radius: 4px;
+}
+
+/* 第一段不要顶上的空白，否则书架顶部会多出一条空缝 */
+.book-group-header:first-child {
+  margin-top: 0;
+}
+
+.book-group-header:hover {
+  border-bottom-color: rgba(128, 128, 128, 0.5);
+}
+
+/* 用 CSS 画的三角，不依赖图标字体（图标类在 CSS 里没有兜底，缺字体就空白） */
+.book-group-caret {
+  flex: 0 0 auto;
+  width: 0;
+  height: 0;
+  margin-left: 2px;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 6px solid currentColor;
+  opacity: 0.65;
+  transform: rotate(90deg);
+  transition: transform 0.15s ease;
+}
+
+.book-group-header-collapsed .book-group-caret {
+  transform: rotate(0deg);
+}
+
+.book-group-label {
+  flex: 0 1 auto;
+  max-width: 70%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.book-group-count {
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 400;
+  opacity: 0.55;
+}
+
+/* 「未分组」段：不是用户起的名，弱化一档，避免看着像正经分组 */
+.book-group-header-ungrouped .book-group-label {
+  font-weight: 500;
+  opacity: 0.75;
+}
+
+/* 被 requestFocusGroup 定位到时闪一下，告诉用户「就是这个分组」 */
+.book-group-header-focus {
+  background: rgba(75, 137, 255, 0.18);
+}

@@ -44,6 +44,70 @@ function sanitizeBookName(raw) {
   return name;
 }
 
+// ── 房间分组名的清洗 ────────────────────────────────────────────────────
+// 分组名会原样回给所有成员的浏览器，并写进 room.json。客户端已经洗过一遍
+// （见 src/utils/group/bookGroup.ts 的 sanitizeGroupName），这里再洗一遍兜底：
+// 直接 curl 打接口的人不该能塞进控制字符 / 超长字符串。
+const MAX_GROUP_NAME_LENGTH = 60;
+const MAX_ROOM_GROUPS = 200;
+
+function sanitizeGroupName(raw) {
+  return String(raw == null ? "" : raw)
+    .replace(/[\[\]{}",:\/\\|<>*?]/g, "")
+    .replace(/[\u0000-\u001f\u007f]/g, "")
+    .trim()
+    .slice(0, MAX_GROUP_NAME_LENGTH);
+}
+
+/**
+ * 规范化前端发上来的分组列表。
+ *
+ * 三条硬规则，缺一条顺序表就会被写脏：
+ *   · 组名去重（同名的取第一次出现）；
+ *   · 成员只保留「房间里真实存在的文件」—— 服务端不信任客户端的成员列表，
+ *     否则删掉一本书之后，旧客户端能把幽灵文件名写回分组里；
+ *   · 空组不落盘（没有成员的分组等于不存在，避免 room.json 里堆一堆空壳）。
+ * 返回 [{ name, books }]，顺序即前端传来的顺序。
+ */
+function normalizeRoomGroups(rawGroups, existingNames) {
+  const out = [];
+  const seen = new Set();
+  const incoming = Array.isArray(rawGroups) ? rawGroups : [];
+  for (const entry of incoming) {
+    if (out.length >= MAX_ROOM_GROUPS) break;
+    if (!entry || typeof entry !== "object") continue;
+    const name = sanitizeGroupName(entry.name);
+    if (!name || seen.has(name)) continue;
+    const rawBooks = Array.isArray(entry.books) ? entry.books : [];
+    const books = [];
+    for (const item of rawBooks) {
+      const bookName = String(item == null ? "" : item);
+      if (!existingNames.has(bookName) || books.includes(bookName)) continue;
+      books.push(bookName);
+    }
+    if (books.length === 0) continue;
+    seen.add(name);
+    out.push({ name, books });
+  }
+  return out;
+}
+
+/** 从所有分组里摘掉某个文件名（删书时用，否则分组里会留幽灵成员） */
+function removeBookFromRoomGroups(room, bookName) {
+  if (!Array.isArray(room.groups) || room.groups.length === 0) return false;
+  let changed = false;
+  const next = [];
+  for (const group of room.groups) {
+    const books = (group.books || []).filter((n) => n !== bookName);
+    if (books.length !== (group.books || []).length) changed = true;
+    // 摘空了就把这个组一起丢掉：分组只剩个名字没有意义
+    if (books.length > 0) next.push({ name: group.name, books });
+    else changed = true;
+  }
+  if (changed) room.groups = next;
+  return changed;
+}
+
 function ensureBooksDir() {
   fs.mkdirSync(BOOKS_DIR, { recursive: true });
 }
@@ -160,6 +224,8 @@ function flushRoomMeta(room) {
       bookKey: room.bookKey || "",
       createdAt: room.createdAt || Date.now(),
       order: room.bookOrder || [],
+      // 房间分组（房间书架里的一「段」）：与 order 同规格，落盘才扛得住重启
+      groups: Array.isArray(room.groups) ? room.groups : [],
     });
     const tmp = roomMetaPath(room.roomId) + ".tmp";
     fs.writeFileSync(tmp, payload, "utf-8");
@@ -199,6 +265,17 @@ function loadRoomsFromDisk() {
         // 共享笔迹从磁盘恢复（否则重启后房间里大家画过的笔记全没了）
         doodles: loadRoomDoodles(roomId),
         bookOrder: Array.isArray(meta.order) ? meta.order : [],
+        // 分组同样从磁盘恢复；老 room.json 没有这个字段就是空数组
+        groups: Array.isArray(meta.groups)
+          ? normalizeRoomGroups(
+              meta.groups,
+              new Set(
+                fs.existsSync(dir)
+                  ? fs.readdirSync(dir).filter((f) => f !== "room.json")
+                  : []
+              )
+            )
+          : [],
         createdAt: meta.createdAt || Date.now(),
         emptySince: Date.now(),
         emptyTimer: null,
@@ -991,6 +1068,7 @@ const server = http.createServer(async (req, res) => {
         leaderId: "",
         doodles: {},
         bookOrder: [],
+        groups: [],
         createdAt: Date.now(),
       };
       rooms.set(roomId, room);
@@ -1124,6 +1202,39 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    /**
+     * 房间分组整体覆盖写。
+     *
+     * 语义与 /books/reorder 一致：**全量提交**，服务端只做清洗与兜底。
+     * 用全量而不是「加一本书 / 删一本书」的增量接口，是因为分组的成员关系
+     * 是多对多（一本书能同时在多组），增量接口下「移出某组」和「移出所有组」
+     * 会退化成两种调用，客户端一多就很容易写出不一致的状态；全量提交下
+     * 客户端只要算清「最终应该长什么样」，服务端如实替换即可。
+     *
+     * 鉴权口径与 reorder 保持完全一致（只走全局 token 闸，不做房间成员校验）：
+     * 房间成员集合只在 /events 建连时写入，而「在房间书架页给书分组」完全
+     * 可能发生在没连事件流的浏览态，加成员校验会直接把正常用户挡在外面。
+     * 这个缺口和 reorder 是同一个（room 写接口都不校验成员），属于既有问题，
+     * 单独开一个改动处理，不在这里顺手收紧。
+     */
+    const roomBooksGroups = url.pathname.match(
+      /^\/rooms\/([^/]+)\/books\/groups$/
+    );
+    if (roomBooksGroups && req.method === "POST") {
+      const roomId = roomIdFromPath(roomBooksGroups[1]);
+      const room = ensureRoom(roomId);
+      const body = await readBody(req);
+      const existing = new Set(listRoomBooks(room).map((b) => b.name));
+      const groups = normalizeRoomGroups(body.groups, existing);
+      room.groups = groups;
+      scheduleRoomMetaWrite(room);
+      // 分组看得见的只有「书架长什么样」，所以复用 room-books-updated 这一个事件，
+      // 别人的页面收到后重新拉一次 /books（现在它把 groups 一起带回去了）
+      broadcast(roomId, "room-books-updated", { roomId }, null);
+      sendJson(res, 200, { ok: true, groups });
+      return;
+    }
+
     const roomBookFile = url.pathname.match(
       /^\/rooms\/([^/]+)\/books\/([^/]+)\/file$/
     );
@@ -1158,7 +1269,13 @@ const server = http.createServer(async (req, res) => {
     if (roomBookList && req.method === "GET") {
       const roomId = roomIdFromPath(roomBookList[1]);
       const room = ensureRoom(roomId);
-      sendJson(res, 200, { books: listRoomBooks(room) });
+      // groups 跟 books 一起下发：前端渲染分段需要「哪些书属于哪一段」，
+      // 分成两个请求会出现「书到了、分组还没到」的中间态闪烁。
+      // 老客户端只读 data.books，多这个字段无感。
+      sendJson(res, 200, {
+        books: listRoomBooks(room),
+        groups: Array.isArray(room.groups) ? room.groups : [],
+      });
       return;
     }
 
@@ -1194,6 +1311,8 @@ const server = http.createServer(async (req, res) => {
         }
       }
       room.bookOrder = (room.bookOrder || []).filter((n) => n !== name);
+      // 分组里也要摘掉这本书，否则分组里留一个永远点不开的幽灵成员
+      removeBookFromRoomGroups(room, name);
       scheduleRoomMetaWrite(room);
       broadcast(roomId, "room-books-updated", { roomId }, null);
       sendJson(res, 200, { ok: true });

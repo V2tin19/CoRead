@@ -1,6 +1,9 @@
 import React from "react";
 import "./doodleLayer.css";
+import { saveAs } from "file-saver";
+import toast from "react-hot-toast";
 import {
+  collectAllDoodlePages,
   collectFuzzyStrokes,
   getDoodlePageKey,
   getDoodlePageSpan,
@@ -87,6 +90,19 @@ interface DoodleLayerState {
   hiddenAuthors: string[];
   /** 房间里除自己以外、有笔迹的页数 */
   peerPages: number;
+  /** 导出弹窗开关 */
+  exportOpen: boolean;
+  /** 导出弹窗里的全书统计；null = 还在算 */
+  exportSummary: DoodleExportSummary | null;
+  /** 导出进行中（生成图片/读存储时有耗时，按钮要禁用防连点） */
+  exportBusy: boolean;
+}
+
+/** 导出弹窗里显示的全书统计（打开时才去算） */
+interface DoodleExportSummary {
+  pages: number;
+  strokes: number;
+  authors: string[];
 }
 
 interface DoodleAuthor {
@@ -174,6 +190,12 @@ class DoodleLayer extends React.Component<DoodleLayerProps, DoodleLayerState> {
   private resizeHandler = () => {
     this.syncAnchor(true);
   };
+  // Esc 关导出弹窗：弹窗是浮层，没有 Esc 会让人觉得「卡住了」
+  private escapeHandler = (event: KeyboardEvent) => {
+    if (event.key === "Escape" && this.state.exportOpen) {
+      this.closeExport();
+    }
+  };
   private pageChangeHandler = () => {
     this.switchPageIfNeeded();
   };
@@ -194,6 +216,9 @@ class DoodleLayer extends React.Component<DoodleLayerProps, DoodleLayerState> {
       pageAspect: 0,
       hiddenAuthors: [],
       peerPages: 0,
+      exportOpen: false,
+      exportSummary: null,
+      exportBusy: false,
     };
   }
 
@@ -777,6 +802,188 @@ class DoodleLayer extends React.Component<DoodleLayerProps, DoodleLayerState> {
     });
   };
 
+  // ── 导出（只读，不动存储）───────────────────────────────────────────
+  // 「书页 + 涂鸦」合成图是不做的：涂鸦层是独立 canvas，画布读不到 iframe 里的
+  // 正文（跨文档 + 没有 html2canvas 这类工具）。所以给的是：
+  //   1) 透明底 PNG —— 直接叠在截图/PDF 上就是「带笔记的那一页」
+  //   2) 书页底色 PNG —— 想要一张能直接发出去的图时用
+  //   3) SVG —— 矢量，可再编辑
+  //   4) 全书 JSON —— 备份/排查用，按页分组，和存储里的口径一致
+  openExport = async () => {
+    this.setState({ exportOpen: true, exportSummary: null, exportBusy: true });
+    try {
+      const { pages, totalStrokes, authors } = await collectAllDoodlePages(
+        this.props.bookKey
+      );
+      if (this.destroyed) return;
+      this.setState({
+        exportSummary: {
+          pages: Object.keys(pages).length,
+          strokes: totalStrokes,
+          authors,
+        },
+        exportBusy: false,
+      });
+    } catch (e) {
+      if (this.destroyed) return;
+      this.setState({
+        exportSummary: { pages: 0, strokes: 0, authors: [] },
+        exportBusy: false,
+      });
+    }
+  };
+
+  closeExport = () => {
+    this.setState({ exportOpen: false });
+  };
+
+  // 导出用的离屏画布：尺寸取「屏幕上那块书页」的像素尺寸 × dpr。
+  // getFitBox 的换算是相对同一套 width/height 做的，所以导出的构图和屏幕上一致。
+  buildExportCanvas(fill: string | null): HTMLCanvasElement | null {
+    const anchor = this.state.anchor;
+    const width = Math.round(anchor?.width || this.canvasRef?.clientWidth || 0);
+    const height = Math.round(
+      anchor?.height || this.canvasRef?.clientHeight || 0
+    );
+    if (width < 8 || height < 8) return null;
+    const dpr = Math.min(
+      4,
+      Math.max(2, Math.round(window.devicePixelRatio || 1))
+    );
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (fill) {
+      ctx.fillStyle = fill;
+      ctx.fillRect(0, 0, width, height);
+    }
+    this.paintStrokes(ctx, width, height, this.visibleStrokes());
+    return canvas;
+  }
+
+  exportFileName(ext: string): string {
+    const safe = (this.state.pageKey || "page")
+      .replace(/[\\/:*?"<>|#]+/g, "_")
+      .replace(/^_+/, "");
+    return `随心笔记_${safe || "page"}.${ext}`;
+  }
+
+  handleExportPagePng = async (transparent: boolean) => {
+    if (this.state.exportBusy) return;
+    this.setState({ exportBusy: true });
+    try {
+      const canvas = this.buildExportCanvas(
+        transparent ? null : this.props.dark ? "#2c2f31" : "#ffffff"
+      );
+      if (!canvas) {
+        toast.error("书页还没渲染好，稍等一下再导出");
+        return;
+      }
+      const blob: Blob | null = await new Promise((resolve) =>
+        canvas.toBlob((result) => resolve(result), "image/png")
+      );
+      if (!blob) {
+        toast.error("生成图片失败，请重试");
+        return;
+      }
+      saveAs(blob, this.exportFileName("png"));
+    } catch (e) {
+      toast.error("导出图片失败，请重试");
+    } finally {
+      if (!this.destroyed) this.setState({ exportBusy: false });
+    }
+  };
+
+  handleExportPageSvg = () => {
+    if (this.state.exportBusy) return;
+    const width = Math.round(this.state.anchor?.width || 0);
+    const height = Math.round(this.state.anchor?.height || 0);
+    if (width < 8 || height < 8) {
+      toast.error("书页还没渲染好，稍等一下再导出");
+      return;
+    }
+    const box = this.getFitBox(width, height);
+    const scale = width / 1000;
+    const esc = (value: string) =>
+      String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/"/g, "&quot;");
+    const parts: string[] = [
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`,
+    ];
+    for (const stroke of this.visibleStrokes()) {
+      if (!stroke || !stroke.points || stroke.points.length === 0) continue;
+      const points = stroke.points.map(
+        ([x, y]) =>
+          `${(box.ox + x * box.w).toFixed(2)},${(box.oy + y * box.h).toFixed(2)}`
+      );
+      // 单点笔迹补一小段，否则 polyline 画不出东西
+      if (points.length === 1) {
+        points.push(
+          `${(box.ox + stroke.points[0][0] * box.w + 0.6).toFixed(2)},${(
+            box.oy +
+            stroke.points[0][1] * box.h +
+            0.6
+          ).toFixed(2)}`
+        );
+      }
+      parts.push(
+        `  <polyline fill="none" stroke="${esc(
+          stroke.color || "#1f1f1f"
+        )}" stroke-width="${Math.max(0.6, stroke.size * scale).toFixed(
+          2
+        )}" stroke-linecap="round" stroke-linejoin="round" points="${points.join(
+          " "
+        )}" />`
+      );
+    }
+    parts.push("</svg>");
+    const blob = new Blob([parts.join("\n")], {
+      type: "image/svg+xml;charset=utf-8",
+    });
+    saveAs(blob, this.exportFileName("svg"));
+  };
+
+  handleExportBookJson = async () => {
+    if (this.state.exportBusy) return;
+    this.setState({ exportBusy: true });
+    try {
+      const { pages, totalStrokes, authors } = await collectAllDoodlePages(
+        this.props.bookKey
+      );
+      const pageCount = Object.keys(pages).length;
+      if (pageCount === 0) {
+        toast.error("这本书还没有任何随心笔记");
+        return;
+      }
+      const payload = {
+        type: "coread-doodle-export",
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        bookKey: this.props.bookKey,
+        pageCount,
+        totalStrokes,
+        authors,
+        pages,
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], {
+        type: "application/json;charset=utf-8",
+      });
+      const safeBook = (this.props.bookKey || "book")
+        .replace(/[\\/:*?"<>|#]+/g, "_")
+        .slice(0, 60);
+      saveAs(blob, `随心笔记_${safeBook}_全书.json`);
+    } catch (e) {
+      toast.error("导出失败，请重试");
+    } finally {
+      if (!this.destroyed) this.setState({ exportBusy: false });
+    }
+  };
+
   // 图例里点一下：单独显示 / 隐藏某人的笔迹
   toggleAuthor = (authorId: string) => {
     this.setState(
@@ -792,6 +999,7 @@ class DoodleLayer extends React.Component<DoodleLayerProps, DoodleLayerState> {
   // ── 生命周期 ─────────────────────────────────────────────────────
   async componentDidMount() {
     window.addEventListener("resize", this.resizeHandler);
+    document.addEventListener("keydown", this.escapeHandler);
     try {
       this.props.rendition?.on?.("rendered", this.pageChangeHandler);
       this.props.rendition?.on?.("page-changed", this.pageChangeHandler);
@@ -823,6 +1031,7 @@ class DoodleLayer extends React.Component<DoodleLayerProps, DoodleLayerState> {
     const snapshotStrokes = this.state.strokes;
     this.destroyed = true;
     window.removeEventListener("resize", this.resizeHandler);
+    document.removeEventListener("keydown", this.escapeHandler);
     if (this.pollTimer) clearInterval(this.pollTimer);
     if (this.anchorTimer) clearInterval(this.anchorTimer);
     if (this.saveTimer) clearTimeout(this.saveTimer);
@@ -935,17 +1144,19 @@ class DoodleLayer extends React.Component<DoodleLayerProps, DoodleLayerState> {
     return Array.from(map.values());
   }
 
-  // 把当前页的全部笔迹按归一化坐标重画到画布上
-  redrawAll() {
-    const ctxInfo = this.getCanvasContext();
-    if (!ctxInfo) return;
-    const { ctx, width, height } = ctxInfo;
-    ctx.clearRect(0, 0, width, height);
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
+  // 把一组笔迹按归一化坐标画进任意 2D 上下文。
+  // 屏幕画布（redrawAll）和「导出 PNG」共用这一段 —— 导出结果和屏幕上看到的一致。
+  paintStrokes(
+    ctx: CanvasRenderingContext2D,
+    width: number,
+    height: number,
+    strokes: DoodleStroke[]
+  ) {
     const box = this.getFitBox(width, height);
     const scale = width / 1000;
-    for (const stroke of this.visibleStrokes()) {
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    for (const stroke of strokes) {
       if (!stroke || !stroke.points || stroke.points.length === 0) continue;
       ctx.strokeStyle = stroke.color;
       ctx.lineWidth = Math.max(0.6, stroke.size * scale);
@@ -961,6 +1172,15 @@ class DoodleLayer extends React.Component<DoodleLayerProps, DoodleLayerState> {
       }
       ctx.stroke();
     }
+  }
+
+  // 把当前页的全部笔迹按归一化坐标重画到画布上
+  redrawAll() {
+    const ctxInfo = this.getCanvasContext();
+    if (!ctxInfo) return;
+    const { ctx, width, height } = ctxInfo;
+    ctx.clearRect(0, 0, width, height);
+    this.paintStrokes(ctx, width, height, this.visibleStrokes());
   }
 
   normalizedPoint(event: { clientX: number; clientY: number }): number[] {
@@ -1129,6 +1349,13 @@ class DoodleLayer extends React.Component<DoodleLayerProps, DoodleLayerState> {
                   清空
                 </div>
                 <div
+                  className="doodle-tool-btn"
+                  title="导出这一页的涂鸦 / 全书笔记数据"
+                  onClick={this.openExport}
+                >
+                  导出
+                </div>
+                <div
                   className="doodle-tool-btn doodle-tool-close"
                   title="关闭随心笔记"
                   onClick={this.props.onClose}
@@ -1198,6 +1425,85 @@ class DoodleLayer extends React.Component<DoodleLayerProps, DoodleLayerState> {
           </div>
         </div>
       </div>
+
+        {/* 导出弹窗：独立成层（不挂在工具条那层里），这样它的 z-index 不受
+            父层叠上下文限制，永远压在所有阅读器浮层之上。 */}
+        {this.state.exportOpen && (
+          <div className="doodle-export-mask" onClick={this.closeExport}>
+            <div
+              className={
+                "doodle-export-panel" +
+                (this.props.dark ? " doodle-export-panel-dark" : "")
+              }
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="doodle-export-head">
+                <span className="doodle-export-title">导出随心笔记</span>
+                <span
+                  className="doodle-export-close"
+                  title="关闭"
+                  onClick={this.closeExport}
+                >
+                  ×
+                </span>
+              </div>
+              <div className="doodle-export-info">
+                {this.state.exportSummary
+                  ? `本页 ${visibleCount} 笔 · 全书 ${
+                      this.state.exportSummary.pages
+                    } 页 / ${this.state.exportSummary.strokes} 笔${
+                      this.state.exportSummary.authors.length
+                        ? ` · ${this.state.exportSummary.authors.join("、")}`
+                        : ""
+                    }`
+                  : "正在统计全书笔记…"}
+              </div>
+              <div className="doodle-export-list">
+                <button
+                  className="doodle-export-item"
+                  disabled={this.state.exportBusy}
+                  onClick={() => this.handleExportPagePng(true)}
+                >
+                  <b>当前页 · PNG（透明底）</b>
+                  <em>
+                    只导出笔迹，不带书页底色。直接叠在截图或 PDF 上，就是「带笔记的那一页」。
+                  </em>
+                </button>
+                <button
+                  className="doodle-export-item"
+                  disabled={this.state.exportBusy}
+                  onClick={() => this.handleExportPagePng(false)}
+                >
+                  <b>当前页 · PNG（带底色）</b>
+                  <em>
+                    按当前阅读背景（浅色纸 / 深色纸）铺一层底，出来就是一张能直接发出去的图。
+                  </em>
+                </button>
+                <button
+                  className="doodle-export-item"
+                  disabled={this.state.exportBusy}
+                  onClick={this.handleExportPageSvg}
+                >
+                  <b>当前页 · SVG（矢量）</b>
+                  <em>笔迹是矢量路径，放大不糊，也能拿去再编辑。</em>
+                </button>
+                <button
+                  className="doodle-export-item"
+                  disabled={this.state.exportBusy}
+                  onClick={this.handleExportBookJson}
+                >
+                  <b>全书 · JSON</b>
+                  <em>
+                    按页分组的原始数据（本地+云端合并去重），用于备份或排查；纯导出，不会改动笔迹。
+                  </em>
+                </button>
+              </div>
+              <div className="doodle-export-note">
+                导出的是「当前显示的这一份」：被作者图例隐藏的人，笔迹不会出现在图片里。
+              </div>
+            </div>
+          </div>
+        )}
       </>
     );
   }

@@ -14,6 +14,19 @@ import Book from "../../../models/Book";
 import { isElectron } from "react-device-detect";
 import DatabaseService from "../../../utils/storage/databaseService";
 import { throttle } from "../../../utils/common";
+import BookGroupHeader from "../../../components/bookGroupHeader";
+import {
+  BookGroup,
+  FOCUS_GROUP_EVENT,
+  GROUPS_CHANGED_EVENT,
+  GROUPS_SCOPE_PERSONAL,
+  consumeFocusGroup,
+  readCollapsedGroups,
+  readPersonalGroups,
+  scrollToGroupHeader,
+  segmentByGroup,
+  writeCollapsedGroups,
+} from "../../../utils/group/bookGroup";
 declare var window: any;
 let currentBookMode = "home";
 function getBookCountPerPage() {
@@ -44,11 +57,15 @@ class BookList extends React.Component<BookListProps, BookListState> {
       ).length,
       isHideShelfBook:
         ConfigService.getReaderConfig("isHideShelfBook") === "yes",
+      isShowShelfBookCount:
+        ConfigService.getReaderConfig("isShowShelfBookCount") === "yes",
       displayedBooksCount: 24,
       isLoadingMore: false,
       fullBooksData: [], // 存储从数据库加载的完整书籍数据
       cardScale: parseFloat(ConfigService.getReaderConfig("cardScale") || "1"),
       readingStatusFilter: "",
+      groups: readPersonalGroups(),
+      collapsedGroups: readCollapsedGroups(GROUPS_SCOPE_PERSONAL),
     };
   }
   UNSAFE_componentWillMount() {
@@ -90,11 +107,21 @@ class BookList extends React.Component<BookListProps, BookListState> {
 
     // 初始加载完整的书籍数据
     await this.loadFullBooksData();
+
+    // 分组变了（别处弹窗加了书/改了成员关系）就重新读一遍本地配置
+    window.addEventListener(GROUPS_CHANGED_EVENT, this.handleGroupsChanged);
+    // 别处（详情弹窗的书架标签、启动时的默认分组）要求「跳到某个分组」
+    window.addEventListener(FOCUS_GROUP_EVENT, this.handleFocusGroup);
+    // 挂载前就已经发过的聚焦请求也别丢：requestFocusGroup 会留一份待领取记录
+    this.handleFocusGroup();
   }
 
   componentWillUnmount() {
     // 清理滚动监听器
     this.cleanupScrollListener();
+
+    window.removeEventListener(GROUPS_CHANGED_EVENT, this.handleGroupsChanged);
+    window.removeEventListener(FOCUS_GROUP_EVENT, this.handleFocusGroup);
 
     // 清理 resize 监听器
     if (this.resizeHandler) {
@@ -145,9 +172,64 @@ class BookList extends React.Component<BookListProps, BookListState> {
     }
   }
 
+  /** 分组数据变化 → 重新读本地配置（就地重渲染，不做任何跳转） */
+  handleGroupsChanged = (event?: Event) => {
+    const detail = (event as CustomEvent)?.detail || {};
+    // 只认个人书架这一路；房间书架的广播与这里无关
+    if (detail.scope && detail.scope !== GROUPS_SCOPE_PERSONAL) return;
+    this.setState({
+      groups: readPersonalGroups(),
+      collapsedGroups: readCollapsedGroups(GROUPS_SCOPE_PERSONAL),
+    });
+  };
+
+  /**
+   * 「跳到某个分组」：先展开它（收起状态下滚过去也看不到东西），
+   * 等下一帧再把标题行滚进视野并闪一下。
+   */
+  handleFocusGroup = (event?: Event) => {
+    const detail = (event as CustomEvent)?.detail || {};
+    const name = detail.name || consumeFocusGroup();
+    if (!name) return;
+    const collapsedGroups = this.state.collapsedGroups.filter(
+      (item) => item !== name
+    );
+    if (collapsedGroups.length !== this.state.collapsedGroups.length) {
+      writeCollapsedGroups(GROUPS_SCOPE_PERSONAL, collapsedGroups);
+    }
+    this.setState({ collapsedGroups }, () => {
+      const container = this.scrollContainer.current;
+      window.requestAnimationFrame(() => scrollToGroupHeader(container, name));
+    });
+  };
+
+  toggleGroupCollapse = (name: string) => {
+    const collapsed = this.state.collapsedGroups.includes(name)
+      ? this.state.collapsedGroups.filter((item) => item !== name)
+      : [...this.state.collapsedGroups, name];
+    this.setState({ collapsedGroups: collapsed });
+    writeCollapsedGroups(GROUPS_SCOPE_PERSONAL, collapsed);
+  };
+
+  /** 头部那个「一个开关」：有任意一段展开着就全部收起，否则全部展开 */
+  isAllGroupsCollapsed = (groups: BookGroup[]) => {
+    const names = groups.map((group) => group.name);
+    return (
+      names.length > 0 &&
+      names.every((name) => this.state.collapsedGroups.includes(name))
+    );
+  };
+
+  toggleAllGroups = () => {
+    const collapsed = this.isAllGroupsCollapsed(this.state.groups)
+      ? []
+      : this.state.groups.map((group) => group.name);
+    this.setState({ collapsedGroups: collapsed });
+    writeCollapsedGroups(GROUPS_SCOPE_PERSONAL, collapsed);
+  };
+
   // 从数据库加载完整的书籍数据
-  loadFullBooksData = async () => {
-    const { books } = this.handleBooks();
+  loadFullBooksData = async () => {    const { books } = this.handleBooks();
     const displayedBooks = books.slice(0, this.state.displayedBooksCount);
 
     const fullBooksData: Book[] = [];
@@ -302,6 +384,39 @@ class BookList extends React.Component<BookListProps, BookListState> {
     });
   };
 
+  /** 渲染一段里的书卡（三种视图共用），sectionName 只用来拼 React key */
+  private renderSectionBooks = (
+    items: BookModel[],
+    sectionName: string,
+    orderIndex: Map<string, number>,
+    allBooks: BookModel[]
+  ) => {
+    return items.map((item: BookModel, index: number) => {
+      // bookIndex 取这本书在「整个可见列表」里的下标（不是段内下标）：shift 连选
+      // 靠它算区间，段内下标会让跨段的连选错位。
+      const bookIndex = orderIndex.has(String(item.key))
+        ? (orderIndex.get(String(item.key)) as number)
+        : index;
+      const common = {
+        book: item,
+        isSelected: this.props.selectedBooks.indexOf(item.key) > -1,
+        allBooks,
+        bookIndex,
+      };
+      const itemKey = sectionName + "|" + String(item.key);
+      return this.props.viewMode === "list" ? (
+        <BookListItem key={itemKey} {...({ ...common } as any)} />
+      ) : this.props.viewMode === "card" ? (
+        <BookCardItem
+          key={itemKey}
+          {...({ ...common, cardScale: this.state.cardScale } as any)}
+        />
+      ) : (
+        <BookCoverItem key={itemKey} {...({ ...common } as any)} />
+      );
+    });
+  };
+
   renderBookList = (books: Book[], bookMode: string) => {
     if (books.length === 0 && !this.props.isSearch) {
       return <Redirect to="/manager/empty" />;
@@ -316,40 +431,83 @@ class BookList extends React.Component<BookListProps, BookListState> {
       ? books
       : this.state.fullBooksData.filter((b) => filteredKeys.has(b.key));
 
-    return displayedBooks.map((item: BookModel, index: number) => {
-      return this.props.viewMode === "list" ? (
-        <BookListItem
-          key={index}
-          {...({
-            book: item,
-            isSelected: this.props.selectedBooks.indexOf(item.key) > -1,
-            allBooks: displayedBooks,
-            bookIndex: index,
-          } as any)}
-        />
-      ) : this.props.viewMode === "card" ? (
-        <BookCardItem
-          key={index}
-          {...({
-            book: item,
-            cardScale: this.state.cardScale,
-            isSelected: this.props.selectedBooks.indexOf(item.key) > -1,
-            allBooks: displayedBooks,
-            bookIndex: index,
-          } as any)}
-        />
-      ) : (
-        <BookCoverItem
-          key={index}
-          {...({
-            book: item,
-            isSelected: this.props.selectedBooks.indexOf(item.key) > -1,
-            allBooks: displayedBooks,
-            bookIndex: index,
-          } as any)}
+    const orderIndex = new Map<string, number>();
+    displayedBooks.forEach((book, index) => {
+      if (!orderIndex.has(String(book.key))) {
+        orderIndex.set(String(book.key), index);
+      }
+    });
+
+    // 只有在「我的图书」这一页才分段；搜索/收藏/隐藏分组书这些视图保持原样。
+    // 一个分组都没有时整条分段逻辑直接跳过 —— 没分组的老用户界面零变化。
+    const groups = this.state.groups;
+    if (bookMode !== "home" || groups.length === 0) {
+      return this.renderSectionBooks(
+        displayedBooks,
+        "all",
+        orderIndex,
+        displayedBooks
+      );
+    }
+
+    const sections = segmentByGroup(
+      displayedBooks,
+      groups,
+      (book: BookModel) => book.key,
+      ConfigService.getAllListConfig("topBooks")
+    );
+
+    // 分组都在、但这一段里一本书都没命中（比如当前是搜索/阅读状态筛选，
+    // 或者这些分组的书全都已经被过滤掉了）：那就别硬塞一个孤零零的
+    // 「未分组」标题，退回原来的平铺列表更干净。
+    if (!sections.some((section) => section.kind !== "ungrouped")) {
+      return this.renderSectionBooks(
+        displayedBooks,
+        "all",
+        orderIndex,
+        displayedBooks
+      );
+    }
+
+    const nodes: React.ReactNode[] = [];
+    sections.forEach((section) => {
+      const collapsed =
+        section.kind !== "pinned" &&
+        this.state.collapsedGroups.includes(section.name);
+      nodes.push(
+        <BookGroupHeader
+          key={"header-" + section.name}
+          kind={section.kind}
+          label={
+            section.kind === "pinned"
+              ? this.props.t("Pin to top")
+              : section.kind === "ungrouped"
+                ? this.props.t("Ungrouped")
+                : section.name
+          }
+          count={section.items.length}
+          showCount={this.state.isShowShelfBookCount}
+          collapsed={collapsed}
+          groupName={section.kind === "group" ? section.name : undefined}
+          onToggle={() => {
+            if (section.kind !== "pinned") {
+              this.toggleGroupCollapse(section.name);
+            }
+          }}
         />
       );
+      if (!collapsed) {
+        nodes.push(
+          ...this.renderSectionBooks(
+            section.items,
+            section.name,
+            orderIndex,
+            displayedBooks
+          )
+        );
+      }
     });
+    return nodes;
   };
   handleBooks = () => {
     let bookMode = this.props.isSearch
@@ -431,6 +589,29 @@ class BookList extends React.Component<BookListProps, BookListState> {
                 className="book-card-scale-slider"
                 title="Adjust cover size"
               />
+            )}
+            {bookMode === "home" && this.state.groups.length > 0 && (
+              <>
+                {/* 「一个折叠开关」：全部收起 / 全部展开，按当前状态自动换文案 */}
+                <div
+                  className="book-list-total-page book-list-group-toggle"
+                  onClick={this.toggleAllGroups}
+                >
+                  {this.isAllGroupsCollapsed(this.state.groups) ? (
+                    <Trans i18nKey="Expand all">展开全部分组</Trans>
+                  ) : (
+                    <Trans i18nKey="Collapse all">收起全部分组</Trans>
+                  )}
+                </div>
+                {/* 分组管理（改名 / 删除 / 拖动排序）复用 sortShelfDialog，
+                    它本来就在 manager 里挂着，只是一直没有入口 */}
+                <div
+                  className="book-list-total-page book-list-group-toggle"
+                  onClick={() => this.props.handleSortShelfDialog(true)}
+                >
+                  <Trans i18nKey="Manage groups">管理分组</Trans>
+                </div>
+              </>
             )}
             <div className="book-list-total-page">
               <Trans i18nKey="Total books" count={books.length}>

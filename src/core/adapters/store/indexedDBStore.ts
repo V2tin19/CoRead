@@ -56,7 +56,18 @@ export class IndexedDBNoteStore implements INoteStore {
   }
 
   async saveNote(note: NoteRange): Promise<void> {
-    if (note.key) {
+    // ⚠️ 判据只能是「库里到底有没有这条记录」，**不能**看 note.key 有没有值。
+    //
+    // Note 模型（models/Note.ts）的构造函数总是 `this.key = 时间戳+""`，
+    // 所以**新笔记也带着 key 进来** —— 老实现于是永远走 updateRecord，而
+    // updateRecord 在记录不存在时是**静默 no-op**（web 端 map 后数组原样写回；
+    // Electron 端 UPDATE 匹配 0 行）。症状：「选中文字 → 记笔记」高亮被
+    // rendition 画出来了、看着成功，但笔记根本没入库；再点这条高亮编辑、
+    // 输入内容点确认 → 「未找到对应笔记」，内容全丢。
+    //
+    // 正确姿态与 doodleUtil.saveLocalDoodleBook 保持一致：先查存在性。
+    const existing = note.key ? await this.getNote(note.key) : null;
+    if (existing) {
       await DatabaseService.updateRecord(note, "notes");
     } else {
       await DatabaseService.saveRecord(note, "notes");
@@ -76,7 +87,12 @@ export class IndexedDBNoteStore implements INoteStore {
   }
 
   async saveBookmark(bookmark: any): Promise<void> {
-    if (bookmark.key) {
+    // 与 saveNote 同理：Bookmark 模型也总是自带 key，按 key 有无分流必错。
+    // 目前没有调用点（书签走 operationPanel 直接 saveRecord），先修掉免得后面踩。
+    const existing = bookmark.key
+      ? await DatabaseService.getRecord(bookmark.key, "bookmarks")
+      : null;
+    if (existing) {
       await DatabaseService.updateRecord(bookmark, "bookmarks");
     } else {
       await DatabaseService.saveRecord(bookmark, "bookmarks");

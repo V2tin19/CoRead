@@ -75,7 +75,7 @@
   "Language": "語言",
   "Enter full screen": "全屏",
   "Exit full screen": "全屏",
-  "Add to shelf": "添加至書架",
+  "Add to shelf": "添加至分組",
   "New shelf": "新的書架",
   "New": "新增",
   "Cancel": "取消",
@@ -1106,5 +1106,14 @@
   "Unread": "未讀",
   "CurrentlyReading": "閱讀中",
   "Finished": "已讀完",
-  "Theme": "主题"
+  "Theme": "主题",
+  "Add to group": "添加至分組",
+  "New group": "新增分組",
+  "Group name is empty": "分組名為空",
+  "Group name is too long": "分組名太長",
+  "Ungrouped": "未分組",
+  "Manage groups": "管理分組",
+  "Collapse all": "收起全部分組",
+  "Expand all": "展開全部分組",
+  "Group updated": "分組已更新"
 }

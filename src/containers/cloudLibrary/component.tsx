@@ -26,6 +26,14 @@ import EmptyCover from "../../components/emptyCover";
 import BookModel from "../../models/Book";
 import ViewMode from "../../components/viewMode";
 import toast from "react-hot-toast";
+import BookGroupHeader from "../../components/bookGroupHeader";
+import BookGroupPicker from "../../components/bookGroupPicker";
+import {
+  BookGroup,
+  readCollapsedGroups,
+  segmentByGroup,
+  writeCollapsedGroups,
+} from "../../utils/group/bookGroup";
 import {
   CloudBook,
   CollabRoomBrief,
@@ -48,6 +56,9 @@ class CloudLibrary extends React.Component<
       rooms: [],
       activeRoom: null,
       roomBooks: [],
+      roomGroups: [],
+      collapsedRoomGroups: [],
+      groupPickerBook: null,
       createName: "",
       joinCode: "",
       isLoading: false,
@@ -138,7 +149,12 @@ class CloudLibrary extends React.Component<
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
       if (!this.isMountedFlag) return;
-      this.setState({ roomBooks: data.books || [] });
+      // groups 和 books 是同一个响应里回来的，一次 setState 写完，
+      // 不会出现「书排好了但分组还是上一版」的中间态
+      this.setState({
+        roomBooks: data.books || [],
+        roomGroups: Array.isArray(data.groups) ? data.groups : [],
+      });
     } catch (error) {
       if (!this.isMountedFlag) return;
       this.setState({
@@ -264,7 +280,16 @@ class CloudLibrary extends React.Component<
   enterRoom = (room: CollabRoomBrief) => {
     // 记下当前所在房间,右上角「导入图书到房间」和整页拖拽都往这个房间传
     setActiveCollabRoom({ roomId: room.roomId, name: room.name || "" });
-    this.setState({ view: "room", activeRoom: room, roomBooks: [], menuBook: "" });
+    this.setState({
+      view: "room",
+      activeRoom: room,
+      roomBooks: [],
+      roomGroups: [],
+      // 折叠状态按房间号分开存：这个房间收起的分组不该影响别的房间
+      collapsedRoomGroups: readCollapsedGroups(room.roomId),
+      groupPickerBook: null,
+      menuBook: "",
+    });
     this.refreshRoomBooks(room.roomId);
   };
 
@@ -274,6 +299,9 @@ class CloudLibrary extends React.Component<
       view: "rooms",
       activeRoom: null,
       roomBooks: [],
+      roomGroups: [],
+      collapsedRoomGroups: [],
+      groupPickerBook: null,
       menuBook: "",
     });
     this.refreshRooms();
@@ -480,6 +508,147 @@ class CloudLibrary extends React.Component<
     }
   };
 
+  // ── 房间分组 ─────────────────────────────────────────────────────────
+  // 成员关系存在服务端的 room.json 里（一本书可以属于多个分组），本地只做投影。
+  // 房间书没有 md5，唯一标识就是文件名，所以分组里存的是 name。
+  openGroupPicker = (book: CloudBook) => {
+    this.closeBookMenu();
+    this.setState({ groupPickerBook: book });
+  };
+
+  closeGroupPicker = () => {
+    this.setState({ groupPickerBook: null });
+  };
+
+  /** 这本书当前所属的全部分组名 */
+  roomGroupsOfBook = (name: string): string[] =>
+    this.state.roomGroups
+      .filter((group) => group.books.includes(name))
+      .map((group) => group.name);
+
+  toggleRoomGroup = (name: string) => {
+    const collapsed = this.state.collapsedRoomGroups.includes(name)
+      ? this.state.collapsedRoomGroups.filter((item) => item !== name)
+      : [...this.state.collapsedRoomGroups, name];
+    this.setState({ collapsedRoomGroups: collapsed });
+    const room = this.state.activeRoom;
+    if (room) writeCollapsedGroups(room.roomId, collapsed);
+  };
+
+  isAllRoomGroupsCollapsed = () => {
+    const names = this.state.roomGroups.map((group) => group.name);
+    return (
+      names.length > 0 &&
+      names.every((name) => this.state.collapsedRoomGroups.includes(name))
+    );
+  };
+
+  toggleAllRoomGroups = () => {
+    const collapsed = this.isAllRoomGroupsCollapsed()
+      ? []
+      : this.state.roomGroups.map((group) => group.name);
+    this.setState({ collapsedRoomGroups: collapsed });
+    const room = this.state.activeRoom;
+    if (room) writeCollapsedGroups(room.roomId, collapsed);
+  };
+
+  /** 算出「某本书改成分组成员为 groupNames 之后」的完整分组表（纯逻辑，便于复用） */
+  private nextRoomGroups = (
+    current: BookGroup[],
+    bookName: string,
+    groupNames: string[]
+  ): BookGroup[] => {
+    const wanted = new Set(groupNames);
+    const next = current.map((group) => ({
+      name: group.name,
+      books: [...group.books],
+    }));
+    next.forEach((group) => {
+      const has = group.books.includes(bookName);
+      if (wanted.has(group.name)) {
+        if (!has) group.books.push(bookName);
+      } else if (has) {
+        group.books = group.books.filter((name) => name !== bookName);
+      }
+    });
+    // 弹窗里新建、当前分组表里还不存在的组
+    const known = new Set(current.map((group) => group.name));
+    groupNames.forEach((name) => {
+      if (!known.has(name)) next.push({ name, books: [bookName] });
+    });
+    // 服务端会丢掉空组，这里先丢一遍，保证本地算出来的和服务端存下来的一致
+    return next.filter((group) => group.books.length > 0);
+  };
+
+  /**
+   * 保存房间分组：**先本地生效再发请求**，失败就重新拉一次覆盖回来。
+   * 和 handleDropReorder 同一套打法 —— 等服务端回来再渲染会有一段肉眼可见的卡顿。
+   */
+  saveRoomGroups = async (groups: BookGroup[], roomId: string) => {
+    this.setState({ roomGroups: groups });
+    try {
+      const response = await fetch(
+        `${this.baseUrl}/rooms/${encodeURIComponent(roomId)}/books/groups`,
+        {
+          method: "POST",
+          headers: collabAuthHeaders({ "content-type": "application/json" }),
+          body: JSON.stringify({ groups }),
+        }
+      );
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      // 服务端还会再清洗一遍（文件是否存在、重名、空组），以它返回的为准
+      const data = await response.json().catch(() => null);
+      if (data && Array.isArray(data.groups)) {
+        this.setState({ roomGroups: data.groups });
+      }
+    } catch (error) {
+      toast.error(
+        "分组保存失败：" + (error instanceof Error ? error.message : String(error))
+      );
+      this.refreshRoomBooks(roomId);
+    }
+  };
+
+  handleGroupConfirm = async (groupNames: string[]) => {
+    const book = this.state.groupPickerBook;
+    const room = this.state.activeRoom;
+    this.setState({ groupPickerBook: null });
+    if (!book || !room) return;
+    const next = this.nextRoomGroups(
+      this.state.roomGroups,
+      book.name,
+      groupNames
+    );
+    await this.saveRoomGroups(next, room.roomId);
+    toast.success("分组已更新");
+  };
+
+  /**
+   * 分组视图下拖书：不再是「换顺序」，而是**并入目标书所在的分组**。
+   *
+   * 分组视图里每本书落在哪一段完全由成员关系决定，换顺序根本看不见效果，
+   * 所以这个手势必须有别的含义，否则等于坏了。只做并集、不做移出：
+   * 拖一下就悄悄把书踢出原来所有分组太容易误伤，精确增删交给「加入分组」弹窗。
+   */
+  handleDropIntoGroup = async (targetName: string) => {
+    const fromName = this.state.dragBook;
+    this.setState({ dragBook: "", dragOverBook: "" });
+    if (!fromName || fromName === targetName) return;
+    const room = this.state.activeRoom;
+    if (!room) return;
+    const targetGroups = this.roomGroupsOfBook(targetName);
+    if (targetGroups.length === 0) {
+      toast(`「${targetName}」还没分组，先用它的「加入分组」建一个`);
+      return;
+    }
+    const union = Array.from(
+      new Set([...this.roomGroupsOfBook(fromName), ...targetGroups])
+    );
+    const next = this.nextRoomGroups(this.state.roomGroups, fromName, union);
+    await this.saveRoomGroups(next, room.roomId);
+    toast.success(`「${fromName}」已并入 ${targetGroups.join("、")}`);
+  };
+
   formatSize = (bytes: number) => {
     if (bytes >= 1024 * 1024) {
       return (bytes / 1024 / 1024).toFixed(1) + " MB";
@@ -561,6 +730,15 @@ class CloudLibrary extends React.Component<
               }}
             >
               {isImporting ? "准备中…" : "开始阅读"}
+            </div>
+            <div
+              className="cloud-book-menu-item"
+              onClick={(event) => {
+                event.stopPropagation();
+                this.openGroupPicker(book);
+              }}
+            >
+              加入分组
             </div>
             <div
               className="cloud-book-menu-item cloud-book-menu-danger"
@@ -661,11 +839,14 @@ class CloudLibrary extends React.Component<
   };
 
   // 三种视图共用一个 <li> 外壳：拖动排序、点击阅读、「更多」菜单只写一遍，
-  // 内部按 viewMode 选择渲染哪一套内容
-  renderRoomBookItem = (book: CloudBook) => {
+  // 内部按 viewMode 选择渲染哪一套内容。
+  // sectionName 参与 key：分组视图下同一本书可能出现在多个分组段里，
+  // 光用文件名当 key 会撞（React 会把两段当成同一个元素）。
+  renderRoomBookItem = (book: CloudBook, sectionName = "all") => {
     const mode = this.props.viewMode;
     const isDragOver =
       this.state.dragBook !== "" && this.state.dragOverBook === book.name;
+    const grouped = this.state.roomGroups.length > 0;
     const baseClass =
       mode === "list"
         ? "cloud-book-row"
@@ -674,9 +855,13 @@ class CloudLibrary extends React.Component<
           : "cloud-book-card";
     return (
       <li
-        key={book.name}
+        key={sectionName + "|" + book.name}
         className={baseClass + (isDragOver ? " cloud-book-drag-over" : "")}
-        title="点击开始阅读，拖动可调整顺序"
+        title={
+          grouped
+            ? "点击开始阅读；拖到另一本书上「并入它所在的分组」"
+            : "点击开始阅读，拖动可调整顺序"
+        }
         draggable
         onDragStart={() => this.setState({ dragBook: book.name })}
         onDragEnd={() => this.setState({ dragBook: "", dragOverBook: "" })}
@@ -695,7 +880,13 @@ class CloudLibrary extends React.Component<
         }}
         onDrop={(event) => {
           event.preventDefault();
-          this.handleDropReorder(book.name);
+          // 有没有分组，拖动的含义不同：分组视图下是「并入分组」，
+          // 平铺视图下才是原来那个「换顺序」
+          if (grouped) {
+            this.handleDropIntoGroup(book.name);
+          } else {
+            this.handleDropReorder(book.name);
+          }
         }}
         onClick={() => this.handleStartReading(book)}
       >
@@ -889,6 +1080,59 @@ class CloudLibrary extends React.Component<
     );
   }
 
+  /**
+   * 房间书架的列表内容：有分组就按分组分段（段标题行可收起），没分组就是原来的平铺。
+   *
+   * 与个人书架共用 segmentByGroup / BookGroupHeader，两边长得一样，
+   * 差别只在「成员 key」是文件名（房间书没有 md5）和未分组段的文案写死中文
+   * （共同阅读整页本来就还没有接 i18n）。
+   */
+  renderRoomSections() {
+    const { roomBooks, roomGroups, collapsedRoomGroups } = this.state;
+    if (roomGroups.length === 0) {
+      return roomBooks.map((book) => this.renderRoomBookItem(book));
+    }
+    const sections = segmentByGroup(
+      roomBooks,
+      roomGroups,
+      (book: CloudBook) => book.name
+    );
+    // 一个真实分组段都没命中时（比如分组全空）不要只留一个「未分组」标题，
+    // 退回平铺 —— 那个标题在这种场景下毫无信息量。
+    if (!sections.some((section) => section.kind !== "ungrouped")) {
+      return roomBooks.map((book) => this.renderRoomBookItem(book));
+    }
+    const nodes: React.ReactNode[] = [];
+    sections.forEach((section) => {
+      const collapsed =
+        section.kind === "group" &&
+        collapsedRoomGroups.includes(section.name);
+      nodes.push(
+        <BookGroupHeader
+          key={"room-header|" + section.name}
+          tag="li"
+          kind={section.kind}
+          label={section.kind === "ungrouped" ? "未分组" : section.name}
+          count={section.items.length}
+          showCount={true}
+          collapsed={collapsed}
+          groupName={section.kind === "group" ? section.name : undefined}
+          onToggle={() => {
+            if (section.kind === "group") this.toggleRoomGroup(section.name);
+          }}
+        />
+      );
+      if (!collapsed) {
+        nodes.push(
+          ...section.items.map((book) =>
+            this.renderRoomBookItem(book, section.name)
+          )
+        );
+      }
+    });
+    return nodes;
+  }
+
   renderRoom() {
     const { activeRoom, roomBooks, isLoading, importingBook } = this.state;
     const mode = this.props.viewMode;
@@ -925,6 +1169,16 @@ class CloudLibrary extends React.Component<
               />
             )}
             <ViewMode />
+            {this.state.roomGroups.length > 0 && (
+              <button
+                className="cloud-page-refresh-btn"
+                onClick={this.toggleAllRoomGroups}
+              >
+                {this.isAllRoomGroupsCollapsed()
+                  ? "展开全部分组"
+                  : "收起全部分组"}
+              </button>
+            )}
             <button
               className="cloud-page-refresh-btn"
               disabled={isLoading}
@@ -936,6 +1190,8 @@ class CloudLibrary extends React.Component<
         </div>
         <div className="cloud-page-hint">
           房间就是大家的共同书架：右上角「导入图书到房间」放书进来，点封面开始共读。
+          每本书的「⋯ → 加入分组」可以给它归组（一本书能同时属于多个组），
+          分好组后书架上会多出分组标题行，点标题行可收起/展开。
           房间里的书不会进入你的个人书架，笔记高亮也是相互独立的。
         </div>
         {this.state.error && (
@@ -954,7 +1210,7 @@ class CloudLibrary extends React.Component<
               { "--card-scale": this.state.cardScale } as React.CSSProperties
             }
           >
-            {roomBooks.map((book) => this.renderRoomBookItem(book))}
+            {this.renderRoomSections()}
           </ul>
         )}
         {importingBook && (
@@ -964,6 +1220,17 @@ class CloudLibrary extends React.Component<
               style={{ width: "100%" }}
             />
           </div>
+        )}
+        {this.state.groupPickerBook && (
+          <BookGroupPicker
+            allGroups={this.state.roomGroups.map((group) => group.name)}
+            initialSelected={this.roomGroupsOfBook(
+              this.state.groupPickerBook.name
+            )}
+            bookCount={1}
+            onCancel={this.closeGroupPicker}
+            onConfirm={this.handleGroupConfirm}
+          />
         )}
       </>
     );

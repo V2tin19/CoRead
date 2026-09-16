@@ -142,7 +142,7 @@ class ActionDialog extends React.Component<
             >
               <span className="icon-bookshelf-line view-icon"></span>
               <p className="action-name">
-                <Trans>Add to shelf</Trans>
+                <Trans i18nKey="Add to group">添加到分组</Trans>
               </p>
             </div>
             <div

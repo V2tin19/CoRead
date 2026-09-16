@@ -1,0 +1,191 @@
+/* 分组选择弹窗。
+   自成一体的浮层：mask 全屏压暗，panel 自带实底 + 阴影 —— 上游那批
+   `.add-dialog-container` / `.backup-page-container` 都没写 background，
+   落在深色主题上就是个「透明弹窗」，这里不跟着踩。 */
+.bgp-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 62;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+  background: rgba(0, 0, 0, 0.32);
+}
+
+.bgp-panel {
+  display: flex;
+  flex-direction: column;
+  width: 360px;
+  max-width: 100%;
+  max-height: 100%;
+  box-sizing: border-box;
+  padding: 14px 16px 12px;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #2f2f2f;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.28);
+  font-size: 13px;
+  animation: popup 0.1s ease-in-out 0s 1;
+}
+
+.bgp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.bgp-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.bgp-close {
+  font-size: 18px;
+  line-height: 18px;
+  padding: 0 4px;
+  opacity: 0.55;
+  cursor: pointer;
+}
+
+.bgp-close:hover {
+  opacity: 1;
+}
+
+.bgp-hint {
+  margin-bottom: 10px;
+  font-size: 12px;
+  line-height: 1.6;
+  opacity: 0.65;
+}
+
+.bgp-list {
+  flex: 1 1 auto;
+  min-height: 40px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 4px;
+  box-sizing: border-box;
+  border: 1px solid rgba(120, 120, 120, 0.25);
+  border-radius: 8px;
+}
+
+.bgp-empty {
+  padding: 10px 8px;
+  font-size: 12px;
+  opacity: 0.55;
+}
+
+.bgp-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.bgp-item:hover {
+  background: rgba(75, 137, 255, 0.1);
+}
+
+.bgp-item-check {
+  flex: 0 0 auto;
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  cursor: pointer;
+}
+
+.bgp-item-name {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bgp-new {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.bgp-new-input {
+  flex: 1 1 auto;
+  height: 30px;
+  padding: 0 8px;
+  box-sizing: border-box;
+  border: 1px solid rgba(120, 120, 120, 0.35);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font-size: 13px;
+}
+
+.bgp-new-btn {
+  flex: 0 0 auto;
+  height: 30px;
+  padding: 0 12px;
+  line-height: 30px;
+  border-radius: 6px;
+  background: rgba(75, 137, 255, 0.14);
+  cursor: pointer;
+}
+
+.bgp-new-btn:hover {
+  background: rgba(75, 137, 255, 0.24);
+}
+
+.bgp-new-btn.is-disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.bgp-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+}
+
+.bgp-foot-count {
+  font-size: 12px;
+  opacity: 0.6;
+}
+
+.bgp-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.bgp-cancel,
+.bgp-confirm {
+  min-width: 56px;
+  height: 28px;
+  padding: 0 12px;
+  line-height: 28px;
+  text-align: center;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.bgp-cancel {
+  background: rgba(128, 128, 128, 0.16);
+}
+
+.bgp-cancel:hover {
+  background: rgba(128, 128, 128, 0.26);
+}
+
+.bgp-confirm {
+  background: #4b89ff;
+  color: #ffffff;
+}
+
+.bgp-confirm:hover {
+  background: #3b79ef;
+}

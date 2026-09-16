@@ -86,8 +86,7 @@
 .book-list-prev-page {
   cursor: pointer;
   margin-right: 10px;
-}
-.book-list-next-page {
+}.book-list-next-page {
   cursor: pointer;
   margin-left: 10px;
 }
@@ -136,3 +135,18 @@
   cursor: pointer;
   margin-top: 2px;
 }
+
+/* 分组开关（收起全部 / 管理分组）：复用 .book-list-total-page 的排布，只补可点态。
+   颜色不写死，靠继承 —— 这一行落在应用主题色里，写死浅色在深色主题下会瞎。 */
+.book-list-group-toggle {
+  cursor: pointer;
+  font-weight: 500;
+  opacity: 0.75;
+  border-radius: 5px;
+  transition: opacity 0.15s ease;
+}
+
+.book-list-group-toggle:hover {
+  opacity: 1;
+}
+

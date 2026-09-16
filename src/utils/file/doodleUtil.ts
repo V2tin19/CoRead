@@ -226,18 +226,67 @@ export function collectFuzzyStrokes(
   return out;
 }
 
-// 一「屏」占多少全书进度。totalPage 是全书总页数;双页模式一屏跨两页。
-// 取不到就退回一个保守值(约千分之一)。
+// 本章占全书多大的比例。
+// 口径必须和 handleRecord 写 percentage 时用的**完全一致**：
+//   totalSize = Σ over 所有 chapterDoc ( item.text ? item.text.size || 1 : 1 )
+//   percentage = Σ(本章之前的 size)/totalSize + (本章 size/totalSize) * 章内可见块比例
+// 所以这里也用 getChapterDoc() + 同一个 size 兜底公式，得到的才是同一把尺子。
+// （不能用 getChapterSizes()：它用的是 item.text.length 兜底，拿不到 size 时和
+//   handleRecord 的分母不是一回事，算出来的比例会偏。）
+export function getDoodleChapterShare(rendition: any): number {
+  try {
+    const docs: any[] = rendition?.getChapterDoc?.() || [];
+    const position = rendition?.getPosition?.() || {};
+    const index = parseInt(String(position.chapterDocIndex ?? "-1"), 10);
+    if (
+      !docs.length ||
+      !isFinite(index) ||
+      index < 0 ||
+      index >= docs.length
+    ) {
+      return 0;
+    }
+    const sizeOf = (item: any) => (item && item.text ? item.text.size || 1 : 1);
+    let total = 0;
+    for (const item of docs) total += sizeOf(item);
+    if (!(total > 0)) return 0;
+    const share = sizeOf(docs[index]) / total;
+    return isFinite(share) && share > 0 ? share : 0;
+  } catch (e) {
+    return 0;
+  }
+}
+
+// 一「屏」占多少**全书**进度（0~1）。双页模式一屏跨两页，所以乘 pagesPerView。
+//
+// ⚠️ 单位必须和 percentage 对齐：percentage 是**全书百分比**（见上面 handleRecord 的
+// 算法），所以窗口宽度也只能是全书百分比。
+//
+// 曾经的坑（症状：某一页画的涂鸦，翻到本章任何一页都还在）：
+//   这里原来直接拿 getProgress().totalPage 当分母。但 CoRead 从不给渲染内核传
+//   isShowTotalPage（kookit 里默认 "no"），此时 getProgress().totalPage 返回的是
+//   **本章**的屏数，不是全书页数。于是
+//       span_old = 屏数 / 本章屏数     ← 分母是本章
+//   而比的是全书百分比 —— 单位差了「全书章数」这个量级：
+//   一本 30 章的小说，span_old ≈ 0.2，×0.52 之后每页的收编窗口高达全书的 ±10%，
+//   而一章才占全书 3%，等于把整章笔迹都收进来了。
+//   现在改成「一屏占全书多少」= 屏数 × 本章占比 / 本章屏数。
+//
+// 拿不到章节占比时返回 0（= 关闭模糊收编）。宁可少认（最多看不到同伴跨设备笔迹），
+// 也不能乱认（那会让上一页的涂鸦粘在下一页上，直接毁掉「一页就是一张纸」的体感）。
 export async function getDoodlePageSpan(rendition: any): Promise<number> {
   try {
     const progress = await rendition?.getProgress?.();
-    const total = parseInt(String(progress?.totalPage ?? "0"), 10);
-    if (!isFinite(total) || total <= 0) return 0.001;
+    const chapterPages = parseInt(String(progress?.totalPage ?? "0"), 10);
+    if (!isFinite(chapterPages) || chapterPages <= 0) return 0;
     const mode = ConfigService.getReaderConfig("readerMode") || "double";
     const pagesPerView = mode === "double" ? 2 : 1;
-    return pagesPerView / total;
+    const chapterShare = getDoodleChapterShare(rendition);
+    if (!(chapterShare > 0)) return 0;
+    const span = (pagesPerView * chapterShare) / chapterPages;
+    return isFinite(span) && span > 0 ? span : 0;
   } catch (e) {
-    return 0.001;
+    return 0;
   }
 }
 
@@ -401,6 +450,60 @@ export function mergeDoodleStrokes(
   return { merged: Array.from(byId.values()), pending };
 }
 
+// 本地 + 云端按页取并集(同 id 以云端为准)。loadDoodlePage 与「导出全书」共用，
+// 保证两条路看到的是同一份数据。
+function mergeLocalAndCloud(
+  local: DoodlePageMap,
+  cloud: DoodlePageMap | null
+): DoodlePageMap {
+  const combined: DoodlePageMap = {};
+  for (const key of Object.keys(local || {})) {
+    combined[key] = (local[key] || []).slice();
+  }
+  if (cloud) {
+    for (const key of Object.keys(cloud)) {
+      const byId = new Map<string, DoodleStroke>();
+      for (const stroke of cloud[key] || []) {
+        if (stroke && stroke.id) byId.set(stroke.id, stroke);
+      }
+      for (const stroke of combined[key] || []) {
+        if (stroke && stroke.id && !byId.has(stroke.id)) {
+          byId.set(stroke.id, stroke);
+        }
+      }
+      combined[key] = Array.from(byId.values());
+    }
+  }
+  return combined;
+}
+
+// ── 导出：整理出「这本书的全部涂鸦」──────────────────────────────────
+// 本地 + 云端取并集后跑去重，返回按页 key 分组的干净数据（导出 JSON 备份用）。
+export async function collectAllDoodlePages(bookKey: string): Promise<{
+  pages: DoodlePageMap;
+  totalStrokes: number;
+  authors: string[];
+}> {
+  const local = await loadLocalDoodles(bookKey);
+  let cloud: DoodlePageMap | null = null;
+  try {
+    cloud = await collabClient.fetchBookDoodles(bookKey);
+  } catch (e) {
+    cloud = null;
+  }
+  const { pages } = dedupeBookPages(mergeLocalAndCloud(local, cloud));
+  let totalStrokes = 0;
+  const authors = new Set<string>();
+  for (const key of Object.keys(pages)) {
+    for (const stroke of pages[key] || []) {
+      if (!stroke || !stroke.id) continue;
+      totalStrokes += 1;
+      authors.add(stroke.authorName || stroke.authorId || "我");
+    }
+  }
+  return { pages, totalStrokes, authors: Array.from(authors) };
+}
+
 // 读某一页:本地 + 云端取并集,并顺手跑一遍历史脏数据去重。
 // 不能只看云端 —— 离线时画的笔迹只落了本地,如果因为「云端整本书有数据但
 // 没有这一页」就把本地丢掉,那笔永远同步不上去,用户体感是"白画了"。
@@ -422,27 +525,9 @@ export async function loadDoodlePage(
     cloud = null;
   }
 
-  // 本地 + 云端按页取并集(同 id 以云端为准)
-  const combined: DoodlePageMap = {};
-  for (const key of Object.keys(local)) {
-    combined[key] = (local[key] || []).slice();
-  }
-  if (cloud) {
-    for (const key of Object.keys(cloud)) {
-      const byId = new Map<string, DoodleStroke>();
-      for (const stroke of cloud[key] || []) {
-        if (stroke && stroke.id) byId.set(stroke.id, stroke);
-      }
-      for (const stroke of combined[key] || []) {
-        if (stroke && stroke.id && !byId.has(stroke.id)) {
-          byId.set(stroke.id, stroke);
-        }
-      }
-      combined[key] = Array.from(byId.values());
-    }
-  }
-
-  const { pages: cleanPages, removed } = dedupeBookPages(combined);
+  const { pages: cleanPages, removed } = dedupeBookPages(
+    mergeLocalAndCloud(local, cloud)
+  );
 
   // 有历史脏数据就就地修：本地重写一遍，云端把这些重复笔迹删掉（尽力而为）
   if (Object.keys(removed).length > 0) {

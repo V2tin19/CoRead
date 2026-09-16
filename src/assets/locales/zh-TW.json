@@ -75,7 +75,7 @@
   "Language": "語言",
   "Enter full screen": "進入全螢幕",
   "Exit full screen": "退出全螢幕",
-  "Add to shelf": "加入到書架",
+  "Add to shelf": "加入到分組",
   "New shelf": "新書架",
   "New": "建立新書架",
   "Cancel": "取消",
@@ -1112,5 +1112,14 @@
   "Me": "我",
   "Collaborator": "共讀夥伴",
   "just now": "剛剛",
-  "min ago": " 分鐘前"
+  "min ago": " 分鐘前",
+  "Add to group": "加入分組",
+  "New group": "新增分組",
+  "Group name is empty": "分組名稱為空",
+  "Group name is too long": "分組名稱太長",
+  "Ungrouped": "未分組",
+  "Manage groups": "管理分組",
+  "Collapse all": "收合全部分組",
+  "Expand all": "展開全部分組",
+  "Group updated": "分組已更新"
 }

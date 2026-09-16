@@ -1,3 +1,4 @@
+import toast from "react-hot-toast";
 import Note from "../../models/Note";
 import { configStore, readingProgressStore, noteStore } from "../../core/ports/stores";
 import { getIframeDoc } from "./docUtil";
@@ -62,9 +63,28 @@ export async function createHighlight(params: DigestParams): Promise<void> {
   text = text.replace(/\t/g, "");
   text = text.replace(/\f/g, "");
 
-  let range = JSON.stringify(
-    await htmlBook.rendition.getHightlightCoords(chapterDocIndex)
+  // ⚠️ range 取不到就别落库（与 popupNote.createNote 同款防线）。
+  // getHighlightCoords 是 `rangy.saveCharacterRanges(doc.body)[0]`，拿不到选区时
+  // 返回 undefined，而 JSON.stringify(undefined) 仍是 undefined ⇒ 记录带着
+  // range=undefined 入库。之后 kookit 的 renderHighlighters 会对整本书的每条笔记
+  // 做 `JSON.parse(item.range)`（那行没有 try 保护）⇒ 抛错 ⇒ **这本书的高亮和
+  // 笔记全部渲染不出来**。一条坏记录连坐整本书，代价太大。
+  // 判据与 kookit 自己的校验保持一致（characterRange.start / end 必须为数字）。
+  const rawCoords: any = await htmlBook.rendition.getHightlightCoords(
+    chapterDocIndex
   );
+  const charRange = rawCoords?.characterRange;
+  if (
+    !charRange ||
+    typeof charRange.start !== "number" ||
+    typeof charRange.end !== "number" ||
+    charRange.end <= charRange.start
+  ) {
+    console.warn("[note] empty selection range, skip creating note");
+    toast.error("没有取到选中的文字，请重新选中后再试");
+    return;
+  }
+  let range = JSON.stringify(rawCoords);
 
   let highlight = new Note(
     bookKey,

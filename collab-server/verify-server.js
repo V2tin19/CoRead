@@ -175,6 +175,71 @@ async function waitForServer(timeoutMs = 8000) {
       books2.body.books.map((b) => b.name)
     );
 
+    // ── 2.5 房间分组 ────────────────────────────────────────────────────
+    // 这一步刻意放在删书之前：分组要拿两本书才验得出「多对多」和
+    // 「删书后摘掉幽灵成员」两件事。
+    console.log("\n[2.5] 房间分组");
+    const groupsEmpty = await json(`/rooms/${roomId}/books`);
+    check(
+      "新房间 groups 为空数组",
+      Array.isArray(groupsEmpty.body.groups) && groupsEmpty.body.groups.length === 0,
+      groupsEmpty.body.groups
+    );
+
+    // 多对多：book2.txt 同时在两个组里
+    const setGroups = await post(`/rooms/${roomId}/books/groups`, {
+      groups: [
+        { name: "科幻", books: ["书一.epub", "book2.txt"] },
+        { name: "在读", books: ["book2.txt"] },
+      ],
+    });
+    check("POST books/groups → 200", setGroups.status === 200, setGroups.body);
+    const groups1 = await json(`/rooms/${roomId}/books`);
+    check(
+      "分组落盘并随 books 一起下发",
+      (groups1.body.groups || []).length === 2 &&
+        groups1.body.groups[0].name === "科幻" &&
+        groups1.body.groups[0].books.length === 2,
+      groups1.body.groups
+    );
+    check(
+      "同一本书可属于多个分组（多对多）",
+      (groups1.body.groups || []).filter((g) =>
+        g.books.includes("book2.txt")
+      ).length === 2,
+      groups1.body.groups
+    );
+
+    // 清洗：不存在的文件名要被丢掉，空组不落盘，重名只留第一个
+    const dirty = await post(`/rooms/${roomId}/books/groups`, {
+      groups: [
+        { name: "科幻", books: ["不存在.epub"] },
+        { name: "有效", books: ["书一.epub", "也不存在.txt"] },
+        { name: "有效", books: ["book2.txt"] },
+        { name: "   ", books: ["书一.epub"] },
+        { name: "带/斜杠的", books: ["book2.txt"] },
+        123,
+      ],
+    });
+    check("脏数据提交仍 → 200", dirty.status === 200, dirty.body);
+    const groups2 = (dirty.body.groups || []).map((g) => g.name);
+    check(
+      "空成员组被丢弃 / 重名只留第一个",
+      groups2.length === 2 && groups2[0] === "有效" && groups2[1] === "带斜杠的",
+      groups2
+    );
+    check(
+      "组名里的路径符号被清掉",
+      (dirty.body.groups || [])[1].name === "带斜杠的",
+      (dirty.body.groups || []).map((g) => g.name)
+    );
+    check(
+      "组内不存在的文件被过滤，剩下的成员正确",
+      (dirty.body.groups || [])[0].books.join(",") === "书一.epub" &&
+        (dirty.body.groups || [])[1].books.join(",") === "book2.txt",
+      dirty.body.groups
+    );
+
     const del = await post(
       `/rooms/${roomId}/books/${encodeURIComponent("book2.txt")}`,
       {},
@@ -183,6 +248,19 @@ async function waitForServer(timeoutMs = 8000) {
     check("移出房间书 → 200", del.status === 200, del.body);
     const books3 = await json(`/rooms/${roomId}/books`);
     check("移出后只剩 1 本", (books3.body.books || []).length === 1, books3.body);
+    check(
+      "删书后分组里不再有幽灵成员",
+      (books3.body.groups || []).every(
+        (g) => !g.books.includes("book2.txt")
+      ) &&
+        (books3.body.groups || []).every((g) => g.books.length > 0),
+      books3.body.groups
+    );
+
+    const clearGroups = await post(`/rooms/${roomId}/books/groups`, {
+      groups: [],
+    });
+    check("清空分组 → 200 且 groups 为空", clearGroups.status === 200 && (clearGroups.body.groups || []).length === 0, clearGroups.body);
 
     // ── 3. 入房 / 聊天 / 位置 / 笔记 ────────────────────────────────────
     console.log("\n[3] 入房 / 聊天 / 位置 / 笔记");

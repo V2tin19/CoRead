@@ -1,4 +1,5 @@
 import BookModel from "../../models/Book";
+import { BookGroup } from "../../utils/group/bookGroup";
 
 /** 云端书库里的一个文件(房间书架的元素) */
 export interface CloudBook {
@@ -43,6 +44,12 @@ export interface CloudLibraryState {
   rooms: CollabRoomBrief[];
   activeRoom: CollabRoomBrief | null;
   roomBooks: CloudBook[];
+  /** 房间分组：成员是文件名（房间书的唯一标识），多对多 */
+  roomGroups: BookGroup[];
+  /** 当前房间里被收起的分组名；默认空 = 全部展开 */
+  collapsedRoomGroups: string[];
+  /** 正在给哪本书选分组；null = 弹窗关着 */
+  groupPickerBook: CloudBook | null;
   createName: string;
   joinCode: string;
   isLoading: boolean;

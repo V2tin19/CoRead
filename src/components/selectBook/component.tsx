@@ -123,7 +123,7 @@ class SelectBook extends React.Component<BookListProps, BookListState> {
                 this.props.handleAddDialog(true);
               }}
             >
-              <Trans>Add to shelf</Trans>
+              <Trans i18nKey="Add to group">添加到分组</Trans>
             </span>
             <span
               className="book-manage-title"

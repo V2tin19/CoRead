@@ -26,6 +26,7 @@ import {
   isBookDragEvent,
   isExternalFileDragEvent,
 } from "../../utils/reader/bookDrag";
+import { requestFocusGroup } from "../../utils/group/bookGroup";
 import {
   getActiveCollabRoom,
   notifyRoomBooksChanged,
@@ -92,13 +93,16 @@ class Manager extends React.Component<ManagerProps, ManagerState> {
     document.addEventListener("dragend", this.handleDocumentDragEnd, true);
     document.addEventListener("dragenter", this.handleExternalDragEnter, true);
     // Auto switch to configured startup shelf
+    // 「启动时自动切换书架」不再切到独立的书架页（那条路由已经不存在，切过去就是空白），
+    // 而是留在「我的图书」并把这一组的标题行滚进视野。
     const startupShelf = ConfigService.getReaderConfig("startupShelf");
     if (startupShelf) {
       const shelfList = ConfigService.getAllMapConfig("shelfList") || {};
       if (shelfList.hasOwnProperty(startupShelf)) {
-        this.props.handleShelf(startupShelf);
-        this.props.handleMode("shelf");
-        this.props.history.push("/manager/shelf");
+        this.props.handleShelf("");
+        this.props.handleMode("home");
+        this.props.history.push("/manager/home");
+        requestFocusGroup(startupShelf);
       }
     }
   }
