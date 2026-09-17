@@ -117,3 +117,29 @@ export function logViewportDiagnostics(): void {
     console.error("[ViewportDiagnostics] failed", err);
   }
 }
+
+/**
+ * 请求持久化存储配额（防止 Android 系统因存储紧张回收 IndexedDB 造成丢书）。
+ * 在支持的浏览器和 WebView 环境下安全异步调用。
+ */
+export async function requestPersistentStorage(): Promise<boolean> {
+  if (
+    typeof navigator === "undefined" ||
+    !navigator.storage ||
+    !navigator.storage.persist
+  ) {
+    return false;
+  }
+  try {
+    const isPersisted = await navigator.storage.persisted();
+    if (isPersisted) {
+      return true;
+    }
+    const granted = await navigator.storage.persist();
+    console.log(`[Storage] Persistent storage granted: ${granted}`);
+    return granted;
+  } catch (err) {
+    console.warn("[Storage] Failed to request persistent storage", err);
+    return false;
+  }
+}

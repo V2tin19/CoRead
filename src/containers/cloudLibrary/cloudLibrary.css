@@ -854,24 +854,50 @@
   text-overflow: ellipsis;
 }
 
-@media (max-width: 570px) {
+@media (max-width: 570px), screen and (max-device-width: 768px) {
   .collab-start-card {
     padding: 14px;
   }
 
   .collab-start-row {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr !important;
   }
 
   .collab-room-submit {
-    width: 100%;
+    width: 100% !important;
   }
 
   .collab-room-row {
-    flex-wrap: wrap;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+  }
+
+  .cloud-page-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 10px !important;
+  }
+
+  .cloud-page-actions {
+    width: 100% !important;
+    justify-content: space-between !important;
+  }
+
+  .cloud-page-item {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 10px !important;
   }
 
   .cloud-page-item-actions {
-    width: 100%;
+    width: 100% !important;
+    justify-content: flex-end !important;
+  }
+
+  .cloud-books-grid {
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)) !important;
+    gap: 12px !important;
+    padding: 10px 0 !important;
   }
 }

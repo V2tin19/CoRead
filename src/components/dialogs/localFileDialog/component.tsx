@@ -13,6 +13,7 @@ import {
   exportToLocalFile,
   LocalFileManager,
 } from "../../../utils/file/localFile";
+import { isMobileRuntime } from "../../../utils/mobileRuntime";
 class LocalFileDialog extends React.Component<
   LocalFileDialogProps,
   LocalFileDialogState
@@ -45,7 +46,11 @@ class LocalFileDialog extends React.Component<
   };
   handleSelectFolder = async () => {
     if (!LocalFileManager.isSupported()) {
-      this.showMessage("Your browser doesn't support local file access");
+      if (isMobileRuntime()) {
+        toast("手机系统限制无法直接关联本地文件夹，请使用主页右上角「导入」直接选取书籍文件");
+      } else {
+        this.showMessage("Your browser doesn't support local file access");
+      }
       return;
     }
 
