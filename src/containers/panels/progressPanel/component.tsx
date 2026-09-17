@@ -5,7 +5,12 @@ import { ProgressPanelProps, ProgressPanelState } from "./interface";
 import _ from "underscore";
 import { configStore, readingProgressStore } from "../../../core/ports/stores";
 import { scrollContents } from "../../../utils/common";
-import { toggleReadingPanel } from "../../../utils/reader/mouseEvent";
+import {
+  toggleReadingPanel,
+  toggleDoodleDrawer,
+} from "../../../utils/reader/mouseEvent";
+import { isMobileRuntime } from "../../../utils/mobileRuntime";
+
 class ProgressPanel extends React.Component<
   ProgressPanelProps,
   ProgressPanelState
@@ -19,8 +24,19 @@ class ProgressPanel extends React.Component<
       targetPage: 0,
       currentPercentage: 0,
       isEntered: false,
+      showProgressCard: true,
+      showQuickTheme: false,
     };
   }
+
+  handleApplyThemeColor = (bg: string, text: string) => {
+    configStore.setReaderConfig("backgroundColor", bg);
+    configStore.setReaderConfig("textColor", text);
+    if (this.props.renderBookFunc) {
+      this.props.renderBookFunc(this.props.currentBook?.key || "");
+    }
+    this.forceUpdate();
+  };
   async UNSAFE_componentWillReceiveProps(nextProps: ProgressPanelProps) {
     if (nextProps.htmlBook !== this.props.htmlBook && nextProps.htmlBook) {
       await this.handlePageNum(nextProps.htmlBook.rendition);
@@ -162,6 +178,185 @@ class ProgressPanel extends React.Component<
       this.props.currentBook.format.startsWith("CB")
         ? configStore.getReaderConfig("pdfReaderMode") || "scroll"
         : configStore.getReaderConfig("readerMode") || "double";
+    const isMobile = isMobileRuntime() || document.body.clientWidth < 570;
+
+    if (isMobile) {
+      const PRESET_THEMES = [
+        {
+          name: "纯白",
+          bg: "rgba(255,255,255,1)",
+          text: "rgba(0,0,0,1)",
+          border: "rgba(220,220,220,0.8)",
+        },
+        {
+          name: "羊皮纸",
+          bg: "rgba(233, 216, 188,1)",
+          text: "rgba(89, 68, 41,1)",
+          border: "rgba(213,195,163,0.8)",
+        },
+        {
+          name: "护眼绿",
+          bg: "rgba(197, 231, 207,1)",
+          text: "rgba(54, 80, 62,1)",
+          border: "rgba(178,216,190,0.8)",
+        },
+        {
+          name: "夜间",
+          bg: "rgba(44,47,49,1)",
+          text: "rgba(255,255,255,1)",
+          border: "rgba(70,70,70,0.8)",
+        },
+      ];
+
+      return (
+        <div className="progress-panel mobile-progress-panel">
+          {/* 快速背景主题选择面板（方块微倒角卡片，宁框勿线） */}
+          {this.state.showQuickTheme && (
+            <div className="mobile-quick-theme-panel">
+              {PRESET_THEMES.map((theme) => {
+                const isCurrent =
+                  configStore.getReaderConfig("backgroundColor") === theme.bg;
+                return (
+                  <button
+                    key={theme.name}
+                    type="button"
+                    className={`mobile-theme-swatch ${
+                      isCurrent ? "mobile-theme-swatch-active" : ""
+                    }`}
+                    style={{
+                      backgroundColor: theme.bg,
+                      borderColor: theme.border,
+                    }}
+                    onClick={() =>
+                      this.handleApplyThemeColor(theme.bg, theme.text)
+                    }
+                    title={theme.name}
+                  >
+                    <span
+                      className="mobile-theme-swatch-text"
+                      style={{ color: theme.text }}
+                    >
+                      {theme.name}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* 微信读书同款极简进度卡片 */}
+          {this.state.showProgressCard && (
+            <div className="mobile-progress-card">
+              <div className="mobile-progress-header">
+                <span className="mobile-progress-chapter">
+                  {this.props.currentChapter ||
+                    this.props.currentBook?.name ||
+                    "正文"}
+                </span>
+                <span className="mobile-progress-percent">
+                  {this.state.currentPercentage}%
+                </span>
+              </div>
+              <div className="mobile-progress-slider-row">
+                <button
+                  type="button"
+                  className="mobile-progress-step-btn"
+                  title="上一章"
+                  onClick={() => this.jumpChapterByStep(-1)}
+                >
+                  <span className="icon-dropdown previous-chapter-icon" />
+                </button>
+                <input
+                  className="input-progress"
+                  value={this.state.currentPercentage}
+                  type="range"
+                  max="100"
+                  min="0"
+                  step="1"
+                  onMouseUp={(event) => this.onProgressChange(event)}
+                  onTouchEnd={(event) => this.onProgressChange(event)}
+                  onChange={(event) => {
+                    this.setState({
+                      currentPercentage: parseInt(event.target.value),
+                    });
+                  }}
+                />
+                <button
+                  type="button"
+                  className="mobile-progress-step-btn"
+                  title="下一章"
+                  onClick={() => this.jumpChapterByStep(1)}
+                >
+                  <span className="icon-dropdown next-chapter-icon" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* 微信读书截图同款底部 5 大核心入口 */}
+          <div className="mobile-bottom-tabs">
+            <button
+              type="button"
+              className="mobile-bottom-tab"
+              onClick={() => toggleReadingPanel("left")}
+              title="目录"
+            >
+              <span className="icon-grid mobile-tab-icon" />
+              <span className="mobile-tab-text">目录</span>
+            </button>
+            <button
+              type="button"
+              className="mobile-bottom-tab"
+              onClick={() => toggleDoodleDrawer()}
+              title="随心笔记"
+            >
+              <span className="icon-edit mobile-tab-icon" />
+              <span className="mobile-tab-text">笔记</span>
+            </button>
+            <button
+              type="button"
+              className={`mobile-bottom-tab ${
+                this.state.showProgressCard ? "mobile-bottom-tab-active" : ""
+              }`}
+              onClick={() =>
+                this.setState({
+                  showProgressCard: !this.state.showProgressCard,
+                })
+              }
+              title="进度调节"
+            >
+              <span className="mobile-tab-icon icon-slider-round">⊙</span>
+              <span className="mobile-tab-text">进度</span>
+            </button>
+            <button
+              type="button"
+              className={`mobile-bottom-tab ${
+                this.state.showQuickTheme ? "mobile-bottom-tab-active" : ""
+              }`}
+              onClick={() =>
+                this.setState({
+                  showQuickTheme: !this.state.showQuickTheme,
+                })
+              }
+              title="亮度与背景"
+            >
+              <span className="mobile-tab-icon icon-sun">☼</span>
+              <span className="mobile-tab-text">背景</span>
+            </button>
+            <button
+              type="button"
+              className="mobile-bottom-tab"
+              onClick={() => toggleReadingPanel("right")}
+              title="排版与字体"
+            >
+              <span className="mobile-tab-icon icon-font">Aa</span>
+              <span className="mobile-tab-text">排版</span>
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="progress-panel">
         <div className="progress-row progress-row-info">

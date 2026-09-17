@@ -352,3 +352,215 @@
     height: 24px;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────
+   移动端微信读书同款工具条（宁框勿线，宁方勿圆）
+   ───────────────────────────────────────────────────────────── */
+.mobile-progress-panel {
+  width: 100% !important;
+  border-radius: 8px 8px 0 0 !important;
+  padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px)) !important;
+  background: var(--coread-shell-bg, #ffffff);
+  color: var(--coread-shell-fg, rgba(40, 40, 40, 0.92));
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* 进度卡片（微阴影卡片框，无分割线） */
+.mobile-progress-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--coread-shell-hover, rgba(0, 0, 0, 0.04));
+  border-radius: 6px;
+  animation: mobile-fade-in 0.18s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+.mobile-progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 500;
+  opacity: 0.85;
+}
+
+.mobile-progress-chapter {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 75%;
+}
+
+.mobile-progress-percent {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.mobile-progress-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mobile-progress-step-btn {
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.mobile-progress-step-btn:active {
+  background: rgba(128, 128, 128, 0.16);
+  transform: scale(0.94);
+}
+
+/* 快速主题选择面板（方块微倒角色卡，宁框勿线，宁方勿圆） */
+.mobile-quick-theme-panel {
+  display: flex;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--coread-shell-hover, rgba(0, 0, 0, 0.04));
+  border-radius: 6px;
+  animation: mobile-fade-in 0.18s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+.mobile-theme-swatch {
+  flex: 1;
+  height: 36px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  padding: 0;
+}
+
+.mobile-theme-swatch:active {
+  transform: scale(0.95);
+}
+
+.mobile-theme-swatch-active {
+  box-shadow: 0 0 0 2px var(--main-color, #4b89ff), 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.mobile-theme-swatch-text {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* 底部 5 大核心入口 */
+.mobile-bottom-tabs {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  width: 100%;
+  gap: 4px;
+}
+
+.mobile-bottom-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 2px;
+  border: none;
+  background: transparent;
+  color: var(--coread-shell-fg, rgba(60, 60, 67, 0.85));
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+  -webkit-tap-highlight-color: transparent;
+  gap: 4px;
+}
+
+.mobile-bottom-tab:active {
+  background: var(--coread-shell-hover, rgba(128, 128, 128, 0.15));
+  transform: scale(0.95);
+}
+
+.mobile-bottom-tab-active {
+  color: var(--main-color, #4b89ff);
+  background: var(--coread-shell-hover, rgba(128, 128, 128, 0.1));
+}
+
+.mobile-tab-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.icon-slider-round {
+  font-size: 19px;
+  line-height: 1;
+}
+
+.icon-sun {
+  font-size: 19px;
+  line-height: 1;
+}
+
+.icon-font {
+  font-family: serif, sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.5px;
+}
+
+.mobile-tab-text {
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+/* 移动端方正微倒角滑块手柄（宁方勿圆） */
+.mobile-progress-panel .input-progress::-webkit-slider-thumb {
+  width: 14px;
+  height: 22px;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  background: #ffffff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  position: relative;
+  bottom: 10px;
+}
+
+.mobile-progress-panel .input-progress::-moz-range-thumb {
+  width: 14px;
+  height: 22px;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  background: #ffffff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  position: relative;
+  bottom: 10px;
+}
+
+@keyframes mobile-fade-in {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

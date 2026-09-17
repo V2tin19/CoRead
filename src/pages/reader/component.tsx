@@ -14,6 +14,8 @@ import DatabaseService from "../../utils/storage/databaseService";
 import ConvertDialog from "../../components/dialogs/convertDialog";
 import PdfCropDialog from "../../components/dialogs/pdfCropDialog";
 import { isElectron } from "react-device-detect";
+import { handleExitFullScreen } from "../../utils/common";
+import TTSUtil from "../../utils/reader/ttsUtil";
 import SettingDialog from "../../components/dialogs/settingDialog";
 import SpeechDialog from "../../components/dialogs/speechDialog";
 import PopupOptionDialog from "../../components/dialogs/popupOptionDialog";
@@ -21,7 +23,11 @@ import {
   updateDiscordPresence,
   clearDiscordPresence,
 } from "../../utils/reader/discordRPC";
-import { READING_PANEL_TOGGLE_EVENT } from "../../utils/reader/mouseEvent";
+import {
+  READING_PANEL_TOGGLE_EVENT,
+  toggleNavTab,
+  TOGGLE_DOODLE_DRAWER_EVENT,
+} from "../../utils/reader/mouseEvent";
 import CollabPanel from "../../containers/collabPanel";
 import DoodleLayer from "../../components/doodleLayer";
 import collabClient, {
@@ -189,12 +195,45 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
       READING_PANEL_TOGGLE_EVENT,
       this.handleReadingPanelToggle
     );
+    window.addEventListener(
+      TOGGLE_DOODLE_DRAWER_EVENT,
+      this.handleToggleDoodleDrawer
+    );
     // 共读入房联动:滑动阅读下「页」不稳定,笔迹无法跟随、跨设备同步也会丢页,
     // 所以共读模式不提供滑动阅读。入房时正在滑动阅读就自动切到单页。
     this.collabUnsubs = [
       collabClient.on("room-joined", this.handleCollabModeLock),
     ];
   }
+
+  handleToggleDoodleDrawer = () => {
+    if (!this.state.isDoodleOpen) {
+      this.setState({
+        isDoodleOpen: true,
+        isDoodleDrawerOpen: true,
+      });
+    } else {
+      this.setState((prev) => ({
+        isDoodleDrawerOpen: !prev.isDoodleDrawerOpen,
+      }));
+    }
+  };
+
+  handleAIAssistant = async () => {
+    if (!this.props.htmlBook?.rendition) return;
+    this.props.handleMenuMode("assistant");
+    try {
+      const text = await this.props.htmlBook.rendition.chapterText();
+      this.props.handleOriginalText(text || "");
+    } catch {
+      this.props.handleOriginalText("");
+    }
+    this.props.handleOpenMenu(true);
+  };
+
+  handleToggleSpeech = () => {
+    this.props.handleSpeechDialog(!this.props.isSpeechOpen);
+  };
 
   handleCollabModeLock = () => {
     const book = this.props.currentBook;
@@ -263,6 +302,10 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
     window.removeEventListener(
       READING_PANEL_TOGGLE_EVENT,
       this.handleReadingPanelToggle
+    );
+    window.removeEventListener(
+      TOGGLE_DOODLE_DRAWER_EVENT,
+      this.handleToggleDoodleDrawer
     );
     this.collabUnsubs.forEach((unsubscribe) => unsubscribe());
     this.collabUnsubs = [];
@@ -371,22 +414,55 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
       isOpenBottomPanel: false,
     });
   };
-  handleExitReading = () => {
+  handleExitReading = (e?: any) => {
+    if (e && e.stopPropagation) {
+      e.stopPropagation();
+    }
     configStore.setReaderConfig("isFullscreen", "no");
-    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    if (window.speechSynthesis) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch (err) {}
+    }
+    try {
+      TTSUtil.pauseAudio();
+    } catch (err) {}
+    try {
+      handleExitFullScreen();
+    } catch (err) {}
+
     if (isElectron) {
       if (configStore.getReaderConfig("isOpenInMain") === "yes") {
         (window as any).require("electron").ipcRenderer.invoke("exit-tab", "ping");
       } else {
         window.close();
       }
-    } else {
-      configStore.setReaderConfig("isFinishWebReading", "yes");
-      if (window.opener) {
-        window.close();
-      } else {
-        window.location.hash = "#/manager/home";
+      return;
+    }
+
+    configStore.setReaderConfig("isFinishWebReading", "yes");
+
+    // 移动端（Capacitor 壳或手机触屏）：必须直接切换 hash 回到书架，
+    // 在 Android WebView 中调用 window.close() 会被系统忽略导致页面卡死在阅读器
+    const isMobile = isMobileRuntime() || document.body.clientWidth < 570;
+    if (isMobile) {
+      if (this.props.history?.push) {
+        this.props.history.push("/manager/home");
       }
+      window.location.hash = "#/manager/home";
+      return;
+    }
+
+    // 桌面 Web 浏览器：优先尝试关闭标签页，若关不掉则自动回退到书架
+    if (window.opener) {
+      window.close();
+      setTimeout(() => {
+        if (!window.closed) {
+          window.location.hash = "#/manager/home";
+        }
+      }, 150);
+    } else {
+      window.location.hash = "#/manager/home";
     }
   };
   // 当前书是否处于「滑动阅读」模式(随手笔记的滚轮转发要用)
@@ -510,57 +586,93 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
               type="button"
               className="mobile-reader-back-btn"
               onClick={this.handleExitReading}
+              onTouchEnd={(e) => {
+                e.preventDefault();
+                this.handleExitReading(e);
+              }}
               title="返回书架"
             >
               <span className="icon-arrow-left" style={{ fontSize: "20px" }} />
             </button>
-            <div className="mobile-reader-book-title">
-              {this.props.currentBook?.name || ""}
-            </div>
-            {/* 随心笔记：移动端它不再是一条常驻在页面顶部的工具条
-                （会一直压着正文），而是和「目录」一样收进左侧抽屉，
-                由这里随时唤出 / 隐藏。滑动阅读下没有意义，直接不显示。 */}
-            {!this.isScrollReaderMode() && (
+            <div className="mobile-reader-top-spacer" />
+            <div className="mobile-reader-top-actions">
+              {/* 笔记与想法（对应微信读书截图第一个图标） */}
+              <button
+                type="button"
+                className="mobile-reader-top-action"
+                onClick={() => {
+                  toggleNavTab("notes");
+                  this.handleEnterReader("left");
+                }}
+                title="想法与笔记"
+              >
+                <span className="icon-note" style={{ fontSize: "18px" }} />
+              </button>
+              {/* 在线共读（对应截图分享位置，遵照指示改为在线共读面板） */}
               <button
                 type="button"
                 className={
                   "mobile-reader-top-action" +
-                  (this.state.isDoodleOpen && this.state.isDoodleDrawerOpen
+                  (this.state.isCollabOpen
                     ? " mobile-reader-top-action-active"
                     : "")
                 }
                 onClick={() => {
-                  if (!this.state.isDoodleOpen) {
-                    // 第一次点：开笔记模式 + 直接把抽屉推出来，让用户立刻看到控件
-                    this.setState({
-                      isDoodleOpen: true,
-                      isDoodleDrawerOpen: true,
-                    });
-                    return;
-                  }
-                  // 已经在笔记模式里：这一下只负责抽屉的唤出 / 隐藏，
-                  // 笔迹和画布都不动 —— 收起抽屉后仍能继续写。
-                  this.setState({
-                    isDoodleDrawerOpen: !this.state.isDoodleDrawerOpen,
-                  });
+                  this.setState({ isCollabOpen: !this.state.isCollabOpen });
                 }}
-                title="随心笔记"
+                title="在线共读"
               >
-                <span
-                  className={`icon-${
-                    this.state.isDoodleDrawerOpen ? "close" : "edit"
-                  }`}
-                  style={{ fontSize: "18px" }}
-                />
+                <span className="icon-cloud" style={{ fontSize: "18px" }} />
               </button>
-            )}
+              {/* 更多菜单（对应微信读书截图右侧三个竖点） */}
+              <button
+                type="button"
+                className={
+                  "mobile-reader-top-action" +
+                  (this.state.isOpenRightPanel
+                    ? " mobile-reader-top-action-active"
+                    : "")
+                }
+                onClick={() => {
+                  if (this.state.isOpenRightPanel) {
+                    this.setState({ isOpenRightPanel: false });
+                  } else {
+                    this.handleEnterReader("right");
+                  }
+                }}
+                title="阅读选项与更多设置"
+              >
+                <span className="icon-more" style={{ fontSize: "18px" }} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* 微信读书同款单手拇指快捷悬浮按钮：Ai 问书 + 听书 */}
+        {isMobile && !this.state.isOpenLeftPanel && !this.state.isOpenRightPanel && (
+          <div
+            className={`mobile-floating-actions ${
+              this.state.isOpenBottomPanel ? "mobile-floating-actions-docked" : ""
+            }`}
+          >
             <button
               type="button"
-              className="mobile-reader-top-action"
-              onClick={() => this.handleEnterReader("left")}
-              title="目录"
+              className="mobile-fab-btn mobile-fab-ai"
+              onClick={this.handleAIAssistant}
+              title="向 AI 提问本章"
             >
-              <span className="icon-grid" style={{ fontSize: "18px" }} />
+              <span className="mobile-fab-text">Ai</span>
+              <span className="mobile-fab-sparkle">✦</span>
+            </button>
+            <button
+              type="button"
+              className={`mobile-fab-btn mobile-fab-tts ${
+                this.props.isSpeechOpen ? "mobile-fab-active" : ""
+              }`}
+              onClick={this.handleToggleSpeech}
+              title={this.props.isSpeechOpen ? "停止听书" : "听书"}
+            >
+              <span className="mobile-fab-text">听</span>
             </button>
           </div>
         )}
@@ -862,82 +974,86 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
           }}
         />
 
-        <div
-          className="left-panel"
-          onMouseEnter={() => this.handleEdgeMouseEnter("left")}
-          onMouseLeave={() => this.handleEdgeMouseLeave("left")}
-          style={this.state.hoverPanel === "left" ? { opacity: 0.5 } : {}}
-          onClick={() => {
-            this.handleEnterReader("left");
-          }}
-        >
-          <span className="icon-grid panel-icon"></span>
-        </div>
-        <div
-          className="right-panel"
-          onMouseEnter={() => this.handleEdgeMouseEnter("right")}
-          onMouseLeave={() => this.handleEdgeMouseLeave("right")}
-          style={this.state.hoverPanel === "right" ? { opacity: 0.5 } : {}}
-          onClick={() => {
-            this.handleEnterReader("right");
-          }}
-        >
-          <span className="icon-grid panel-icon"></span>
-        </div>
-        <div
-          className="top-panel"
-          onMouseEnter={() => this.handleEdgeMouseEnter("top")}
-          style={
-            this.state.hoverPanel === "top"
-              ? {
-                  opacity: 0.5,
-                  marginLeft:
-                    this.props.isNavLocked && !this.props.isSettingLocked
-                      ? 150
-                      : 0,
-                }
-              : {
-                  marginLeft:
-                    this.props.isNavLocked && !this.props.isSettingLocked
-                      ? 150
-                      : 0,
-                }
-          }
-          onMouseLeave={() => this.handleEdgeMouseLeave("top")}
-          onClick={() => {
-            // 顶部操作面板已迁进左侧目录面板,顶部触发条改为打开左侧面板,
-            // 用户从顶部划下来依然能找到退出/书签/全屏。
-            this.handleEnterReader("left");
-          }}
-        >
-          <span className="icon-grid panel-icon"></span>
-        </div>
-        <div
-          className="bottom-panel"
-          onMouseEnter={() => this.handleEdgeMouseEnter("bottom")}
-          onMouseLeave={() => this.handleEdgeMouseLeave("bottom")}
-          onClick={() => {
-            this.handleEnterReader("bottom");
-          }}
-          style={
-            this.state.hoverPanel === "bottom"
-              ? {
-                  opacity: 0.5,
-                  marginLeft:
-                    this.props.isNavLocked && !this.props.isSettingLocked
-                      ? 150
-                      : 0,
-                }
-              : {
-                  marginLeft:
-                    this.props.isNavLocked && !this.props.isSettingLocked
-                      ? 150
-                      : 0,
-                }
-          }
-        >
-          <span className="icon-grid panel-icon"></span>
-        </div>
+        {!isMobile && (
+          <>
+            <div
+              className="left-panel"
+              onMouseEnter={() => this.handleEdgeMouseEnter("left")}
+              onMouseLeave={() => this.handleEdgeMouseLeave("left")}
+              style={this.state.hoverPanel === "left" ? { opacity: 0.5 } : {}}
+              onClick={() => {
+                this.handleEnterReader("left");
+              }}
+            >
+              <span className="icon-grid panel-icon"></span>
+            </div>
+            <div
+              className="right-panel"
+              onMouseEnter={() => this.handleEdgeMouseEnter("right")}
+              onMouseLeave={() => this.handleEdgeMouseLeave("right")}
+              style={this.state.hoverPanel === "right" ? { opacity: 0.5 } : {}}
+              onClick={() => {
+                this.handleEnterReader("right");
+              }}
+            >
+              <span className="icon-grid panel-icon"></span>
+            </div>
+            <div
+              className="top-panel"
+              onMouseEnter={() => this.handleEdgeMouseEnter("top")}
+              style={
+                this.state.hoverPanel === "top"
+                  ? {
+                      opacity: 0.5,
+                      marginLeft:
+                        this.props.isNavLocked && !this.props.isSettingLocked
+                          ? 150
+                          : 0,
+                    }
+                  : {
+                      marginLeft:
+                        this.props.isNavLocked && !this.props.isSettingLocked
+                          ? 150
+                          : 0,
+                    }
+              }
+              onMouseLeave={() => this.handleEdgeMouseLeave("top")}
+              onClick={() => {
+                // 顶部操作面板已迁进左侧目录面板,顶部触发条改为打开左侧面板,
+                // 用户从顶部划下来依然能找到退出/书签/全屏。
+                this.handleEnterReader("left");
+              }}
+            >
+              <span className="icon-grid panel-icon"></span>
+            </div>
+            <div
+              className="bottom-panel"
+              onMouseEnter={() => this.handleEdgeMouseEnter("bottom")}
+              onMouseLeave={() => this.handleEdgeMouseLeave("bottom")}
+              onClick={() => {
+                this.handleEnterReader("bottom");
+              }}
+              style={
+                this.state.hoverPanel === "bottom"
+                  ? {
+                      opacity: 0.5,
+                      marginLeft:
+                        this.props.isNavLocked && !this.props.isSettingLocked
+                          ? 150
+                          : 0,
+                    }
+                  : {
+                      marginLeft:
+                        this.props.isNavLocked && !this.props.isSettingLocked
+                          ? 150
+                          : 0,
+                    }
+              }
+            >
+              <span className="icon-grid panel-icon"></span>
+            </div>
+          </>
+        )}
 
         <div
           className="setting-panel-container"
@@ -949,9 +1065,12 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
           }}
           style={
             this.state.isOpenRightPanel
-              ? {}
+              ? {
+                  pointerEvents: "auto",
+                }
               : {
-                  transform: "translateX(309px)",
+                  transform: isMobile ? "translateX(105%)" : "translateX(309px)",
+                  pointerEvents: "none",
                 }
           }
         >
@@ -973,9 +1092,12 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
           }}
           style={
             this.state.isOpenLeftPanel
-              ? {}
+              ? {
+                  pointerEvents: "auto",
+                }
               : {
-                  transform: "translateX(-309px)",
+                  transform: isMobile ? "translateX(-105%)" : "translateX(-309px)",
+                  pointerEvents: "none",
                 }
           }
         >

@@ -12,6 +12,7 @@ import { isElectron } from "react-device-detect";
 import { handleExitFullScreen, handleFullScreen } from "../../../utils/common";
 import DatabaseService from "../../../utils/storage/databaseService";
 import BookLocation from "../../../models/BookLocation";
+import { isMobileRuntime } from "../../../utils/mobileRuntime";
 declare var window: any;
 class OperationPanel extends React.Component<
   OperationPanelProps,
@@ -97,7 +98,26 @@ class OperationPanel extends React.Component<
       }
     } else {
       configStore.setReaderConfig("isFinishWebReading", "yes");
-      window.close();
+      const isMobile =
+        isMobileRuntime() ||
+        (typeof document !== "undefined" && document.body.clientWidth < 570);
+      if (isMobile) {
+        if ((this.props as any).history?.push) {
+          (this.props as any).history.push("/manager/home");
+        }
+        window.location.hash = "#/manager/home";
+        return;
+      }
+      if (window.opener) {
+        window.close();
+        setTimeout(() => {
+          if (!window.closed) {
+            window.location.hash = "#/manager/home";
+          }
+        }, 150);
+      } else {
+        window.location.hash = "#/manager/home";
+      }
     }
   }
   handleAddBookmark = async () => {

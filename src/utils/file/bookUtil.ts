@@ -18,6 +18,7 @@ import Book from "../../models/Book";
 import i18n from "../../i18n";
 import CoverUtil from "./coverUtil";
 import { LocalFileManager } from "./localFile";
+import { isMobileRuntime } from "../mobileRuntime";
 declare var window: any;
 
 class BookUtil {
@@ -239,11 +240,17 @@ class BookUtil {
         });
       }
     } else {
-      window.open(
-        `${window.location.href.split("#")[0]}#/${ref}/${book.key}?title=${
-          book.name
-        }&file=${book.key}`
-      );
+      const targetHash = `#/${ref}/${book.key}?title=${book.name}&file=${book.key}`;
+      const isMobile =
+        isMobileRuntime() ||
+        (typeof document !== "undefined" && document.body.clientWidth < 570);
+      if (isMobile) {
+        window.location.hash = targetHash;
+      } else {
+        window.open(
+          `${window.location.href.split("#")[0]}${targetHash}`
+        );
+      }
     }
   }
   static getBookUrl(book: BookModel) {

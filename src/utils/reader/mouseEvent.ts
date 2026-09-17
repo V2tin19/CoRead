@@ -12,12 +12,14 @@ import {
   matchShortcut,
   ShortcutAction,
 } from "./shortcutUtil";
+import { withPageTurnAnimation } from "./pageTurnAnimation";
 declare var window: any;
 
-let throttleTime =
-  (ConfigService.getReaderConfig("animation") || "none") !== "none"
-    ? 1000
-    : 100;
+let throttleTime = isMobileRuntime()
+  ? 220
+  : (ConfigService.getReaderConfig("animation") || "none") !== "none"
+  ? 240
+  : 100;
 
 export const getSelection = (format: string, bookKey?: string) => {
   let docs = getIframeDoc(format, bookKey);
@@ -178,6 +180,13 @@ export const toggleNavTab = (tab: string) => {
   );
 };
 
+export const TOGGLE_DOODLE_DRAWER_EVENT = "coread-toggle-doodle-drawer";
+export const toggleDoodleDrawer = () => {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(TOGGLE_DOODLE_DRAWER_EVENT));
+  }
+};
+
 const NAV_TAB_SHORTCUTS: Array<{
   shortcut: ShortcutAction;
   tab: string;
@@ -203,20 +212,28 @@ const arrowKeys = async (
   }
   if (isPrevPageKey(event, readerMode)) {
     event.preventDefault();
-    await rendition.prev();
+    if (readerMode === "scroll") {
+      await rendition.prev();
+    } else {
+      await withPageTurnAnimation("prev", () => rendition.prev());
+    }
   } else if (isNextPageKey(event, readerMode)) {
     event.preventDefault();
-    await rendition.next();
+    if (readerMode === "scroll") {
+      await rendition.next();
+    } else {
+      await withPageTurnAnimation("next", () => rendition.next());
+    }
   }
   handleShortcut(event, format, bookKey, rendition);
 };
 
 const mouseChrome = async (rendition: any, deltaY: number) => {
   if (deltaY < 0) {
-    await rendition.prev();
+    await withPageTurnAnimation("prev", () => rendition.prev());
   }
   if (deltaY > 0) {
-    await rendition.next();
+    await withPageTurnAnimation("next", () => rendition.next());
   }
 };
 
@@ -313,10 +330,10 @@ const handleShortcut = (
 
 const gesture = async (rendition: any, type: string) => {
   if (type === "panleft" || type === "swipeleft" || type === "panup") {
-    await rendition.next();
+    await withPageTurnAnimation("next", () => rendition.next());
   }
   if (type === "panright" || type === "swiperight" || type === "pandown") {
-    await rendition.prev();
+    await withPageTurnAnimation("prev", () => rendition.prev());
   }
 };
 
@@ -547,9 +564,9 @@ export const bindHtmlEvent = (
         if (now - lastTapFlipAt < throttleTime) return;
         lastTapFlipAt = now;
         if (x < viewWidth * 0.35) {
-          await rendition.prev();
+          await withPageTurnAnimation("prev", () => rendition.prev());
         } else {
-          await rendition.next();
+          await withPageTurnAnimation("next", () => rendition.next());
         }
         handleLocation(key, rendition);
       } catch (e) {

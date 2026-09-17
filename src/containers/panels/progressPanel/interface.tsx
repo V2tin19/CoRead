@@ -26,4 +26,6 @@ export interface ProgressPanelState {
   targetPage: number | string;
   isEntered: boolean;
   currentPercentage: number;
+  showProgressCard: boolean;
+  showQuickTheme: boolean;
 }

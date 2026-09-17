@@ -1,6 +1,7 @@
 import BookModel from "../../models/Book";
 import HtmlBookModel from "../../models/HtmlBook";
 export interface ReaderProps {
+  history?: any;
   currentBook: BookModel;
   percentage: number;
   t: (title: string) => string;

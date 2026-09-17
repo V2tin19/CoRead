@@ -466,7 +466,7 @@
     max-width: 320px !important;
     height: 100dvh !important;
     height: 100vh;
-    z-index: 30 !important;
+    z-index: 40 !important;
   }
 
   .setting-panel-container {
@@ -474,7 +474,7 @@
     max-width: 320px !important;
     height: 100dvh !important;
     height: 100vh;
-    z-index: 30 !important;
+    z-index: 40 !important;
   }
 
   /* 移动端正文区域上下撑满 */
@@ -500,15 +500,27 @@
 
 /* 上面那条挂在「窄屏」媒体查询上，覆盖不到「安卓壳 / 触屏平板」这类
    视口够宽但仍是移动形态的情况（阅读器给根节点挂了 .mobile-reader-mode）。
-   这里用这个类兜住，保证只要阅读器认定自己在移动端，翻页圆钮就一定收起。 */
-.mobile-reader-mode .reader-page-nav-button {
+   这里用这个类兜住，保证只要阅读器认定自己在移动端，翻页圆钮与桌面 hover 条就一定收起。 */
+.mobile-reader-mode .reader-page-nav-button,
+.mobile-reader-mode .left-panel,
+.mobile-reader-mode .right-panel,
+.mobile-reader-mode .top-panel,
+.mobile-reader-mode .bottom-panel {
   display: none !important;
 }
 
-/* 移动端专属顶部滑出导航条。
-   配色全部走主题令牌（--coread-*，见 public/assets/styles/{default,dark}.css）：
-   之前写的是 var(--background-color, #ffffff)，而主应用里根本没有定义这个变量，
-   fallback 永远生效 → 夜间模式下这条还是白的（用户反馈的「阅读页顶栏夜间仍是浅色」）。 */
+.mobile-reader-mode .navigation-panel-container,
+.mobile-reader-mode .setting-panel-container {
+  width: 82vw !important;
+  max-width: 320px !important;
+  height: 100dvh !important;
+  height: 100vh;
+  z-index: 40 !important;
+}
+
+/* 移动端专属顶部滑出导航条（宁框勿线，宁方勿圆）
+   配色走主题令牌（--coread-*）：
+   移除 1px 细分割线，改用磨砂底色与微妙下落阴影；按键采用方正微倒角造型。 */
 .mobile-reader-top-bar {
   position: fixed;
   top: 0;
@@ -517,21 +529,18 @@
   width: 100%;
   height: calc(48px + env(safe-area-inset-top, 0px));
   padding-top: env(safe-area-inset-top, 0px);
-  padding-left: 8px;
-  padding-right: 8px;
+  padding-left: 10px;
+  padding-right: 10px;
   background: var(--coread-shell-bg, #ffffff);
-  border-bottom: 1px solid var(--coread-shell-border, rgba(128, 128, 128, 0.15));
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  /* 25：压在正文与底部进度面板之上，但在左右抽屉（30）与抽屉遮罩（28）之下 ——
-     抽屉展开时顶栏随遮罩一起变暗、点遮罩即可收起，是标准抽屉观感。 */
-  z-index: 25;
+  z-index: 35;
   box-sizing: border-box;
-  transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
 }
 
 .mobile-reader-back-btn,
@@ -547,32 +556,114 @@
   border: none;
   cursor: pointer;
   color: var(--coread-shell-fg, rgba(60, 60, 67, 0.85));
-  border-radius: 50%;
+  border-radius: 4px; /* 宁方勿圆：微倒角方块 */
   padding: 0;
   margin: 0;
+  touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.mobile-reader-back-btn *,
+.mobile-reader-top-action * {
+  pointer-events: none;
 }
 
 .mobile-reader-back-btn:active,
 .mobile-reader-top-action:active {
   background: var(--coread-shell-hover, rgba(128, 128, 128, 0.15));
+  transform: scale(0.95);
 }
 
-/* 随心笔记抽屉正开着时给入口一个中性高亮（不用品牌蓝） */
 .mobile-reader-top-action-active {
   background: var(--coread-shell-hover, rgba(128, 128, 128, 0.15));
+  color: var(--main-color, #4b89ff);
 }
 
-.mobile-reader-book-title {
+.mobile-reader-top-spacer {
   flex: 1;
-  text-align: center;
+}
+
+.mobile-reader-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 微信读书同款单手悬浮快捷按键（Ai 问书 + 听书）
+   方正微倒角卡片，深色毛玻璃，单手大拇指极佳触达位 */
+.mobile-floating-actions {
+  position: fixed;
+  right: 14px;
+  bottom: 34px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 20;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+  pointer-events: auto;
+}
+
+.mobile-floating-actions-docked {
+  transform: translateY(-96px);
+}
+
+.mobile-fab-btn {
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 6px; /* 宁方勿圆：微倒角方块卡片 */
+  background: rgba(38, 38, 40, 0.88);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 0;
+  transition: transform 0.12s ease, background 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-fab-btn:active {
+  transform: scale(0.92);
+  background: rgba(20, 20, 20, 0.95);
+}
+
+.mobile-fab-text {
   font-size: 15px;
   font-weight: 600;
-  padding: 0 8px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: var(--coread-shell-fg, rgba(40, 40, 40, 0.92));
+  letter-spacing: 0.5px;
+  line-height: 1;
+}
+
+.mobile-fab-sparkle {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  font-size: 9px;
+  color: #ffd21e;
+  line-height: 1;
+  animation: fab-sparkle-pulse 2s infinite ease-in-out;
+}
+
+.mobile-fab-active {
+  background: var(--main-color, #4b89ff);
+  box-shadow: 0 4px 16px rgba(75, 137, 255, 0.4);
+}
+
+@keyframes fab-sparkle-pulse {
+  0%, 100% {
+    opacity: 0.75;
+    transform: scale(0.9);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
 }
 
 /* 抽屉打开时的全屏暗色遮罩 */
@@ -586,7 +677,7 @@
   height: 100dvh;
   height: 100vh;
   background: rgba(0, 0, 0, 0.4);
-  z-index: 28;
+  z-index: 38;
   animation: fade-in 0.2s ease-out;
   backdrop-filter: blur(2px);
   -webkit-backdrop-filter: blur(2px);
