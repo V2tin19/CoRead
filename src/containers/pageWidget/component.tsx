@@ -2,15 +2,20 @@ import React from "react";
 import "./pageWidget.css";
 import { PageWidgetProps, PageWidgetState } from "./interface";
 import { ConfigService } from '../../services';
-import { Trans } from "react-i18next";
 class PageWidget extends React.Component<PageWidgetProps, PageWidgetState> {
   isFirst: Boolean;
   lastBatchTranslationTriggerAt: number;
   batchTranslationLock: Promise<any>;
+  private currentRendition: any = null;
+  private pageChangedHandler: any = null;
+  private renderedHandler: any = null;
+
   constructor(props: any) {
     super(props);
     this.state = {
       isSingle: this.props.readerMode !== "double",
+      currentPage: 0,
+      totalPage: 0,
       prevPage: 0,
       nextPage: 0,
       ignoreNextPageChange: false,
@@ -20,23 +25,58 @@ class PageWidget extends React.Component<PageWidgetProps, PageWidgetState> {
     this.batchTranslationLock = Promise.resolve();
   }
 
+  componentDidMount() {
+    if (this.props.htmlBook?.rendition) {
+      this.bindRenditionEvents(this.props.htmlBook.rendition);
+    }
+  }
+
+  componentWillUnmount() {
+    this.unbindRenditionEvents();
+  }
+
+  bindRenditionEvents = async (rendition: any) => {
+    if (!rendition) return;
+    this.unbindRenditionEvents();
+    this.currentRendition = rendition;
+    await this.handlePageNum(rendition);
+
+    this.pageChangedHandler = async () => {
+      await this.handlePageNum(rendition);
+      await this.handleBatchTranslation(rendition);
+      if (this.state.ignoreNextPageChange) {
+        this.setState({ ignoreNextPageChange: false });
+      } else {
+        this.props.handleJumpPosition(null);
+      }
+    };
+    this.renderedHandler = async () => {
+      await this.handlePageNum(rendition);
+      await this.handleBatchTranslation(rendition);
+      await this.handleWordDefinition(rendition);
+    };
+
+    rendition.on("page-changed", this.pageChangedHandler);
+    rendition.on("rendered", this.renderedHandler);
+  };
+
+  unbindRenditionEvents = () => {
+    if (this.currentRendition) {
+      if (this.pageChangedHandler) {
+        this.currentRendition.off?.("page-changed", this.pageChangedHandler);
+        this.pageChangedHandler = null;
+      }
+      if (this.renderedHandler) {
+        this.currentRendition.off?.("rendered", this.renderedHandler);
+        this.renderedHandler = null;
+      }
+      this.currentRendition = null;
+    }
+  };
+
   async UNSAFE_componentWillReceiveProps(nextProps: PageWidgetProps) {
     if (nextProps.htmlBook !== this.props.htmlBook && nextProps.htmlBook) {
-      await this.handlePageNum(nextProps.htmlBook.rendition);
-      nextProps.htmlBook.rendition.on("page-changed", async () => {
-        await this.handlePageNum(nextProps.htmlBook.rendition);
-        await this.handleBatchTranslation(nextProps.htmlBook.rendition);
-        if (this.state.ignoreNextPageChange) {
-          this.setState({ ignoreNextPageChange: false });
-        } else {
-          this.props.handleJumpPosition(null);
-        }
-      });
-      nextProps.htmlBook.rendition.on("rendered", async () => {
-        await this.handlePageNum(nextProps.htmlBook.rendition);
-        await this.handleBatchTranslation(nextProps.htmlBook.rendition);
-        await this.handleWordDefinition(nextProps.htmlBook.rendition);
-      });
+      this.bindRenditionEvents(nextProps.htmlBook.rendition);
     }
     if (nextProps.readerMode !== this.props.readerMode) {
       this.setState({ isSingle: nextProps.readerMode !== "double" });
@@ -54,32 +94,70 @@ class PageWidget extends React.Component<PageWidgetProps, PageWidgetState> {
   async handleWordDefinition(_rendition: any) {
     return Promise.resolve();
   }
-  async handlePageNum(rendition) {
-    let pageInfo = await rendition.getProgress();
-    if (!pageInfo) {
-      return;
+  async handlePageNum(rendition: any) {
+    if (!rendition) return;
+    try {
+      let pageInfo = await rendition.getProgress();
+      if (pageInfo && typeof pageInfo.currentPage === "number") {
+        let currentPage = pageInfo.currentPage || 1;
+        let totalPage = pageInfo.totalPage || 1;
+        if (currentPage < 1) currentPage = 1;
+        if (totalPage > 0 && currentPage > totalPage) currentPage = totalPage;
+        this.setState({
+          currentPage,
+          totalPage,
+          prevPage: currentPage,
+          nextPage: currentPage + 1,
+        });
+        return;
+      }
+      let position = rendition.getPosition?.();
+      if (position && position.percentage) {
+        const pct = Math.max(0, Math.min(1, parseFloat(position.percentage)));
+        const total = rendition.getChapter?.()?.length || 100;
+        const current = Math.max(1, Math.min(total, Math.round(pct * total)));
+        this.setState({
+          currentPage: current,
+          totalPage: total,
+          prevPage: current,
+          nextPage: current + 1,
+        });
+      }
+    } catch (e) {
+      // 容错处理
     }
-    if (
-      this.props.currentBook.format === "PDF" &&
-      !ConfigService.getAllListConfig("convertPDFBooks").includes(
-        this.props.currentBook.key
-      )
-    ) {
-      this.setState({
-        prevPage: pageInfo.currentPage,
-        nextPage: pageInfo.currentPage + 1,
-      });
-      return;
-    }
-    this.setState({
-      prevPage: this.state.isSingle
-        ? pageInfo.currentPage
-        : pageInfo.currentPage * 2 - 1,
-      nextPage: this.state.isSingle
-        ? pageInfo.currentPage
-        : pageInfo.currentPage * 2,
-    });
   }
+
+  getFooterTextColor = (): string => {
+    const bg =
+      this.props.backgroundColor ||
+      ConfigService.getReaderConfig("backgroundColor") ||
+      "rgba(255,255,255,1)";
+    const appSkin = ConfigService.getReaderConfig("appSkin");
+    const isOSNight = ConfigService.getReaderConfig("isOSNight") === "yes";
+
+    // 显式夜间模式判断
+    if (
+      bg === "rgba(44,47,49,1)" ||
+      appSkin === "night" ||
+      (appSkin === "system" && isOSNight)
+    ) {
+      return "rgba(255, 255, 255, 0.45)";
+    }
+
+    // 解析 RGB 值计算感知亮度（ITU-R BT.709）
+    const match = bg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+    if (match) {
+      const r = parseInt(match[1], 10);
+      const g = parseInt(match[2], 10);
+      const b = parseInt(match[3], 10);
+      const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+      if (luminance < 128) {
+        return "rgba(255, 255, 255, 0.45)";
+      }
+    }
+    return "rgba(0, 0, 0, 0.38)";
+  };
 
   render() {
     return (
@@ -106,41 +184,20 @@ class PageWidget extends React.Component<PageWidgetProps, PageWidgetState> {
             })`,
           }}
         >
-          {/* 页眉信息(章节名 / 书名 / 当前时间 / 阅读进度)按需求整体移除,
-              这里不再渲染 .header-container。相关样式与状态一并清理。 */}
+          {/* 底部右下角页码水印（当前页 / 总页数），浅色字随背景自适应 */}
           <div className="footer-container">
-            {!this.props.isHideFooter && this.state.prevPage > 0 && (
-              <p
-                className="background-page-left"
-                style={
-                  this.state.isSingle
-                    ? {
-                        left: `calc(50vw - 
-                      270px)`,
-                      }
-                    : {}
-                }
+            {!this.props.isHideFooter && (
+              <div
+                className="reader-footer-page-number"
+                style={{
+                  color: this.getFooterTextColor(),
+                }}
               >
-                <Trans i18nKey="Book page" count={this.state.prevPage}>
-                  Page
-                  {{
-                    count: this.state.prevPage,
-                  }}
-                </Trans>
-              </p>
+                {this.state.totalPage > 0
+                  ? `${this.state.currentPage || 1} / ${this.state.totalPage}`
+                  : `${this.state.currentPage || 1}`}
+              </div>
             )}
-            {!this.props.isHideFooter &&
-              this.state.nextPage > 0 &&
-              !this.state.isSingle && (
-                <p className="background-page-right">
-                  <Trans i18nKey="Book page" count={this.state.nextPage}>
-                    Page
-                    {{
-                      count: this.state.nextPage,
-                    }}
-                  </Trans>
-                </p>
-              )}
           </div>
           <>
             {this.props.isShowBookmark ? (

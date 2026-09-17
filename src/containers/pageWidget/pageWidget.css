@@ -1,38 +1,28 @@
-/* 页眉(章节名/书名/当前时间/阅读进度)已整体移除,
-   原 .header-chapter-name / .header-book-name / .header-container / .footer-time
-   规则一并删除,避免留死样式。 */
-.header-container,
+/* 页眉已整体移除。
+   页脚仅保留右下角浅色页码水印 (当前页 / 总页数)。 */
 .footer-container {
   width: 100%;
-  height: 25px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: 16px;
-}
-.footer-container {
+  height: 24px;
   position: absolute;
-  bottom: 14px;
+  bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  pointer-events: none;
+  box-sizing: border-box;
+  padding: 0 16px;
+  z-index: 5;
 }
 
-.background-page-left,
-.background-page-right {
-  width: 50%;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  overflow: hidden;
-  line-height: 30px;
-  text-align: center;
-  opacity: 0.3;
-  float: left;
-}
-.footer-time {
+.reader-footer-page-number {
+  font-size: 11.5px;
+  font-weight: 400;
   letter-spacing: 0.5px;
-  position: absolute;
-  top: 6px;
-  left: 20px;
-  font-size: 13px;
-  opacity: 0.5;
+  user-select: none;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  line-height: 1;
 }
 .bookmark {
   height: 40px;

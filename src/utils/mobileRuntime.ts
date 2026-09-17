@@ -143,3 +143,18 @@ export async function requestPersistentStorage(): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * 切换移动端系统状态栏可见性（阅读时沉浸隐藏，退出时恢复）。
+ */
+export function setMobileStatusBar(visible: boolean): void {
+  if (typeof window === "undefined") return;
+  try {
+    const androidBar = (window as any).AndroidStatusBar;
+    if (androidBar && typeof androidBar.setStatusBarVisible === "function") {
+      androidBar.setStatusBarVisible(visible);
+    }
+  } catch (err) {
+    // 忽略平台不支持情况
+  }
+}

@@ -18,6 +18,7 @@ export interface ProgressPanelProps {
   handleOriginalText: (originalText: string) => void;
   handleOpenMenu: (isOpen: boolean) => void;
   isSpeechOpen: boolean;
+  handleBackgroundColor?: (color: string) => void;
 }
 export interface ProgressPanelState {
   currentPage: number;

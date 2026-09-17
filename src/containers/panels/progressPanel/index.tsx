@@ -4,6 +4,7 @@ import { withTranslation } from "react-i18next";
 import {
   handleFetchPercentage,
   handleCurrentChapter,
+  handleBackgroundColor,
 } from "../../../store/actions";
 import ProgressPanel from "./component";
 const mapStateToProps = (state: stateType) => {
@@ -17,7 +18,11 @@ const mapStateToProps = (state: stateType) => {
     renderBookFunc: state.book.renderBookFunc,
   };
 };
-const actionCreator = { handleFetchPercentage, handleCurrentChapter };
+const actionCreator = {
+  handleFetchPercentage,
+  handleCurrentChapter,
+  handleBackgroundColor,
+};
 export default connect(
   mapStateToProps,
   actionCreator

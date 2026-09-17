@@ -371,6 +371,7 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
           isKeepPDFBackground: ConfigService.getReaderConfig(
             "isKeepPDFBackground"
           ),
+          isShowTotalPage: "yes",
         },
         Kookit
       );

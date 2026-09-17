@@ -33,7 +33,7 @@ import DoodleLayer from "../../components/doodleLayer";
 import collabClient, {
   getCollabBookKey,
 } from "../../utils/collab/collabClient";
-import { isMobileRuntime } from "../../utils/mobileRuntime";
+import { isMobileRuntime, setMobileStatusBar } from "../../utils/mobileRuntime";
 
 let lock = false; //prevent from clicking too fasts
 let throttleTime = 200;
@@ -149,6 +149,7 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
     };
   }
   componentDidMount() {
+    setMobileStatusBar(false);
     if (configStore.getReaderConfig("isMergeWord") === "yes") {
       document
         .querySelector("body")
@@ -299,6 +300,7 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
   }
 
   componentWillUnmount() {
+    setMobileStatusBar(true);
     window.removeEventListener(
       READING_PANEL_TOGGLE_EVENT,
       this.handleReadingPanelToggle
@@ -446,6 +448,7 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
     // 在 Android WebView 中调用 window.close() 会被系统忽略导致页面卡死在阅读器
     const isMobile = isMobileRuntime() || document.body.clientWidth < 570;
     if (isMobile) {
+      setMobileStatusBar(true);
       if (this.props.history?.push) {
         this.props.history.push("/manager/home");
       }

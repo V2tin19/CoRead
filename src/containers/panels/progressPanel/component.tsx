@@ -10,6 +10,7 @@ import {
   toggleDoodleDrawer,
 } from "../../../utils/reader/mouseEvent";
 import { isMobileRuntime } from "../../../utils/mobileRuntime";
+import StyleUtil from "../../../utils/reader/styleUtil";
 
 class ProgressPanel extends React.Component<
   ProgressPanelProps,
@@ -32,6 +33,17 @@ class ProgressPanel extends React.Component<
   handleApplyThemeColor = (bg: string, text: string) => {
     configStore.setReaderConfig("backgroundColor", bg);
     configStore.setReaderConfig("textColor", text);
+    configStore.setReaderConfig("isOverwriteBackground", "yes");
+    configStore.setReaderConfig("isOverwriteText", "yes");
+    if (bg === "rgba(44,47,49,1)") {
+      configStore.setReaderConfig("appSkin", "night");
+    } else {
+      configStore.setReaderConfig("appSkin", "light");
+    }
+    if (this.props.handleBackgroundColor) {
+      this.props.handleBackgroundColor(bg);
+    }
+    StyleUtil.addDefaultCss(this.props.currentBook?.key || "");
     if (this.props.renderBookFunc) {
       this.props.renderBookFunc(this.props.currentBook?.key || "");
     }
@@ -185,26 +197,26 @@ class ProgressPanel extends React.Component<
         {
           name: "纯白",
           bg: "rgba(255,255,255,1)",
-          text: "rgba(0,0,0,1)",
-          border: "rgba(220,220,220,0.8)",
+          text: "rgba(38,38,38,1)",
+          border: "rgba(215,215,215,0.9)",
         },
         {
-          name: "羊皮纸",
-          bg: "rgba(233, 216, 188,1)",
-          text: "rgba(89, 68, 41,1)",
-          border: "rgba(213,195,163,0.8)",
+          name: "羊皮",
+          bg: "rgba(246,241,231,1)",
+          text: "rgba(48,43,36,1)",
+          border: "rgba(224,214,198,0.9)",
         },
         {
-          name: "护眼绿",
-          bg: "rgba(197, 231, 207,1)",
-          text: "rgba(54, 80, 62,1)",
-          border: "rgba(178,216,190,0.8)",
+          name: "护眼",
+          bg: "rgba(226,237,227,1)",
+          text: "rgba(34,48,38,1)",
+          border: "rgba(195,216,198,0.9)",
         },
         {
           name: "夜间",
           bg: "rgba(44,47,49,1)",
-          text: "rgba(255,255,255,1)",
-          border: "rgba(70,70,70,0.8)",
+          text: "rgba(175,178,180,1)",
+          border: "rgba(70,75,78,0.9)",
         },
       ];
 

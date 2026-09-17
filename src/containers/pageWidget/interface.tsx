@@ -22,7 +22,9 @@ export interface PageWidgetProps {
 }
 export interface PageWidgetState {
   isSingle: boolean;
-  prevPage: number;
-  nextPage: number;
+  currentPage: number;
+  totalPage: number;
+  prevPage?: number;
+  nextPage?: number;
   ignoreNextPageChange: boolean;
 }
