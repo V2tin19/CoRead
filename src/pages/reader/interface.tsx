@@ -52,6 +52,8 @@ export interface ReaderState {
   isShowScale: boolean;
   isCollabOpen: boolean;
   isDoodleOpen: boolean;
+  /** 随心笔记在手机端的左抽屉是否展开（桌面端不使用，桌面固定常显工具条） */
+  isDoodleDrawerOpen: boolean;
   /** 右上角页眉(#reader-top-dock)实测宽度：涂鸦工具条要按它让开位置 */
   dockWidth: number;
   totalDuration: number;

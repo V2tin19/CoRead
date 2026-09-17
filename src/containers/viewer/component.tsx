@@ -37,7 +37,10 @@ import {
   sanitizeRemoteNote,
   sanitizeRemoteNoteKey,
 } from "../../utils/collab/remoteNote";
-import { isMobileConfigValue } from "../../utils/mobileRuntime";
+import {
+  isMobileConfigValue,
+  isMobileRuntime,
+} from "../../utils/mobileRuntime";
 declare var window: any;
 let lock = false; //prevent from clicking too fasts
 
@@ -761,15 +764,33 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
       this.props.currentBook.format,
       this.props.currentBook.key
     );
+    // 桌面端：点正文任意处表示「我不再看目录/设置面板了」，顺手把四个抽屉都收起来。
+    //
+    // 手机上**不能**这么做 —— 这一次点击同时被两个监听器消费：
+    //   · utils/reader/mouseEvent.ts 的分区处理：中间 30% → 唤出底部工具条（= 主菜单）
+    //   · 这里：收起全部四个面板
+    // 两者互相抵消，结果就是「点屏幕中央永远唤不出菜单」，并且因为阅读页顶部
+    // 滑出条只在底部面板展开时才出现 → 连带「进了阅读器回不到书架」。
+    //
+    // 手机上各面板本来就各有收口：左右抽屉有全屏遮罩可点、底部工具条在
+    // mouseEvent.ts 里「点正文即收起」，不依赖这个监听器。
+    const isMobileShell =
+      isMobileRuntime() || document.body.clientWidth < 570;
+    if (!isMobileShell) {
+      for (let i = 0; i < docs.length; i++) {
+        let doc = docs[i];
+        if (!doc) continue;
+        doc.addEventListener("click", () => {
+          this.props.handleLeaveReader("left");
+          this.props.handleLeaveReader("right");
+          this.props.handleLeaveReader("top");
+          this.props.handleLeaveReader("bottom");
+        });
+      }
+    }
     for (let i = 0; i < docs.length; i++) {
       let doc = docs[i];
       if (!doc) continue;
-      doc.addEventListener("click", () => {
-        this.props.handleLeaveReader("left");
-        this.props.handleLeaveReader("right");
-        this.props.handleLeaveReader("top");
-        this.props.handleLeaveReader("bottom");
-      });
       doc.addEventListener("pointerup", (event) => {
         if (
           this.props.currentBook.format === "PDF" &&

@@ -169,3 +169,52 @@
   align-items: center !important;
   justify-content: center !important;
 }
+
+/* ── 移动端弹层层级守护 ──────────────────────────────────────────────
+   根因：移动端顶栏 `.header` 被设成 `z-index: 50`（窄屏媒体查询与
+   `.mobile-mode .header` 里各有一份），而各弹窗容器只有 `z-index: 20`。
+   层叠上下文一比，整条顶栏（连带它内部 30px 宽的 `.more-import-option`
+   导入热区）就压在弹窗之上 —— 用户看到的现象正是「设置弹窗右上角的 ×
+   点不到、弹窗关不掉」：`elementFromPoint` 命中的是顶栏里的导入热区，
+   而不是关闭键本身。
+
+   这里把所有移动端弹窗整体抬到顶栏（50）与阅读页顶部滑出条（25）之上。
+   注意 `.setting-close-container` 自己也调过 z-index，但它是弹窗容器的
+   子元素、被困在容器的层叠上下文里，光调子元素是无效的。 */
+@media (max-width: 570px), screen and (max-device-width: 768px) {
+  .action-dialog-container,
+  .select-more-actions,
+  .add-dialog-container,
+  .backup-page-container,
+  .delete-dialog-container,
+  .download-desk-container,
+  .edit-dialog-container,
+  .loading-dialog,
+  .setting-dialog-container,
+  .feedback-dialog-container,
+  .token-dialog-container,
+  .new-version,
+  .sort-dialog-container,
+  .popup-box-container,
+  .more-options-dropdown {
+    z-index: 200 !important;
+  }
+}
+
+.mobile-mode .action-dialog-container,
+.mobile-mode .select-more-actions,
+.mobile-mode .add-dialog-container,
+.mobile-mode .backup-page-container,
+.mobile-mode .delete-dialog-container,
+.mobile-mode .download-desk-container,
+.mobile-mode .edit-dialog-container,
+.mobile-mode .loading-dialog,
+.mobile-mode .setting-dialog-container,
+.mobile-mode .feedback-dialog-container,
+.mobile-mode .token-dialog-container,
+.mobile-mode .new-version,
+.mobile-mode .sort-dialog-container,
+.mobile-mode .popup-box-container,
+.mobile-mode .more-options-dropdown {
+  z-index: 200 !important;
+}

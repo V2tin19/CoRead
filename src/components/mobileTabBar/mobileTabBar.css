@@ -1,3 +1,9 @@
+/* 移动端底部 Tab 栏。
+   配色一律走主题令牌（--coread-*，由 public/assets/styles/{default,dark}.css 注入）：
+   浅色主题 = 白底 + 灰黑选中；深色主题 = 深底 + 近白选中。
+   注意：**不要**再用 var(--background-color, #fff) / var(--main-color, #4b89ff)，
+   主应用里根本没有定义这两个变量，fallback 会永远生效 → 夜间模式底栏还是白的、
+   选中态永远是蓝的（这正是用户反馈的「导航栏夜间仍是浅色 / 选中不亮」）。 */
 .mobile-tab-bar {
   position: fixed;
   bottom: 0;
@@ -6,8 +12,8 @@
   width: 100%;
   height: calc(54px + env(safe-area-inset-bottom, 0px));
   padding-bottom: env(safe-area-inset-bottom, 0px);
-  background: var(--background-color, #ffffff);
-  border-top: 1px solid rgba(128, 128, 128, 0.15);
+  background: var(--coread-shell-bg, #ffffff);
+  border-top: 1px solid var(--coread-shell-border, rgba(128, 128, 128, 0.15));
   display: flex;
   align-items: center;
   justify-content: space-around;
@@ -33,7 +39,7 @@
   cursor: pointer;
   padding: 0;
   margin: 0;
-  color: var(--second-text-color, rgba(60, 60, 67, 0.7));
+  color: var(--coread-shell-fg-dim, rgba(75, 75, 75, 0.62));
   transition: color 0.15s ease, transform 0.1s ease;
   -webkit-tap-highlight-color: transparent;
 }
@@ -53,8 +59,9 @@
   line-height: 1.2;
 }
 
+/* 选中态：中性强调色（浅色=灰黑 / 深色=近白），刻意不用品牌蓝 */
 .mobile-tab-item.active {
-  color: var(--main-color, #4b89ff);
+  color: var(--coread-accent-bg, #4b4b4b);
   font-weight: 600;
 }
 

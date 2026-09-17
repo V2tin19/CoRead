@@ -328,3 +328,21 @@ input,
 .popup-menu-triangle-down {
   color: rgba(47, 52, 55, 1) !important;
 }
+
+/* ── 移动端外壳配色令牌 ──────────────────────────────────────────────
+   移动端新增的壳组件（底部 Tab 栏 / 移动顶栏 / 阅读页顶部滑出条 / 抽屉）
+   一律不再自己写死颜色，改从这里取。桌面端的做法是「逐个类名覆盖」，
+   套到新组件上要写一堆媒体查询 + .mobile-mode 组合，token 更省事也更不容易漏。
+
+   两个 accent 的语义是「强调面」而不是「品牌蓝」：
+   浅色下 = 桌面端那枚灰黑导入按钮；深色下 = 近白。项目所有者明确要求
+   少出现蓝色，所以选中态/主按钮都走 neutral accent。 */
+:root {
+  --coread-shell-bg: rgba(47, 52, 55, 1);
+  --coread-shell-fg: rgba(235, 235, 235, 1);
+  --coread-shell-fg-dim: rgba(235, 235, 235, 0.6);
+  --coread-shell-border: rgba(235, 235, 235, 0.12);
+  --coread-shell-hover: rgba(235, 235, 235, 0.08);
+  --coread-accent-bg: rgba(235, 235, 235, 1);
+  --coread-accent-fg: rgba(47, 52, 55, 1);
+}

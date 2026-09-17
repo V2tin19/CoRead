@@ -487,9 +487,28 @@
   .reader-top-dock {
     display: none !important;
   }
+
+  /* 底部「上一页 / 下一页」那对可视圆形按键在手机上直接挪除。
+     手机上翻页靠点屏幕左右两侧（以及滑动），浮在底部的两个圆钮既挡字、
+     又和底部工具条/手势重复，用户明确要求删掉。
+     注意：.next-chapter-single-container 这个类名现在只剩阅读页的翻页键在用，
+     随心笔记的入口已经搬到阅读器顶部滑出条（手机）/ 桌面右下按钮栈（桌面）。 */
+  .reader-page-nav-button {
+    display: none !important;
+  }
 }
 
-/* 移动端专属顶部滑出导航条 */
+/* 上面那条挂在「窄屏」媒体查询上，覆盖不到「安卓壳 / 触屏平板」这类
+   视口够宽但仍是移动形态的情况（阅读器给根节点挂了 .mobile-reader-mode）。
+   这里用这个类兜住，保证只要阅读器认定自己在移动端，翻页圆钮就一定收起。 */
+.mobile-reader-mode .reader-page-nav-button {
+  display: none !important;
+}
+
+/* 移动端专属顶部滑出导航条。
+   配色全部走主题令牌（--coread-*，见 public/assets/styles/{default,dark}.css）：
+   之前写的是 var(--background-color, #ffffff)，而主应用里根本没有定义这个变量，
+   fallback 永远生效 → 夜间模式下这条还是白的（用户反馈的「阅读页顶栏夜间仍是浅色」）。 */
 .mobile-reader-top-bar {
   position: fixed;
   top: 0;
@@ -500,12 +519,14 @@
   padding-top: env(safe-area-inset-top, 0px);
   padding-left: 8px;
   padding-right: 8px;
-  background: var(--background-color, #ffffff);
-  border-bottom: 1px solid rgba(128, 128, 128, 0.15);
+  background: var(--coread-shell-bg, #ffffff);
+  border-bottom: 1px solid var(--coread-shell-border, rgba(128, 128, 128, 0.15));
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
   display: flex;
   align-items: center;
   justify-content: space-between;
+  /* 25：压在正文与底部进度面板之上，但在左右抽屉（30）与抽屉遮罩（28）之下 ——
+     抽屉展开时顶栏随遮罩一起变暗、点遮罩即可收起，是标准抽屉观感。 */
   z-index: 25;
   box-sizing: border-box;
   transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1);
@@ -525,7 +546,7 @@
   background: transparent;
   border: none;
   cursor: pointer;
-  color: var(--second-text-color, rgba(60, 60, 67, 0.85));
+  color: var(--coread-shell-fg, rgba(60, 60, 67, 0.85));
   border-radius: 50%;
   padding: 0;
   margin: 0;
@@ -534,7 +555,12 @@
 
 .mobile-reader-back-btn:active,
 .mobile-reader-top-action:active {
-  background: rgba(128, 128, 128, 0.15);
+  background: var(--coread-shell-hover, rgba(128, 128, 128, 0.15));
+}
+
+/* 随心笔记抽屉正开着时给入口一个中性高亮（不用品牌蓝） */
+.mobile-reader-top-action-active {
+  background: var(--coread-shell-hover, rgba(128, 128, 128, 0.15));
 }
 
 .mobile-reader-book-title {
@@ -546,7 +572,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: var(--second-text-color, rgba(40, 40, 40, 0.92));
+  color: var(--coread-shell-fg, rgba(40, 40, 40, 0.92));
 }
 
 /* 抽屉打开时的全屏暗色遮罩 */

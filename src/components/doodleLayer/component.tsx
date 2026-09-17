@@ -18,6 +18,7 @@ import {
 } from "../../utils/file/doodleUtil";
 import collabClient from "../../utils/collab/collabClient";
 import { getOrCreateDisplayName } from "../../utils/collab/roomBook";
+import { isMobileRuntime } from "../../utils/mobileRuntime";
 
 // 随心笔记(涂鸦)浮层 —— v3
 //
@@ -73,6 +74,10 @@ interface DoodleLayerProps {
   headerRight?: number;
   /** 深色纸张下换成深色底衬，跟阅读器页眉保持一致 */
   dark?: boolean;
+  /** 手机端：工具条收进左侧抽屉，展开状态由阅读器（顶栏的「随心笔记」按钮）持有 */
+  drawerOpen?: boolean;
+  /** 手机端：请求开合抽屉（关闭键、遮罩、左边缘把手共用） */
+  onDrawerToggle?: () => void;
 }
 
 interface DoodleLayerState {
@@ -1191,9 +1196,22 @@ class DoodleLayer extends React.Component<DoodleLayerProps, DoodleLayerState> {
     return [x, y];
   }
 
-  render() {
+  /** 当前是不是「手机版式」。判据和阅读器一致：安卓壳/触屏窄屏 或 视口很窄，
+   *  这样在浏览器里把窗口拉窄调试时看到的就是手机版式。 */
+  isMobileLayout(): boolean {
+    if (isMobileRuntime()) return true;
+    return (
+      typeof document !== "undefined" && document.body.clientWidth < 570
+    );
+  }
+
+  /**
+   * 工具条的内容。桌面端铺成一条横贯页眉的条（可横向滚动），
+   * 手机端则整块搬进左侧抽屉里自动换行 —— 内容是同一份，只有外壳不同，
+   * 免得两套布局各改一半、后面加按钮时漏掉一处。
+   */
+  renderToolbarRow() {
     const isView = this.state.mode === "view";
-    const { anchor } = this.state;
     const authors = this.authorList();
     const hiddenSet = new Set(this.state.hiddenAuthors);
     const visibleCount = this.visibleStrokes().length;
@@ -1201,12 +1219,192 @@ class DoodleLayer extends React.Component<DoodleLayerProps, DoodleLayerState> {
       (stroke) => !stroke.authorId || stroke.authorId === this.authorId()
     );
     return (
+      <div className="doodle-toolbar-row">
+        <div className="doodle-toolbar-group">
+          <div
+            className="doodle-tool-btn doodle-tool-square"
+            title="上一页"
+            onClick={() => this.handleTurnPage("prev")}
+          >
+            ‹
+          </div>
+          <div
+            className="doodle-tool-btn doodle-tool-square"
+            title="下一页"
+            onClick={() => this.handleTurnPage("next")}
+          >
+            ›
+          </div>
+        </div>
+        <span className="doodle-divider" />
+        <div className="doodle-toolbar-group">
+          {COLORS.map((color) => (
+            <div
+              key={color}
+              className={
+                this.state.color === color
+                  ? "doodle-color-dot active"
+                  : "doodle-color-dot"
+              }
+              style={{ backgroundColor: color }}
+              title="画笔颜色"
+              onClick={() => this.setState({ color })}
+            />
+          ))}
+        </div>
+        <span className="doodle-divider" />
+        <div className="doodle-toolbar-group">
+          {SIZES.map((size) => (
+            <div
+              key={size}
+              className={
+                this.state.size === size
+                  ? "doodle-size-dot active"
+                  : "doodle-size-dot"
+              }
+              title="画笔粗细"
+              onClick={() => this.setState({ size })}
+            >
+              <span
+                style={{
+                  width: Math.max(4, size * 1.2),
+                  height: Math.max(4, size * 1.2),
+                }}
+              />
+            </div>
+          ))}
+        </div>
+        <span className="doodle-divider" />
+        <div className="doodle-toolbar-group">
+          <div
+            className={
+              !isView ? "doodle-tool-btn doodle-tool-active" : "doodle-tool-btn"
+            }
+            title="画笔模式：可以书写"
+            onClick={() => {
+              this.setState({ mode: "draw" });
+            }}
+          >
+            绘画
+          </div>
+          <div
+            className={
+              isView ? "doodle-tool-btn doodle-tool-active" : "doodle-tool-btn"
+            }
+            title="浏览模式：笔迹只显示，不挡点字/选中"
+            onClick={() => {
+              this.setState({ mode: "view" });
+            }}
+          >
+            浏览
+          </div>
+        </div>
+        <span className="doodle-divider" />
+        <div className="doodle-toolbar-group">
+          <div
+            className={
+              canUndo ? "doodle-tool-btn" : "doodle-tool-btn doodle-tool-disabled"
+            }
+            title="撤销自己画的最后一笔"
+            onClick={this.handleUndo}
+          >
+            撤销
+          </div>
+          <div
+            className="doodle-tool-btn"
+            title="清空自己在这一页的笔迹（别人画的不动）"
+            onClick={this.handleClear}
+          >
+            清空
+          </div>
+          <div
+            className="doodle-tool-btn"
+            title="导出这一页的涂鸦 / 全书笔记数据"
+            onClick={this.openExport}
+          >
+            导出
+          </div>
+          <div
+            className="doodle-tool-btn doodle-tool-close"
+            title="关闭随心笔记"
+            onClick={this.props.onClose}
+          >
+            关闭
+          </div>
+        </div>
+
+        {/* 原第二行信息（本页笔数 / 作者图例 / 共读状态）压成同行信息簇。
+            多人共读时就靠它分清「谁画的」，并能单独只看某个人。 */}
+        <span className="doodle-divider" />
+        <div className="doodle-toolbar-group doodle-info-group">
+          <span className="doodle-info-text">本页 {visibleCount} 笔</span>
+          {this.state.isSaving && (
+            <span className="doodle-info-text doodle-info-dim">保存中…</span>
+          )}
+          {authors.map((author) => (
+            <span
+              key={author.id || "me"}
+              className={
+                hiddenSet.has(author.id)
+                  ? "doodle-author-chip doodle-author-chip-off"
+                  : "doodle-author-chip"
+              }
+              title={
+                hiddenSet.has(author.id)
+                  ? "点击显示这个人的笔迹"
+                  : "点击只看其他人（隐藏此人笔迹）"
+              }
+              onClick={() => this.toggleAuthor(author.id)}
+            >
+              <i
+                className="doodle-author-dot"
+                style={{ backgroundColor: author.color }}
+              />
+              {author.name}
+              <em>{author.count}</em>
+            </span>
+          ))}
+          {this.syncEnabled() ? (
+            <span
+              className="doodle-info-text doodle-info-sync"
+              title={
+                isDoodleLiveEnabled()
+                  ? "笔迹正在房间里实时同步：同伴画的时候你能看着一笔一划写出来"
+                  : "笔迹正在房间里同步：收笔后整笔出现（可在共读面板开启「一笔一划」）"
+              }
+            >
+              共读同步中
+              {isDoodleLiveEnabled() ? " · 实时" : ""}
+              {this.state.peerPages > 0
+                ? ` · 另有 ${this.state.peerPages} 页有同伴笔记`
+                : ""}
+            </span>
+          ) : (
+            <span
+              className="doodle-info-text doodle-info-dim"
+              title="想让同伴看到你的笔迹：共读面板 →「同步涂鸦」"
+            >
+              未同步涂鸦
+            </span>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  render() {
+    const isMobileLayout = this.isMobileLayout();
+    const drawerOpen = Boolean(this.props.drawerOpen);
+    const { anchor } = this.state;
+    const visibleCount = this.visibleStrokes().length;
+    return (
       <>
-        {/* 画布层：严格贴在书页矩形上（量不到书页时才退回整屏应急） */}
+        {/* 画布层：严格贴在书页矩形上（量不到书页时退回整屏应急） */}
         <div className="doodle-layer">
           <div
             className={
-              "doodle-canvas-wrap" + (isView ? " doodle-canvas-wrap-view" : "")
+              "doodle-canvas-wrap" +
+              (this.state.mode === "view" ? " doodle-canvas-wrap-view" : "")
             }
             style={
               anchor
@@ -1233,198 +1431,83 @@ class DoodleLayer extends React.Component<DoodleLayerProps, DoodleLayerState> {
           </div>
         </div>
 
-        {/* 工具条独立成层：它压在「边缘触发条」之上，否则顶部那片透明的
-            面板触发条会把工具栏的点击吞掉（这是审查时发现的老问题）。
-            现在整条贴在视口顶部，高度与页眉一致且小于正文起始留白，不会盖到正文。 */}
-        <div className="doodle-toolbar-layer">
-          <div
-            className="doodle-toolbar-slot"
-            style={{
-              right: this.props.headerRight != null ? this.props.headerRight : 8,
-            }}
-          >
+        {isMobileLayout ? (
+          /* ── 手机端：工具条收进左侧抽屉 ────────────────────────────
+             以前它是一条常驻在视口顶部的横条，一直压着正文（用户反馈
+             「涂鸦面板一直挂在顶部」）。现在和「目录」用同一套交互：
+             左侧滑出、遮罩点一下收起、随时能再唤出来。
+             收起后画布照旧可写，所以再给一个左边缘的小把手负责唤出，
+             否则收起抽屉之后就再也找不回控件了。 */
+          <>
+            {!drawerOpen && (
+              <div
+                className="doodle-drawer-handle"
+                title="随心笔记"
+                onClick={this.props.onDrawerToggle}
+              >
+                <span className="icon-edit" />
+                {visibleCount > 0 && (
+                  <em className="doodle-drawer-handle-badge">
+                    {visibleCount}
+                  </em>
+                )}
+              </div>
+            )}
+            {drawerOpen && (
+              <div
+                className="doodle-drawer-mask"
+                onClick={this.props.onDrawerToggle}
+              />
+            )}
             <div
               className={
-                "doodle-toolbar" + (this.props.dark ? " doodle-toolbar-dark" : "")
+                "doodle-drawer" +
+                (drawerOpen ? " doodle-drawer-open" : "") +
+                (this.props.dark ? " doodle-drawer-dark" : "")
               }
+              /* 抽屉整体滑出/滑回，不用卸载的方式切换 —— 卸载会把「当前选中的
+                 颜色 / 粗细 / 绘画模式」一起丢掉，收起再打开就回到默认值。 */
+              aria-hidden={!drawerOpen}
             >
-              <div className="doodle-toolbar-row">
-              <div className="doodle-toolbar-group">
-                <div
-                  className="doodle-tool-btn doodle-tool-square"
-                  title="上一页"
-                  onClick={() => this.handleTurnPage("prev")}
+              <div className="doodle-drawer-head">
+                <span className="doodle-drawer-title">随心笔记</span>
+                <span
+                  className="doodle-drawer-close"
+                  title="收起"
+                  onClick={this.props.onDrawerToggle}
                 >
-                  ‹
-                </div>
-                <div
-                  className="doodle-tool-btn doodle-tool-square"
-                  title="下一页"
-                  onClick={() => this.handleTurnPage("next")}
-                >
-                  ›
-                </div>
-              </div>
-              <span className="doodle-divider" />
-              <div className="doodle-toolbar-group">
-                {COLORS.map((color) => (
-                  <div
-                    key={color}
-                    className={
-                      this.state.color === color
-                        ? "doodle-color-dot active"
-                        : "doodle-color-dot"
-                    }
-                    style={{ backgroundColor: color }}
-                    title="画笔颜色"
-                    onClick={() => this.setState({ color })}
-                  />
-                ))}
-              </div>
-              <span className="doodle-divider" />
-              <div className="doodle-toolbar-group">
-                {SIZES.map((size) => (
-                  <div
-                    key={size}
-                    className={
-                      this.state.size === size
-                        ? "doodle-size-dot active"
-                        : "doodle-size-dot"
-                    }
-                    title="画笔粗细"
-                    onClick={() => this.setState({ size })}
-                  >
-                    <span
-                      style={{
-                        width: Math.max(4, size * 1.2),
-                        height: Math.max(4, size * 1.2),
-                      }}
-                    />
-                  </div>
-                ))}
-              </div>
-              <span className="doodle-divider" />
-              <div className="doodle-toolbar-group">
-                <div
-                  className={
-                    !isView ? "doodle-tool-btn doodle-tool-active" : "doodle-tool-btn"
-                  }
-                  title="画笔模式：可以书写"
-                  onClick={() => {
-                    this.setState({ mode: "draw" });
-                  }}
-                >
-                  绘画
-                </div>
-                <div
-                  className={
-                    isView ? "doodle-tool-btn doodle-tool-active" : "doodle-tool-btn"
-                  }
-                  title="浏览模式：笔迹只显示，不挡点字/选中"
-                  onClick={() => {
-                    this.setState({ mode: "view" });
-                  }}
-                >
-                  浏览
-                </div>
-              </div>
-              <span className="doodle-divider" />
-              <div className="doodle-toolbar-group">
-                <div
-                  className={
-                    canUndo
-                      ? "doodle-tool-btn"
-                      : "doodle-tool-btn doodle-tool-disabled"
-                  }
-                  title="撤销自己画的最后一笔"
-                  onClick={this.handleUndo}
-                >
-                  撤销
-                </div>
-                <div
-                  className="doodle-tool-btn"
-                  title="清空自己在这一页的笔迹（别人画的不动）"
-                  onClick={this.handleClear}
-                >
-                  清空
-                </div>
-                <div
-                  className="doodle-tool-btn"
-                  title="导出这一页的涂鸦 / 全书笔记数据"
-                  onClick={this.openExport}
-                >
-                  导出
-                </div>
-                <div
-                  className="doodle-tool-btn doodle-tool-close"
-                  title="关闭随心笔记"
-                  onClick={this.props.onClose}
-                >
-                  关闭
-                </div>
-              </div>
-
-              {/* 原第二行信息（本页笔数 / 作者图例 / 共读状态）压成同行信息簇。
-                  多人共读时就靠它分清「谁画的」，并能单独只看某个人。 */}
-              <span className="doodle-divider" />
-              <div className="doodle-toolbar-group doodle-info-group">
-                <span className="doodle-info-text">
-                  本页 {visibleCount} 笔
+                  ×
                 </span>
-                {this.state.isSaving && (
-                  <span className="doodle-info-text doodle-info-dim">保存中…</span>
-                )}
-                {authors.map((author) => (
-                  <span
-                    key={author.id || "me"}
-                    className={
-                      hiddenSet.has(author.id)
-                        ? "doodle-author-chip doodle-author-chip-off"
-                        : "doodle-author-chip"
-                    }
-                    title={
-                      hiddenSet.has(author.id)
-                        ? "点击显示这个人的笔迹"
-                        : "点击只看其他人（隐藏此人笔迹）"
-                    }
-                    onClick={() => this.toggleAuthor(author.id)}
-                  >
-                    <i
-                      className="doodle-author-dot"
-                      style={{ backgroundColor: author.color }}
-                    />
-                    {author.name}
-                    <em>{author.count}</em>
-                  </span>
-                ))}
-                {this.syncEnabled() ? (
-                  <span
-                    className="doodle-info-text doodle-info-sync"
-                    title={
-                      isDoodleLiveEnabled()
-                        ? "笔迹正在房间里实时同步：同伴画的时候你能看着一笔一划写出来"
-                        : "笔迹正在房间里同步：收笔后整笔出现（可在共读面板开启「一笔一划」）"
-                    }
-                  >
-                    共读同步中
-                    {isDoodleLiveEnabled() ? " · 实时" : ""}
-                    {this.state.peerPages > 0
-                      ? ` · 另有 ${this.state.peerPages} 页有同伴笔记`
-                      : ""}
-                  </span>
-                ) : (
-                  <span
-                    className="doodle-info-text doodle-info-dim"
-                    title="想让同伴看到你的笔迹：共读面板 →「同步涂鸦」"
-                  >
-                    未同步涂鸦
-                  </span>
-                )}
+              </div>
+              <div className="doodle-drawer-body">{this.renderToolbarRow()}</div>
+              <div className="doodle-drawer-hint">
+                收起后仍可继续书写；点页面左边缘的小图标可以再唤出这块面板。
+              </div>
+            </div>
+          </>
+        ) : (
+          /* ── 桌面端：保持原样，工具条贴在右上角页眉所在的水平带上 ──
+             它压在「边缘触发条」之上，否则顶部那条透明的面板触发条会把
+             工具栏的点击吞掉（这是审查时发现的老问题）。 */
+          <div className="doodle-toolbar-layer">
+            <div
+              className="doodle-toolbar-slot"
+              style={{
+                right:
+                  this.props.headerRight != null ? this.props.headerRight : 8,
+              }}
+            >
+              <div
+                className={
+                  "doodle-toolbar" +
+                  (this.props.dark ? " doodle-toolbar-dark" : "")
+                }
+              >
+                {this.renderToolbarRow()}
               </div>
             </div>
           </div>
-        </div>
-      </div>
+        )}
 
         {/* 导出弹窗：独立成层（不挂在工具条那层里），这样它的 z-index 不受
             父层叠上下文限制，永远压在所有阅读器浮层之上。 */}

@@ -33,8 +33,12 @@ class MobileTabBar extends React.Component<MobileTabBarProps> {
   };
 
   render() {
+    // 当前选中的 tab 必须只看「一级路径段」。
+    // 之前整段 pathname 去掉 /manager/ 前缀后直接比对：进入书架的二级页或书单
+    // 详情后，pathMode 会变成 "home/shelf" 这样的两段值，四项全都匹配不上 →
+    // 底栏没有任何一项高亮，看起来像「选中了但没变亮」（用户反馈的那条）。
     const currentPath = this.props.location?.pathname || "";
-    const pathMode = currentPath.replace("/manager/", "");
+    const pathMode = currentPath.split("/")[2] || "";
     const currentMode = pathMode || this.props.mode || "home";
 
     return (
@@ -46,6 +50,7 @@ class MobileTabBar extends React.Component<MobileTabBarProps> {
               key={item.mode}
               type="button"
               className={`mobile-tab-item ${isActive ? "active" : ""}`}
+              aria-current={isActive ? "page" : undefined}
               onClick={() => this.handleTabClick(item.mode)}
             >
               <span className={`mobile-tab-icon icon-${item.icon}`} />

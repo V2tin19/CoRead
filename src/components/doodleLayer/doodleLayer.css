@@ -288,7 +288,9 @@
 .doodle-export-mask {
   position: fixed;
   inset: 0;
-  z-index: 60;
+  /* 70：要压过手机端的涂鸦抽屉（62）—— 导出面板是从抽屉里点出来的，
+     被自己唤出来的抽屉盖住就点不动了。 */
+  z-index: 70;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -419,4 +421,168 @@
   .doodle-info-group {
     font-size: 10px;
   }
+}
+
+/* ── 手机端：工具条改「左侧抽屉」形态 ─────────────────────────────────
+   桌面端那条横贯视口顶部的工具条在手机上有两个毛病：
+     1) 一直挂在顶部压着正文（用户明确反馈要挪走）；
+     2) 手机上本来就没有横排空间，条内要横向滚动才够用。
+   于是手机端整块搬进左抽屉，和「目录」用同一套交互（左侧滑出、遮罩收起、
+   随时再唤出）。配色一律取主题令牌，别再写死浅色 —— 夜间模式会露馅。 */
+.doodle-drawer-handle {
+  position: fixed;
+  left: 0;
+  top: calc(50vh - 22px);
+  width: 40px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0 22px 22px 0;
+  background: rgba(120, 120, 120, 0.3);
+  color: var(--coread-shell-fg, rgba(60, 60, 60, 0.9));
+  font-size: 18px;
+  cursor: pointer;
+  /* 压在画布（z-index 6）与阅读器顶栏（25）之上，保证正在书写时也能点到 */
+  z-index: 34;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.doodle-drawer-handle-badge {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  border-radius: 8px;
+  background: var(--coread-accent-bg, #4b4b4b);
+  color: var(--coread-accent-fg, #ffffff);
+  font-size: 10px;
+  font-style: normal;
+  line-height: 16px;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.doodle-drawer-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 60;
+  animation: fade-in 0.2s ease-out;
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+.doodle-drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: min(84vw, 320px);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  border-radius: 0 14px 14px 0;
+  background: var(--coread-shell-bg, #ffffff);
+  color: var(--coread-shell-fg, rgba(58, 58, 58, 1));
+  box-shadow: 4px 0 20px rgba(0, 0, 0, 0.22);
+  /* 用位移而不是卸载来开合：卸载会把当前选中的颜色 / 粗细 / 绘画模式一起丢掉 */
+  transform: translateX(-105%);
+  transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1);
+  z-index: 62;
+}
+
+.doodle-drawer-open {
+  transform: translateX(0);
+}
+
+.doodle-drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 8px 8px 14px;
+  border-bottom: 1px solid var(--coread-shell-border, rgba(128, 128, 128, 0.2));
+  flex-shrink: 0;
+}
+
+.doodle-drawer-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.doodle-drawer-close {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 22px;
+  line-height: 1;
+  opacity: 0.65;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.doodle-drawer-close:active {
+  background: var(--coread-shell-hover, rgba(128, 128, 128, 0.16));
+  opacity: 1;
+}
+
+.doodle-drawer-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 12px 12px 4px;
+  box-sizing: border-box;
+}
+
+/* 抽屉里是竖排：内容换行排，竖分隔线改成「占满一行」的细横线（顺带当分组换行用） */
+.doodle-drawer-body .doodle-toolbar-row {
+  flex-wrap: wrap;
+  min-width: 0;
+  gap: 10px 8px;
+}
+
+.doodle-drawer-body .doodle-divider {
+  width: 100%;
+  height: 1px;
+  flex-basis: 100%;
+  margin: 2px 0;
+}
+
+.doodle-drawer-body .doodle-info-group {
+  flex-wrap: wrap;
+  font-size: 11px;
+  padding-right: 0;
+}
+
+/* 工具按钮在抽屉里手指更好按 */
+.doodle-drawer-body .doodle-tool-btn {
+  padding: 7px 12px;
+  font-size: 13px;
+}
+
+.doodle-drawer-body .doodle-color-dot {
+  width: 26px;
+  height: 26px;
+}
+
+.doodle-drawer-body .doodle-size-dot {
+  width: 30px;
+  height: 30px;
+}
+
+.doodle-drawer-hint {
+  padding: 6px 14px 14px;
+  font-size: 11px;
+  line-height: 16px;
+  opacity: 0.6;
+  flex-shrink: 0;
 }

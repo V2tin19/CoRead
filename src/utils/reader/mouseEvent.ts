@@ -2,6 +2,7 @@ import { ConfigService } from '../../services';
 import { isElectron } from "react-device-detect";
 import { getIframeDoc, getIframeWin } from "./docUtil";
 import { handleExitFullScreen, handleFullScreen, sleep } from "../common";
+import { isMobileRuntime } from "../mobileRuntime";
 import Hammer from "hammerjs";
 import TTSUtil from "./ttsUtil";
 import {
@@ -486,10 +487,28 @@ export const bindHtmlEvent = (
   //  微信读书那类阅读器点中间就是呼出菜单,这里补上;两侧各收 5% 让中间更好点中。)
   // 点在链接/脚注/笔记图标上、或正在选中文字时不动作。
   // 窄屏窗口(手机/半屏)也按"点一下=翻页"处理
+  //
+  // 2026-09-17 二次修正（用户反馈「阅读界面无法触发菜单栏」）：
+  //   ① 中间区**不再**依赖 isTouchEnabled。外层这个 if 已经判定过
+  //      「触屏 or 安卓壳 or 窄屏」，再要求「中间区只在触屏上动作」，
+  //      等于在窄屏浏览器 / 部分 WebView 上把中间整块写成死区 —— 怎么点都没反应。
+  //   ② 唤出工具条用**独立**的节流计时，不与翻页共用一个时间戳。
+  //      原先翻页后的 throttleTime（动画模式下 1000ms）会把紧随其后的
+  //      「点中间」整段吞掉，表现为「有时能唤出、有时怎么点都没用」。
+  //   ③ 移动端滑动阅读也启用中间区：PDF 默认就是滑动阅读，一进 PDF 就彻底
+  //      没有唤出菜单的途径（连带回不到书架）。滑动阅读下两侧仍不翻页 ——
+  //      滚动本身就是翻页。
   const isNarrowScreen =
     typeof document !== "undefined" && document.body.clientWidth < 570;
-  if ((isTouchEnabled || isNarrowScreen) && readerMode !== "scroll") {
+  const isMobileShell = isMobileRuntime();
+  const enableTapZones = isTouchEnabled || isMobileShell || isNarrowScreen;
+  if (enableTapZones) {
     let lastTapFlipAt = 0;
+    let lastTapMenuAt = 0;
+    // 唤出/收起工具条自己的节流：只防「一次手势被算成两次开合」，
+    // 不能沿用翻页那个（最长 1000ms），否则「翻一页再点中间」永远被吞。
+    const MENU_TAP_THROTTLE = 300;
+    const isScrollMode = readerMode === "scroll";
     doc.addEventListener("click", async (event: any) => {
       try {
         const target = event.target as HTMLElement | null;
@@ -503,31 +522,36 @@ export const bindHtmlEvent = (
         const selection = doc.getSelection && doc.getSelection();
         if (selection && String(selection).length > 0) return;
         const now = Date.now();
-        if (now - lastTapFlipAt < throttleTime) return;
         const viewWidth = doc.body ? doc.body.clientWidth : 0;
         if (!viewWidth) return;
         // 工具条开着时,点正文任意处先收起它(这一下不翻页) —— 否则面板会一直
         // 挡着正文,用户得专门去点那个小 × 才能继续读。
         if (isReadingPanelOpen()) {
-          lastTapFlipAt = now;
+          if (now - lastTapMenuAt < MENU_TAP_THROTTLE) return;
+          lastTapMenuAt = now;
           toggleReadingPanel("bottom");
           return;
         }
         const x = event.clientX;
-        if (x < viewWidth * 0.35) {
-          lastTapFlipAt = now;
-          await rendition.prev();
-          handleLocation(key, rendition);
-        } else if (x > viewWidth * 0.65) {
-          lastTapFlipAt = now;
-          await rendition.next();
-          handleLocation(key, rendition);
-        } else if (isTouchEnabled) {
-          // 中间区:呼出/收起底部工具条。只在触屏上做 —— 桌面把窗口缩窄时
-          // 中间区保持原来的「不动作」,免得点正文就弹出面板。
-          lastTapFlipAt = now;
+        const isCenterTap = x >= viewWidth * 0.35 && x <= viewWidth * 0.65;
+        if (isCenterTap) {
+          // 中间区:呼出底部工具条 = 移动端主菜单（返回书架 / 目录 /
+          // 随心笔记 / 阅读选项都在它上面）。
+          if (now - lastTapMenuAt < MENU_TAP_THROTTLE) return;
+          lastTapMenuAt = now;
           toggleReadingPanel("bottom");
+          return;
         }
+        // 滑动阅读下两侧不翻页(滚动本身就是翻页),只保留中间的「唤出菜单」
+        if (isScrollMode) return;
+        if (now - lastTapFlipAt < throttleTime) return;
+        lastTapFlipAt = now;
+        if (x < viewWidth * 0.35) {
+          await rendition.prev();
+        } else {
+          await rendition.next();
+        }
+        handleLocation(key, rendition);
       } catch (e) {
         // 翻页失败不打断其它点击行为
       }

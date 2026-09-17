@@ -135,6 +135,10 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
       // 从「共同阅读」页面点「开始阅读」进来时,自动弹出共读面板完成入房
       isCollabOpen: Boolean(localStorage.getItem("koodo-collab-pending-join")),
       isDoodleOpen: false,
+      // 随心笔记在手机端是「左侧抽屉」形态（见 DoodleLayer 的移动端分支）。
+      // 这个开关由阅读器持有、下发给 DoodleLayer，因为唤出它的入口在顶栏上 ——
+      // 和「目录」共用同一套「左抽屉 + 随时唤出/隐藏」的心智模型。
+      isDoodleDrawerOpen: false,
       dockWidth: 0,
     };
   }
@@ -339,21 +343,23 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
     this.cancelLeaveReader(position);
     // 手机窄屏互斥:同一时刻最多一个抽屉,避免多面板互相重叠盖住正文后关不掉
     const isNarrowScreen = document.body.clientWidth < 570;
+    const target = PANEL_OPEN_STATE[position as PanelPosition];
+    // 目标不是四个已知面板之一就直接退出 —— 否则下面的循环会写出 undefined 键。
+    if (!target) return;
     const update: any = {};
     if (isNarrowScreen) {
-      update.isOpenLeftPanel = position === "left";
-      update.isOpenRightPanel = position === "right";
-      update.isOpenTopPanel = position === "top";
-      update.isOpenBottomPanel = position === "bottom";
-    } else if (position === "left") {
-      update.isOpenLeftPanel = true;
-    } else if (position === "right") {
-      update.isOpenRightPanel = true;
-    } else if (position === "top") {
-      update.isOpenTopPanel = true;
-    } else if (position === "bottom") {
-      update.isOpenBottomPanel = true;
+      PANEL_POSITIONS.forEach((panel) => {
+        update[PANEL_OPEN_STATE[panel]] = panel === position;
+      });
+    } else {
+      update[target] = true;
     }
+    // ⚠️ 这里的 update 必须永远非空。
+    // 历史写法把 else 分支写成一串 `else if (position === "left") ... else if
+    // ("bottom") ...`，四种之外的位置（以及将来新增的面板名）会落到「什么都没匹配」
+    // 的情况下 —— `setState({})` 是合法调用但**什么也不会发生**，静默失效、连报错都没有。
+    // 现象就是「点屏幕中央偶尔唤不出菜单」，且因为 mobile-reader-top-bar 只在
+    // 底部面板展开时才滑出 → 连带「进阅读器之后回不到书架」。
     this.setState(update);
   };
   // 万能逃生门:无视锁定直接收起全部面板(手机上鼠标移出关闭不可用)
@@ -425,7 +431,8 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
       right: settingLocked ? "315px" : "0",
     };
   };
-  handleLeaveReader = (position: string) => {    this.cancelLeaveReader(position);
+  handleLeaveReader = (position: string) => {
+    this.cancelLeaveReader(position);
     switch (position) {
       case "right":
         if (this.props.isSettingLocked) {
@@ -510,6 +517,43 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
             <div className="mobile-reader-book-title">
               {this.props.currentBook?.name || ""}
             </div>
+            {/* 随心笔记：移动端它不再是一条常驻在页面顶部的工具条
+                （会一直压着正文），而是和「目录」一样收进左侧抽屉，
+                由这里随时唤出 / 隐藏。滑动阅读下没有意义，直接不显示。 */}
+            {!this.isScrollReaderMode() && (
+              <button
+                type="button"
+                className={
+                  "mobile-reader-top-action" +
+                  (this.state.isDoodleOpen && this.state.isDoodleDrawerOpen
+                    ? " mobile-reader-top-action-active"
+                    : "")
+                }
+                onClick={() => {
+                  if (!this.state.isDoodleOpen) {
+                    // 第一次点：开笔记模式 + 直接把抽屉推出来，让用户立刻看到控件
+                    this.setState({
+                      isDoodleOpen: true,
+                      isDoodleDrawerOpen: true,
+                    });
+                    return;
+                  }
+                  // 已经在笔记模式里：这一下只负责抽屉的唤出 / 隐藏，
+                  // 笔迹和画布都不动 —— 收起抽屉后仍能继续写。
+                  this.setState({
+                    isDoodleDrawerOpen: !this.state.isDoodleDrawerOpen,
+                  });
+                }}
+                title="随心笔记"
+              >
+                <span
+                  className={`icon-${
+                    this.state.isDoodleDrawerOpen ? "close" : "edit"
+                  }`}
+                  style={{ fontSize: "18px" }}
+                />
+              </button>
+            )}
             <button
               type="button"
               className="mobile-reader-top-action"
@@ -523,7 +567,7 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
 
         {!this.props.isHidePageButton && (
           <div
-            className="previous-chapter-single-container"
+            className="previous-chapter-single-container reader-page-nav-button"
             onClick={async () => {
               if (lock) return;
               lock = true;
@@ -552,7 +596,7 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
         >
           {!this.props.isHidePageButton && (
             <div
-              className="next-chapter-single-container"
+              className="next-chapter-single-container reader-page-nav-button"
               onClick={async () => {
                 if (lock) return;
                 lock = true;
@@ -567,8 +611,9 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
           )}
           {/* 听书 / AI 问书:已聚合到底部「阅读进度面板」的三个操作按钮里,
               这里不再重复提供入口,避免右下角堆栈过长。 */}
-          {/* 随心笔记(涂鸦):滑动阅读下不显示,滚轮要留给页面滚动 */}
-          {!this.isScrollReaderMode() && (
+          {/* 随心笔记(涂鸦):滑动阅读下不显示,滚轮要留给页面滚动。
+              手机端的入口已经搬到顶部滑出条（左抽屉），这里只在桌面上保留常驻按钮。 */}
+          {!isMobile && !this.isScrollReaderMode() && (
             <div
               className="next-chapter-single-container"
               onClick={() =>
@@ -778,7 +823,18 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
               {...({
                 bookKey: getCollabBookKey(this.props.currentBook),
                 rendition: this.props.htmlBook.rendition,
-                onClose: () => this.setState({ isDoodleOpen: false }),
+                onClose: () => {
+                  this.setState({
+                    isDoodleOpen: false,
+                    isDoodleDrawerOpen: false,
+                  });
+                },
+                // 手机端：工具条收进左抽屉，由阅读器顶栏的「随心笔记」按钮控制开合
+                drawerOpen: this.state.isDoodleDrawerOpen,
+                onDrawerToggle: () =>
+                  this.setState((prev) => ({
+                    isDoodleDrawerOpen: !prev.isDoodleDrawerOpen,
+                  })),
                 // 顶部条要让开右上角页眉：让位宽度 = 页眉自身宽度 + 右外边距 + 间隙。
                 // dockWidth 还没量到时给个保守值，宁可短一点也别压住图标。
                 headerRight:
