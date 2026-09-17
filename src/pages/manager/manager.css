@@ -53,3 +53,128 @@
   left: 10vw;
   bottom: 20px;
 }
+
+/* ──────── 移动端信息架构（底部 Tab Bar + 主界面全宽） ──────── */
+@media (max-width: 570px), screen and (max-device-width: 768px) {
+  .sidebar {
+    display: none !important;
+  }
+
+  .book-list-container-parent {
+    left: 0 !important;
+    width: 100% !important;
+    top: calc(56px + env(safe-area-inset-top, 0px)) !important;
+    height: calc(100% - 56px - 54px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+    padding: 10px 12px 20px !important;
+    box-sizing: border-box !important;
+    overflow-y: auto !important;
+  }
+
+  .book-list-header {
+    left: 0 !important;
+    width: 100% !important;
+    bottom: calc(54px + env(safe-area-inset-bottom, 0px)) !important;
+    padding: 0 12px !important;
+    box-sizing: border-box !important;
+    background: var(--background-color, #ffffff) !important;
+    border-top: 1px solid rgba(128, 128, 128, 0.1) !important;
+    z-index: 10 !important;
+  }
+
+  .empty-page-container {
+    left: 0 !important;
+    width: 100% !important;
+    top: calc(56px + env(safe-area-inset-top, 0px)) !important;
+    height: calc(100% - 56px - 54px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+    padding: 20px 16px !important;
+    box-sizing: border-box !important;
+  }
+
+  .personal-center-container-parent {
+    left: 0 !important;
+    width: 100% !important;
+    top: calc(56px + env(safe-area-inset-top, 0px)) !important;
+    height: calc(100% - 56px - 54px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+    padding: 0 16px 20px !important;
+    box-sizing: border-box !important;
+  }
+
+  .cloud-page-container-parent {
+    left: 0 !important;
+    width: 100% !important;
+    top: calc(56px + env(safe-area-inset-top, 0px)) !important;
+    height: calc(100% - 56px - 54px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+    padding: 0 16px 20px !important;
+    box-sizing: border-box !important;
+  }
+
+  .card-list-container-parent {
+    left: 0 !important;
+    width: 100% !important;
+    top: calc(56px + env(safe-area-inset-top, 0px)) !important;
+    height: calc(100% - 56px - 54px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+    padding: 0 16px 20px !important;
+    box-sizing: border-box !important;
+  }
+}
+
+.mobile-mode .sidebar {
+  display: none !important;
+}
+
+.mobile-mode .book-list-container-parent {
+  left: 0 !important;
+  width: 100% !important;
+  top: calc(56px + env(safe-area-inset-top, 0px)) !important;
+  height: calc(100% - 56px - 54px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+  padding: 10px 12px 20px !important;
+  box-sizing: border-box !important;
+  overflow-y: auto !important;
+}
+
+.mobile-mode .book-list-header {
+  left: 0 !important;
+  width: 100% !important;
+  bottom: calc(54px + env(safe-area-inset-bottom, 0px)) !important;
+  padding: 0 12px !important;
+  box-sizing: border-box !important;
+  background: var(--background-color, #ffffff) !important;
+  border-top: 1px solid rgba(128, 128, 128, 0.1) !important;
+  z-index: 10 !important;
+}
+
+.mobile-mode .empty-page-container {
+  left: 0 !important;
+  width: 100% !important;
+  top: calc(56px + env(safe-area-inset-top, 0px)) !important;
+  height: calc(100% - 56px - 54px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+  padding: 20px 16px !important;
+  box-sizing: border-box !important;
+}
+
+.mobile-mode .personal-center-container-parent {
+  left: 0 !important;
+  width: 100% !important;
+  top: calc(56px + env(safe-area-inset-top, 0px)) !important;
+  height: calc(100% - 56px - 54px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+  padding: 0 16px 20px !important;
+  box-sizing: border-box !important;
+}
+
+.mobile-mode .cloud-page-container-parent {
+  left: 0 !important;
+  width: 100% !important;
+  top: calc(56px + env(safe-area-inset-top, 0px)) !important;
+  height: calc(100% - 56px - 54px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+  padding: 0 16px 20px !important;
+  box-sizing: border-box !important;
+}
+
+.mobile-mode .card-list-container-parent {
+  left: 0 !important;
+  width: 100% !important;
+  top: calc(56px + env(safe-area-inset-top, 0px)) !important;
+  height: calc(100% - 56px - 54px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+  padding: 0 16px 20px !important;
+  box-sizing: border-box !important;
+}

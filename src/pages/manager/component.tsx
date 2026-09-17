@@ -34,6 +34,8 @@ import {
 } from "../../utils/collab/roomBook";
 import Footer from "../../components/footer";
 import ProtectionOverlay from "../../components/protection";
+import MobileTabBar from "../../components/mobileTabBar";
+import { isMobileRuntime } from "../../utils/mobileRuntime";
 class Manager extends React.Component<ManagerProps, ManagerState> {
   timer!: NodeJS.Timeout;
   private isDraggingFromApp = false;
@@ -142,13 +144,14 @@ class Manager extends React.Component<ManagerProps, ManagerState> {
   };
   render() {
     let { books } = this.props;
+    const isMobile = isMobileRuntime();
     const PopupProps = {
       chapterDocIndex: 0,
       chapter: "test",
     };
     return (
       <div
-        className="manager"
+        className={`manager ${isMobile ? "mobile-mode" : ""}`}
         onDragEnter={(e) => {
           if (isExternalFileDragEvent(e)) {
             this.handleDrag(true);
@@ -335,7 +338,7 @@ class Manager extends React.Component<ManagerProps, ManagerState> {
             ))}
           </Switch>
         )}
-        <Footer />
+        {isMobile ? <MobileTabBar /> : <Footer />}
       </div>
     );
   }

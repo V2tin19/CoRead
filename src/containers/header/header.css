@@ -86,7 +86,7 @@
 .import-from-local:hover .animation-mask-local {
   transform: scaleX(1);
 }
-@media screen and (max-width: 950px) {
+@media screen and (min-width: 571px) and (max-width: 950px) {
   .import-from-cloud {
     position: fixed;
     left: 15px;
@@ -228,31 +228,233 @@
   transform: scale(1.05) translateY(-3px);
 }
 
-/* ── 手机适配:搜索框避开左上角折叠键,图标行靠右,不再溢出屏幕 ── */
-@media (max-width: 570px) {
+/* ── 移动端顶栏重构：自适应 Flex 布局，消灭写死像素魔法，右侧自适应操作栏 ── */
+@media (max-width: 570px), screen and (max-device-width: 768px) {
   .header {
     margin-left: 0 !important;
+    width: 100% !important;
+    height: calc(56px + env(safe-area-inset-top, 0px)) !important;
+    top: 0 !important;
+    left: 0 !important;
+    position: fixed !important;
+    padding-top: env(safe-area-inset-top, 0px) !important;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+    box-sizing: border-box !important;
+    background: var(--background-color, #ffffff) !important;
+    border-bottom: 1px solid rgba(128, 128, 128, 0.12) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    z-index: 50 !important;
+    overflow: visible !important;
   }
+
   .header-search-container {
-    /* 左侧留出侧边栏折叠按钮的位置(约 60px) */
-    width: calc(100vw - 225px) !important;
-    margin-left: 60px !important;
-    top: 25px;
-  }
-  .setting-icon-parrent {
-    margin-left: 0 !important;
+    position: relative !important;
+    top: auto !important;
     left: auto !important;
-    /* 右上角是导入按钮(约 65px 宽),图标行排在它左边 */
-    right: 70px;
+    margin: 0 8px 0 0 !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    width: auto !important;
+    max-width: none !important;
+    height: 36px !important;
   }
+
+  .header-search-container .header-search-box {
+    height: 36px !important;
+    font-size: 13px !important;
+    padding-left: 12px !important;
+    padding-right: 36px !important;
+  }
+
+  .header-search-container .header-search-text {
+    width: 36px !important;
+  }
+
+  .setting-icon-parrent {
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    margin: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    height: 100% !important;
+    gap: 2px !important;
+    flex-shrink: 0 !important;
+  }
+
   .setting-icon-container {
-    margin-left: 0 !important;
-    width: 40px !important;
-    height: 40px !important;
-    line-height: 40px !important;
+    position: relative !important;
+    top: auto !important;
+    margin: 0 !important;
+    width: 36px !important;
+    height: 36px !important;
+    line-height: 36px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 20px !important;
   }
-  /* 手机上隐藏云同步按钮(需要登录,优先保证排序/设置可见) */
-  .setting-icon-parrent .setting-icon-container:last-child {
-    display: none;
+
+  .setting-icon-container span[data-tooltip-id] {
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
+
+  .import-from-local,
+  .import-from-cloud {
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    margin: 0 0 0 6px !important;
+    width: auto !important;
+    min-width: 52px !important;
+    height: 32px !important;
+    line-height: 32px !important;
+    padding: 0 10px !important;
+    font-size: 13px !important;
+    border-radius: 16px !important;
+    flex-shrink: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-shadow: none !important;
+    background: var(--main-color, #4b89ff) !important;
+    color: #ffffff !important;
+  }
+
+  .import-book-box {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    bottom: auto !important;
+  }
+
+  .header-report-container,
+  .download-demo-book,
+  .only-local-container {
+    display: none !important;
+  }
+}
+
+.mobile-mode .header {
+  margin-left: 0 !important;
+  width: 100% !important;
+  height: calc(56px + env(safe-area-inset-top, 0px)) !important;
+  top: 0 !important;
+  left: 0 !important;
+  position: fixed !important;
+  padding-top: env(safe-area-inset-top, 0px) !important;
+  padding-left: 12px !important;
+  padding-right: 12px !important;
+  box-sizing: border-box !important;
+  background: var(--background-color, #ffffff) !important;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.12) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  z-index: 50 !important;
+  overflow: visible !important;
+}
+
+.mobile-mode .header-search-container {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  margin: 0 8px 0 0 !important;
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  width: auto !important;
+  max-width: none !important;
+  height: 36px !important;
+}
+
+.mobile-mode .header-search-container .header-search-box {
+  height: 36px !important;
+  font-size: 13px !important;
+  padding-left: 12px !important;
+  padding-right: 36px !important;
+}
+
+.mobile-mode .header-search-container .header-search-text {
+  width: 36px !important;
+}
+
+.mobile-mode .setting-icon-parrent {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  margin: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  height: 100% !important;
+  gap: 2px !important;
+  flex-shrink: 0 !important;
+}
+
+.mobile-mode .setting-icon-container {
+  position: relative !important;
+  top: auto !important;
+  margin: 0 !important;
+  width: 36px !important;
+  height: 36px !important;
+  line-height: 36px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 20px !important;
+}
+
+.mobile-mode .setting-icon-container span[data-tooltip-id] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mobile-mode .import-from-local,
+.mobile-mode .import-from-cloud {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  margin: 0 0 0 6px !important;
+  width: auto !important;
+  min-width: 52px !important;
+  height: 32px !important;
+  line-height: 32px !important;
+  padding: 0 10px !important;
+  font-size: 13px !important;
+  border-radius: 16px !important;
+  flex-shrink: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-shadow: none !important;
+  background: var(--main-color, #4b89ff) !important;
+  color: #ffffff !important;
+}
+
+.mobile-mode .import-book-box {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  bottom: auto !important;
+}
+
+.mobile-mode .header-report-container,
+.mobile-mode .download-demo-book,
+.mobile-mode .only-local-container {
+  display: none !important;
 }
