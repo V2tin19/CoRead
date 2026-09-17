@@ -1,7 +1,7 @@
 import React from "react";
 import SettingPanel from "../../containers/panels/settingPanel";
 import NavigationPanel from "../../containers/panels/navigationPanel";
-import { Toaster } from "react-hot-toast";
+import { Toaster, toast } from "react-hot-toast";
 import ProgressPanel from "../../containers/panels/progressPanel";
 import { ReaderProps, ReaderState } from "./interface";
 import { ReadingTimeUtil } from "../../services";
@@ -34,7 +34,10 @@ import collabClient, {
   getCollabBookKey,
 } from "../../utils/collab/collabClient";
 import { isMobileRuntime, setMobileStatusBar } from "../../utils/mobileRuntime";
-import { TOGGLE_BOOKMARK_BY_GESTURE_EVENT } from "../../utils/reader/pageSwipeTurn";
+import {
+  TOGGLE_BOOKMARK_BY_GESTURE_EVENT,
+  TURN_CHAPTER_BY_GESTURE_EVENT,
+} from "../../utils/reader/pageSwipeTurn";
 import { toggleBookmarkByGesture } from "../../utils/reader/bookmarkUtil";
 
 let lock = false; //prevent from clicking too fasts
@@ -211,6 +214,11 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
       TOGGLE_BOOKMARK_BY_GESTURE_EVENT,
       this.handleToggleBookmarkByGesture
     );
+    // 手机端「滑动阅读贴到章末/章首继续拖 = 换章」：同上，换章交回这里才拿得到 t()/toast
+    window.addEventListener(
+      TURN_CHAPTER_BY_GESTURE_EVENT,
+      this.handleTurnChapterByGesture as any
+    );
     // 注册 Android 系统返回键专用处理器
     (window as any).readerAndroidBackHandler = () => {
       // 1. 如果有打开的抽屉 / 菜单面板，按返回键先收起抽屉
@@ -342,6 +350,10 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
     window.removeEventListener(
       TOGGLE_BOOKMARK_BY_GESTURE_EVENT,
       this.handleToggleBookmarkByGesture
+    );
+    window.removeEventListener(
+      TURN_CHAPTER_BY_GESTURE_EVENT,
+      this.handleTurnChapterByGesture as any
     );
     this.collabUnsubs.forEach((unsubscribe) => unsubscribe());
     this.collabUnsubs = [];
@@ -686,6 +698,49 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
     // 书签列表挂在 redux 上：不重新拉一次，「目录面板 → 书签」里看不到刚加的这条
     if (result !== "failed") {
       this.props.handleFetchBookmarks();
+    }
+  };
+
+  /**
+   * 手机端「滑动阅读贴到章末继续上滑 / 贴到章首继续下滑」→ 换章。
+   *
+   * 手势侧只负责识别与回弹（`pageSwipeTurn.ts` 的 `pickScrollPull`），换章在这里调内核。
+   * 之所以不放在手势层：内核在两个边界上是**静默 return**的
+   * （`handleNextChapter` 见 `chapterDocIndex >= 列表长度-1` 只把 percentage 写 1；
+   * `prev()` 见 `chapterDocIndex === "0"` 直接 return），用户只会看到
+   * 「拉了一下又弹回去，页面没变」，分不清是到头了还是坏了 —— 这里用
+   * **换章前后的 `chapterDocIndex` 比对**来判，是就给一句提示。
+   */
+  handleTurnChapterByGesture = async (event: any) => {
+    if (!isMobileRuntime()) return;
+    const dir: "next" | "prev" = event?.detail?.dir === "prev" ? "prev" : "next";
+    const rendition = this.props.htmlBook?.rendition;
+    if (!rendition) return;
+    // 换章前后比对的「章节指纹」= 章节下标 + 章节标题。
+    // 只比下标不够稳：内核 handleRenderChapter 里有一段「按 label 反查下标」的重映射，
+    // 个别书的章节可能被映射回同一个下标；标题一起比才判得准。
+    const chapterOf = () => {
+      const pos: any = rendition.getPosition?.() || {};
+      return String(pos.chapterDocIndex ?? "") + "|" + String(pos.chapterTitle ?? "");
+    };
+    const before = chapterOf();
+    try {
+      if (dir === "next") {
+        await rendition.next();
+      } else {
+        await rendition.prev();
+      }
+    } catch (err) {
+      return; // 换章失败不该卡住手势，也不该弹提示
+    }
+    if (chapterOf() === before) {
+      toast.error(
+        this.props.t(
+          dir === "next"
+            ? "Already at the last chapter"
+            : "Already at the first chapter"
+        )
+      );
     }
   };
   render() {

@@ -33,6 +33,14 @@
  *   · 拖动位移超过一页后加阻尼（`OVER_DRAG_DAMP`），给「到头了」的手感，
  *     也保证松手时的回正量很小。
  *   · 桌面端一步不碰：本模块所有入口第一行都是 `isMobileRuntime()` 守卫。
+ *
+ * ── 另外两套「纵向拉一把」的手势（2026-09-17 追加）──────────────────────────
+ * 它们与前两条无关，共用同一组 `PULL_*` 手感常量（果冻要求「手感一致」）：
+ *   1. **分页模式 · 向下拉 = 加/撤书签**（`TOGGLE_BOOKMARK_BY_GESTURE_EVENT`）；
+ *   2. **滑动模式 · 贴到章末继续上滑 / 贴到章首继续下滑 = 换章**
+ *      （`TURN_CHAPTER_BY_GESTURE_EVENT`）。
+ * 两者的「动作」都在这里（跟手平移 `#page-area` + 越阈值回弹），
+ * 「判断」都在 `pages/reader` 那一侧（书签库、换章、i18n 提示它才有）。
  */
 
 import { isMobileRuntime } from "../mobileRuntime";
@@ -50,13 +58,17 @@ const SNAP_MS = 200;
 /** 拖过一整页之后的阻尼系数（越小越"拉不动"） */
 const OVER_DRAG_DAMP = 0.25;
 
-/** 【下拉加标签】手指下滑多少像素算「够到阈值」 */
+/**
+ * 【下拉手势】三套下拉（加标签 / 换下一章 / 换上一章）**共用同一组手感常量** ——
+ * 果冻的要求就是「手感可以模仿滑出标签的方式」，所以刻意不做成三份参数。
+ */
+/** 手指越界多少像素算「够到阈值」 */
 const PULL_THRESHOLD = 72;
-/** 【下拉加标签】在这个位移内页面**严格跟手**（1:1 跟手指走） */
+/** 在这个位移内页面**严格跟手**（1:1 跟手指走） */
 const PULL_MAX = 150;
-/** 【下拉加标签】越过 PULL_MAX 之后的阻尼（越小越"拉不动"，给"到头了"的手感） */
+/** 越过 PULL_MAX 之后的阻尼（越小越"拉不动"，给"到头了"的手感） */
 const PULL_OVER_DAMP = 0.3;
-/** 【下拉加标签】回弹动画时长 */
+/** 回弹动画时长 */
 const PULL_SNAP_MS = 220;
 
 /**
@@ -64,6 +76,18 @@ const PULL_SNAP_MS = 220;
  * 约定：**当前页没有标签就加上，已经有就撤掉**（果冻的原话是「再次下滑取消标签」）。
  */
 export const TOGGLE_BOOKMARK_BY_GESTURE_EVENT = "coread-toggle-bookmark-by-gesture";
+
+/**
+ * 手势 ⇒ 换章的开关键，同样由 `pages/reader` 监听。
+ * `detail.dir` = `"next"`（贴到章末继续上滑）/ `"prev"`（贴到章首继续下滑）。
+ *
+ * 为什么换章不像分页模式的跨章那样直接在这里调 `rendition.next()`：
+ * 一是「已经是最后一章 / 第一章」时内核是**静默 return**（`handleNextChapter` 里
+ * `chapterDocIndex >= length-1` 只把 percentage 写 1 就返回），用户只会看到
+ * 一次拉不动又弹回去，分不清是到头了还是坏了 —— 交给页面层才好给提示；
+ * 二是页面层才有 `t()` 和 `toast`。
+ */
+export const TURN_CHAPTER_BY_GESTURE_EVENT = "coread-turn-chapter-by-gesture";
 
 /**
  * 页步长：**刻意与内核 `yt()` 用同一个口径**（`clientWidth + 偶数化的 clientWidth/12`）。
@@ -206,6 +230,12 @@ export async function smoothPageTurn(
  *
  * 手机端启用后，Hammer 的 swipe 必须同时关掉（见 mouseEvent.ts）——
  * 否则一次滑动会被两边各消费一次，直接翻两页。
+ *
+ * **两种阅读模式各管一套手势（同一个监听器里分叉，不会互相抢）：**
+ *   · 分页（single / double）：横拖跟手翻页 + 下滑加/撤标签（见 §H / §J）；
+ *   · 滑动（scroll）：纵向滚动完全交回原生，**只在「已经贴到章末/章首还要继续拖」时**
+ *     接管成换章（`TURN_CHAPTER_BY_GESTURE_EVENT`）。手感与「下拉加标签」共用同一组
+ *     PULL_* 常量，也就是果冻要的「模仿滑出标签的方式」。
  */
 export function bindPageSwipeTurn(
   rendition: any,
@@ -215,16 +245,21 @@ export function bindPageSwipeTurn(
   if (!isMobileRuntime()) {
     return;
   }
-  if (readerMode === "scroll") {
-    return; // 滑动阅读本身就是滚动，别再抢
-  }
   if (!doc || !doc.body || !rendition) {
     return;
   }
+  // 当前阅读模式挂在 doc 上，**每次调用都刷新**：万一内核复用了同一个 iframe
+  // （没重建 doc）而用户刚切了「视图模式」，手势读到的也一定是最新模式。
+  // 分页模式与滑动模式的手势是两套（见 onMove 里的分叉），读错了会互相打架。
+  const modeStr: "scroll" | "paged" = readerMode === "scroll" ? "scroll" : "paged";
+  (doc as any).__coreadSwipeTurnMode = modeStr;
   if ((doc as any).__coreadSwipeTurnBound) {
     return;
   }
   (doc as any).__coreadSwipeTurnBound = true;
+
+  /** 取「此刻」的阅读模式（不是绑定那一刻的），理由见上 */
+  const isScrollMode = () => (doc as any).__coreadSwipeTurnMode === "scroll";
 
   const body = doc.body as HTMLElement;
   const win: any = doc.defaultView || window;
@@ -243,12 +278,52 @@ export function bindPageSwipeTurn(
    * 用原始手指位移判阈值，跟手阻尼只负责观感，两件事分开。
    */
   let rawMove = 0;
-  /** 「下拉加标签」要纵向平移的那层壳（iframe 外层 #page-area） */
+  /** 纵向「拉一把」要平移的那层壳（iframe 外层 #page-area） */
   let pullEl: HTMLElement | null = null;
-  /** 下拉过程中当前的视觉位移（回弹时要用它当起点） */
+  /** 这次纵向拉拽属于哪一种：加撤标签 / 换下一章 / 换上一章 */
+  let pullKind: "bookmark" | "next" | "prev" = "bookmark";
+  /**
+   * 拉拽位移的**基准手指位置**（`clientY`）。
+   * 分页模式在手势起点设一次；滑动模式在「贴到章末/章首那一刻」设 ——
+   * 后者是因为滚到底之前手指已经走了很长一段路，不重设基准的话
+   * 一贴边 dy 就是几百像素，阈值瞬间满足，滚到底那一下会凭空换章。
+   */
+  let pullBaseY = 0;
+  /** 拉拽过程中当前的视觉位移（**带符号**，回弹时要用它当起点） */
   let pullY = 0;
   /** 本次下拉是否已经越过阈值并触发过（保证一次手势只触发一次） */
   let pullTriggered = false;
+
+  /**
+   * 滑动阅读：判断这次纵向拖动是不是「已经贴到本章顶/底、还要继续拖」。
+   * 是的话把要平移的壳挂到 `pullEl` 上并返回方向，否则返回空串（交回原生滚动）。
+   *
+   * 🔴 边界判据**刻意比内核严一档**，保证触发时内核一定走「换章」分支：
+   *   · `next()` 要求 `|scrollHeight - scrollTop - clientHeight| < 20` ⇒ 我们用 `<= 2`；
+   *   · `prev()` 要求 `scrollTop === 0`（**严格等于**）⇒ 我们用 `<= 0`。
+   *   宽一档的话内核会去走「滚一屏」分支，表现为拉了却只滚半页。
+   */
+  const pickScrollPull = (dy: number): "next" | "prev" | "" => {
+    const shell = getPageShell(win);
+    if (!shell) {
+      return "";
+    }
+    const maxTop = Math.max(0, shell.scrollHeight - shell.clientHeight);
+    const top = shell.scrollTop;
+    if (dy < 0) {
+      // 手指上滑 = 内容往上走 = 往本章后面读；贴到最底才接管
+      if (maxTop <= 0 || maxTop - top > 2) {
+        return "";
+      }
+    } else {
+      // 手指下滑 = 往回读；贴到最顶才接管
+      if (top > 0) {
+        return "";
+      }
+    }
+    pullEl = shell;
+    return dy < 0 ? "next" : "prev";
+  };
 
   const onStart = (e: TouchEvent) => {
     if (busy || !e.touches || e.touches.length !== 1) {
@@ -263,8 +338,10 @@ export function bindPageSwipeTurn(
     origin = body.scrollLeft;
     rawMove = 0;
     pullEl = null;
+    pullBaseY = t.clientY;
     pullY = 0;
     pullTriggered = false;
+    pullKind = "bookmark";
   };
 
   const onMove = (e: TouchEvent) => {
@@ -282,7 +359,35 @@ export function bindPageSwipeTurn(
     const dy = t.clientY - startY;
 
     if (mode === "idle") {
-      if (Math.abs(dy) > V_ABORT_PX && Math.abs(dy) >= Math.abs(dx)) {
+      const verticalIntent =
+        Math.abs(dy) > V_ABORT_PX && Math.abs(dy) >= Math.abs(dx);
+
+      if (isScrollMode()) {
+        // ── 滑动阅读模式 ────────────────────────────────────────────────
+        // 实测：滚动容器是**外层 `#page-area`**（`overflow-y:auto`，scrollHeight 29767 /
+        // clientHeight 778），iframe 被内核撑到整篇高度、内部 body 根本不滚
+        // （body.clientHeight === body.scrollHeight === 29765）。
+        // 所以这里只认「贴到章末/章首还要继续拖」这一种情形，其余一律不接管，
+        // 让原生滚动照常工作（否则正常阅读的滑动会被吃掉）。
+        if (!verticalIntent) return;
+        const kind = pickScrollPull(dy);
+        if (!kind) {
+          // 还没贴边 ⇒ 这次移动不归我们，但**刻意不锁死**（不置 "v"）：
+          // 用户「一路滚到章末、手指还没抬就继续拖」时，下一帧就能接上换章。
+          // 置 "v" 的话必须松手再拖一次才生效，手感上会像"第一次没反应"。
+          return;
+        }
+        // 划选中不接管（长按选词后往下拖是扩大选区）
+        const selScroll = doc.getSelection && doc.getSelection();
+        if (selScroll && String(selScroll).length > 0) {
+          mode = "v";
+          return;
+        }
+        // 位移基准重设在「贴边那一刻」（理由见 pullBaseY 的声明）
+        pullBaseY = t.clientY;
+        pullKind = kind;
+        mode = "pull";
+      } else if (verticalIntent) {
         if (dy <= 0) {
           mode = "v"; // 上滑不归我们管，交回原来的逻辑
           return;
@@ -300,6 +405,7 @@ export function bindPageSwipeTurn(
           mode = "v";
           return;
         }
+        pullKind = "bookmark";
         pullEl = shell;
         mode = "pull";
       } else if (Math.abs(dx) <= H_INTENT_PX || Math.abs(dx) <= Math.abs(dy)) {
@@ -326,30 +432,41 @@ export function bindPageSwipeTurn(
     }
 
     if (mode === "pull") {
-      // 压掉浏览器的原生下拉（刷新 / overscroll）
+      // 压掉原生默认：分页模式下是浏览器的下拉刷新／overscroll；
+      // 滑动模式下这一步更关键 —— 它是**唯一**能压住外层 #page-area 继续滚动的开关
+      // （实测：iframe 里 preventDefault 后外层 scrollTop 纹丝不动，见 2026-09-17 探针）。
       e.preventDefault();
       // 前 PULL_MAX 像素严格跟手（1:1 跟手指走，观感才是"页面被拽下来了"），
       // 再往下加阻尼，给"拉到头"的手感。
-      const y =
-        dy <= PULL_MAX ? dy : PULL_MAX + (dy - PULL_MAX) * PULL_OVER_DAMP;
-      pullY = y;
+      // 三种拉拽统一按「离基准的手指位移」算；反向拖回去就跟着缩回来（不会出负拉伸）。
+      const rawPdy = t.clientY - pullBaseY;
+      const signedPdy =
+        pullKind === "next" ? Math.min(0, rawPdy) : Math.max(0, rawPdy);
+      const dist = Math.abs(signedPdy);
+      const y = dist <= PULL_MAX ? dist : PULL_MAX + (dist - PULL_MAX) * PULL_OVER_DAMP;
+      // 「换下一章」是手指上滑 ⇒ 整页跟着往上走（负）；加标签 / 换上一章都是向下为正
+      pullY = pullKind === "next" ? -y : y;
       if (pullEl) {
         pullEl.style.transition = "none";
-        pullEl.style.transform = `translateY(${y}px)`;
+        pullEl.style.transform = `translateY(${pullY}px)`;
       }
-      if (!pullTriggered && dy >= PULL_THRESHOLD) {
+      if (!pullTriggered && dist >= PULL_THRESHOLD) {
         pullTriggered = true;
         try {
-          // 交给 pages/reader 那一侧决定「加」还是「撤」——它手里才有书签库
+          // 交给 pages/reader 那一侧去做决定 —— 书签库与换章都在它手里
           (win.parent || window).dispatchEvent(
-            new CustomEvent(TOGGLE_BOOKMARK_BY_GESTURE_EVENT)
+            pullKind === "bookmark"
+              ? new CustomEvent(TOGGLE_BOOKMARK_BY_GESTURE_EVENT)
+              : new CustomEvent(TURN_CHAPTER_BY_GESTURE_EVENT, {
+                  detail: { dir: pullKind },
+                })
           );
         } catch (err) {
           /* 跨窗口派发失败不影响回弹 */
         }
         // 越过阈值即刻生效 + 回弹，手感像「拉到头，咔哒一下」
         if (pullEl) {
-          animateTranslateY(pullEl, y, 0, PULL_SNAP_MS);
+          animateTranslateY(pullEl, pullY, 0, PULL_SNAP_MS);
         }
         mode = "done";
       }
@@ -378,13 +495,13 @@ export function bindPageSwipeTurn(
 
   const onEnd = async () => {
     if (mode === "pull") {
-      // 下拉没够到阈值就松手：整页弹回去，不动标签
+      // 没够到阈值就松手：整页弹回去，不加标签也不换章（pullY 带符号，别判 >0）
       const el = pullEl;
       const y = pullY;
       mode = "idle";
       pullEl = null;
       pullY = 0;
-      if (el && y > 0) {
+      if (el && y !== 0) {
         animateTranslateY(el, y, 0, PULL_SNAP_MS);
       }
       return;
@@ -458,9 +575,9 @@ export function bindPageSwipeTurn(
   };
 
   const onCancel = () => {
-    // 下拉被打断（来电、多指）时也要把壳弹回去，别让它卡在下移位置。
+    // 拉拽被打断（来电、多指）时也要把壳弹回去，别让它卡在偏移位置。
     // （"done" 不用管：那一步的回弹动画已经在 onMove 里起来了，再起一次会往回跳）
-    if (mode === "pull" && pullEl && pullY > 0) {
+    if (mode === "pull" && pullEl && pullY !== 0) {
       animateTranslateY(pullEl, pullY, 0, PULL_SNAP_MS);
     }
     pullEl = null;
