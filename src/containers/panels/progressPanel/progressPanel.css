@@ -419,7 +419,12 @@
   border-radius: 4px;
   cursor: pointer;
   padding: 0;
+  touch-action: manipulation;
   transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.mobile-progress-step-btn * {
+  pointer-events: none;
 }
 
 .mobile-progress-step-btn:active {
@@ -446,9 +451,14 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  touch-action: manipulation;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   transition: transform 0.12s ease, box-shadow 0.12s ease;
   padding: 0;
+}
+
+.mobile-theme-swatch * {
+  pointer-events: none;
 }
 
 .mobile-theme-swatch:active {
@@ -485,9 +495,14 @@
   color: var(--coread-shell-fg, rgba(60, 60, 67, 0.85));
   border-radius: 4px;
   cursor: pointer;
+  touch-action: manipulation;
   transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
   -webkit-tap-highlight-color: transparent;
   gap: 4px;
+}
+
+.mobile-bottom-tab * {
+  pointer-events: none;
 }
 
 .mobile-bottom-tab:active {

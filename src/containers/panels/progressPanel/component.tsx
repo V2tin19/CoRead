@@ -209,7 +209,13 @@ class ProgressPanel extends React.Component<
       ];
 
       return (
-        <div className="progress-panel mobile-progress-panel">
+        <div
+          className={`progress-panel mobile-progress-panel ${
+            this.state.showProgressCard || this.state.showQuickTheme
+              ? "mobile-progress-panel-expanded"
+              : ""
+          }`}
+        >
           {/* 快速背景主题选择面板（方块微倒角卡片，宁框勿线） */}
           {this.state.showQuickTheme && (
             <div className="mobile-quick-theme-panel">
@@ -319,9 +325,10 @@ class ProgressPanel extends React.Component<
                 this.state.showProgressCard ? "mobile-bottom-tab-active" : ""
               }`}
               onClick={() =>
-                this.setState({
-                  showProgressCard: !this.state.showProgressCard,
-                })
+                this.setState((prev) => ({
+                  showProgressCard: !prev.showProgressCard,
+                  showQuickTheme: false,
+                }))
               }
               title="进度调节"
             >
@@ -334,9 +341,10 @@ class ProgressPanel extends React.Component<
                 this.state.showQuickTheme ? "mobile-bottom-tab-active" : ""
               }`}
               onClick={() =>
-                this.setState({
-                  showQuickTheme: !this.state.showQuickTheme,
-                })
+                this.setState((prev) => ({
+                  showQuickTheme: !prev.showQuickTheme,
+                  showProgressCard: false,
+                }))
               }
               title="亮度与背景"
             >

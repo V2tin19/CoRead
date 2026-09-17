@@ -648,11 +648,11 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
           </div>
         )}
 
-        {/* 微信读书同款单手拇指快捷悬浮按钮：Ai 问书 + 听书 */}
+        {/* 微信读书同款单手拇指快捷悬浮按钮：Ai 问书 + 听书（仅在唤出菜单时呈现） */}
         {isMobile && !this.state.isOpenLeftPanel && !this.state.isOpenRightPanel && (
           <div
             className={`mobile-floating-actions ${
-              this.state.isOpenBottomPanel ? "mobile-floating-actions-docked" : ""
+              this.state.isOpenBottomPanel ? "mobile-floating-actions-visible" : ""
             }`}
           >
             <button

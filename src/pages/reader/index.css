@@ -592,20 +592,40 @@
 
 /* 微信读书同款单手悬浮快捷按键（Ai 问书 + 听书）
    方正微倒角卡片，深色毛玻璃，单手大拇指极佳触达位 */
+/* 微信读书同款单手悬浮快捷按键（Ai 问书 + 听书）
+   仅在唤出菜单（底部工具条展开）时呈现；纯阅读状态下彻底隐藏。
+   水平并排悬浮于底栏上方右侧，对齐微信读书实机交互。 */
 .mobile-floating-actions {
   position: fixed;
-  right: 14px;
-  bottom: 34px;
+  right: 18px;
+  bottom: calc(76px + env(safe-area-inset-bottom, 0px));
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  z-index: 20;
-  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  z-index: 26;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(16px) scale(0.92);
+  pointer-events: none;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.2s ease,
+    visibility 0.2s ease;
+}
+
+.mobile-floating-actions-visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0) scale(1);
   pointer-events: auto;
 }
 
-.mobile-floating-actions-docked {
-  transform: translateY(-96px);
+/* 当用户在底栏展开进度调节卡片或背景色卡时，暂时收起悬浮按键，避免遮挡滑块与色卡 */
+.viewer:has(.mobile-progress-panel-expanded) .mobile-floating-actions {
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(14px) scale(0.9);
+  pointer-events: none;
 }
 
 .mobile-fab-btn {
@@ -624,8 +644,13 @@
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   padding: 0;
+  touch-action: manipulation;
   transition: transform 0.12s ease, background 0.15s ease;
   -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-fab-btn * {
+  pointer-events: none;
 }
 
 .mobile-fab-btn:active {
