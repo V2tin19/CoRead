@@ -26,7 +26,7 @@ const initState = {
   quoteText: "",
   htmlBook: null,
   scale: configStore.getReaderConfig("scale") || "1",
-  margin: configStore.getReaderConfig("margin") || "0",
+  margin: configStore.getReaderConfig("margin") || "15",
   section: null,
   readerMode: "double",
   isConvertOpen: false,

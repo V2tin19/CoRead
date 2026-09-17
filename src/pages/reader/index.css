@@ -507,8 +507,20 @@
 .mobile-reader-mode .left-panel,
 .mobile-reader-mode .right-panel,
 .mobile-reader-mode .top-panel,
-.mobile-reader-mode .bottom-panel {
+.mobile-reader-mode .bottom-panel,
+.mobile-reader-mode .background-box2,
+.mobile-reader-mode .background-box3,
+.mobile-reader-mode .book-spine,
+.mobile-reader-mode .spine-shadow-left,
+.mobile-reader-mode .spine-shadow-right {
   display: none !important;
+}
+
+.background-box1,
+.background-box2,
+.background-box3 {
+  border: none !important;
+  box-shadow: none !important;
 }
 
 .mobile-reader-mode .navigation-panel-container,

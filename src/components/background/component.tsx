@@ -86,91 +86,105 @@ class Background extends React.Component<BackgroundProps, BackgroundState> {
   }
 
   render() {
-    // 手机窄屏上纸张背景贴合正文(每侧 12px),避免一圈过宽的纸边
     const isNarrowScreen = document.body.clientWidth < 570;
-    const paperPadding = isNarrowScreen ? 24 : 98;
-    const paperMargin = isNarrowScreen ? -12 : -50;
+    if (isNarrowScreen) {
+      if (!this.state.readerBackgroundUrl) {
+        return null;
+      }
+      return (
+        <div
+          className="background-box1"
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            top: 0,
+            bottom: 0,
+            width: "100%",
+            height: "100%",
+            margin: 0,
+            border: "none",
+            boxShadow: "none",
+            backgroundImage: `url("${this.state.readerBackgroundUrl}")`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        />
+      );
+    }
+
+    const paperPadding = 98;
+    const paperMargin = -50;
     return (
       <>
-        <div
-          className="background-box2"
-          style={
-            this.state.isSingle
-              ? {
-                  left: this.state.pageOffset,
-                  marginLeft: paperMargin,
-                  width: `calc(${this.state.pageWidth} + ${paperPadding}px)`,
-                  boxShadow: "0 0 0px rgba(191, 191, 191, 1)",
-                }
-              : {
-                  left: this.props.isNavLocked ? 305 : 5,
-                  right: this.props.isSettingLocked ? 305 : 5,
-                }
-          }
-        ></div>
+        {!this.state.isSingle && (
+          <div
+            className="background-box2"
+            style={{
+              left: this.props.isNavLocked ? 305 : 5,
+              right: this.props.isSettingLocked ? 305 : 5,
+              border: "none",
+              boxShadow: "none",
+            }}
+          />
+        )}
 
-        <div
-          className="background-box3"
-          style={
-            this.state.isSingle
-              ? {
-                  marginLeft: paperMargin,
-                  left: this.state.pageOffset,
-                  width: `calc(${this.state.pageWidth} + ${paperPadding + 2}px)`,
-                }
-              : {
-                  left: this.props.isNavLocked ? 307 : 7,
-                  right: this.props.isSettingLocked ? 307 : 7,
-                }
-          }
-        >
-          {(() => {
-            const isDarkMode =
-              (!this.props.backgroundColor &&
-                (ConfigService.getReaderConfig("appSkin") === "night" ||
-                  (ConfigService.getReaderConfig("appSkin") === "system" &&
-                    ConfigService.getReaderConfig("isOSNight") === "yes"))) ||
-              this.props.backgroundColor === "rgba(44,47,49,1)";
+        {!this.state.isSingle && (
+          <div
+            className="background-box3"
+            style={{
+              left: this.props.isNavLocked ? 307 : 7,
+              right: this.props.isSettingLocked ? 307 : 7,
+              border: "none",
+              boxShadow: "none",
+            }}
+          >
+            {(() => {
+              const isDarkMode =
+                (!this.props.backgroundColor &&
+                  (ConfigService.getReaderConfig("appSkin") === "night" ||
+                    (ConfigService.getReaderConfig("appSkin") === "system" &&
+                      ConfigService.getReaderConfig("isOSNight") === "yes"))) ||
+                this.props.backgroundColor === "rgba(44,47,49,1)";
 
-            const shadowOpacity = isDarkMode ? 0.5 : undefined;
+              const shadowOpacity = isDarkMode ? 0.5 : undefined;
 
-            return (
-              <>
-                <div
-                  className="spine-shadow-left"
-                  style={{
-                    ...(this.state.isSingle && { display: "none" }),
-                    ...(shadowOpacity && { opacity: shadowOpacity }),
-                  }}
-                ></div>
-                <div
-                  className="book-spine"
-                  style={this.state.isSingle ? { display: "none" } : {}}
-                ></div>
-                <div
-                  className="spine-shadow-right"
-                  style={{
-                    ...(this.state.isSingle && {
-                      position: "relative",
-                      right: 0,
-                    }),
-                    ...(shadowOpacity && { opacity: shadowOpacity }),
-                  }}
-                ></div>
-              </>
-            );
-          })()}
-        </div>
+              return (
+                <>
+                  <div
+                    className="spine-shadow-left"
+                    style={{
+                      ...(shadowOpacity && { opacity: shadowOpacity }),
+                    }}
+                  />
+                  <div className="book-spine" />
+                  <div
+                    className="spine-shadow-right"
+                    style={{
+                      ...(shadowOpacity && { opacity: shadowOpacity }),
+                    }}
+                  />
+                </>
+              );
+            })()}
+          </div>
+        )}
 
         <div
           className="background-box1"
           style={
             this.state.isSingle
               ? {
-                  marginLeft: -50,
-                  left: this.state.pageOffset,
-                  width: `calc(${this.state.pageWidth} + 102px)`,
-                  boxShadow: "0 0 0px rgba(191, 191, 191, 1)",
+                  position: "absolute",
+                  left: 0,
+                  right: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: "100%",
+                  height: "100%",
+                  margin: 0,
+                  border: "none",
+                  boxShadow: "none",
                   ...(this.state.readerBackgroundUrl
                     ? {
                         backgroundImage: `url("${this.state.readerBackgroundUrl}")`,
@@ -182,6 +196,8 @@ class Background extends React.Component<BackgroundProps, BackgroundState> {
               : {
                   left: this.props.isNavLocked ? 309 : 9,
                   right: this.props.isSettingLocked ? 309 : 9,
+                  border: "none",
+                  boxShadow: "none",
                   ...(this.state.readerBackgroundUrl
                     ? {
                         backgroundImage: `url("${this.state.readerBackgroundUrl}")`,
@@ -191,7 +207,7 @@ class Background extends React.Component<BackgroundProps, BackgroundState> {
                     : {}),
                 }
           }
-        ></div>
+        />
       </>
     );
   }
