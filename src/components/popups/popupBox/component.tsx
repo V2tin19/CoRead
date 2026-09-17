@@ -8,6 +8,7 @@ import { getIframeDoc } from "../../../utils/reader/docUtil";
 import PopupAssist from "../popupAssist";
 import { isElectron } from "react-device-detect";
 import { ConfigService } from '../../../services';
+import { isMobileRuntime } from "../../../utils/mobileRuntime";
 
 const POPUP_SIZE_KEY = "popupBoxSize";
 const DEFAULT_WIDTH = 500;
@@ -138,8 +139,22 @@ class PopupBox extends React.Component<PopupBoxProps, PopupBoxStates> {
       typeof window !== "undefined" ? window.innerWidth : popupWidth;
     const viewportHeight =
       typeof window !== "undefined" ? window.innerHeight : popupHeight;
-    const effWidth = Math.min(popupWidth, Math.max(280, viewportWidth - 16));
-    const effHeight = Math.min(popupHeight, Math.max(200, viewportHeight - 40));
+    const isMobile =
+      isMobileRuntime() ||
+      (typeof window !== "undefined" && window.innerWidth < 570);
+    const effWidth = isMobile
+      ? Math.min(viewportWidth - 24, 480)
+      : Math.min(popupWidth, Math.max(280, viewportWidth - 16));
+    const effHeight = isMobile
+      ? Math.min(popupHeight, Math.max(260, viewportHeight - 80))
+      : Math.min(popupHeight, Math.max(200, viewportHeight - 40));
+    const marginLeft = isMobile
+      ? 0
+      : this.props.isNavLocked && !this.props.isSettingLocked
+        ? 150
+        : !this.props.isNavLocked && this.props.isSettingLocked
+          ? -150
+          : 0;
     return (
       <div
         style={{
@@ -153,15 +168,11 @@ class PopupBox extends React.Component<PopupBoxProps, PopupBoxStates> {
         <div
           className="popup-box-container"
           style={{
-            marginLeft:
-              this.props.isNavLocked && !this.props.isSettingLocked
-                ? 150
-                : !this.props.isNavLocked && this.props.isSettingLocked
-                  ? -150
-                  : 0,
+            marginLeft,
             width: effWidth,
             height: effHeight,
             left: `calc(50% - ${effWidth / 2}px)`,
+            bottom: isMobile ? "env(safe-area-inset-bottom, 0px)" : "0px",
           }}
         >
           {this.props.menuMode === "note" ? (
@@ -180,11 +191,13 @@ class PopupBox extends React.Component<PopupBoxProps, PopupBoxStates> {
             }}
             style={{ top: "-30px", left: "calc(50% - 10px)" }}
           ></span>
-          <div
-            className="popup-resize-handle"
-            onMouseDown={this.handleResizeStart}
-            title=""
-          />
+          {!isMobile && (
+            <div
+              className="popup-resize-handle"
+              onMouseDown={this.handleResizeStart}
+              title=""
+            />
+          )}
         </div>
         <div
           className="drag-background"

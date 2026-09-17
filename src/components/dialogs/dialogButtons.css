@@ -32,3 +32,140 @@
   text-align: center;
   cursor: pointer;
 }
+
+/* ──────── 移动端全局弹窗与对话框自适应守护 ──────── */
+@media (max-width: 570px), screen and (max-device-width: 768px) {
+  /* 解决 sortDialog 写死 left: 425px 导致的 100% 出屏 */
+  .sort-dialog-container {
+    position: fixed !important;
+    top: calc(56px + env(safe-area-inset-top, 0px)) !important;
+    right: 16px !important;
+    left: auto !important;
+    z-index: 100 !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18) !important;
+  }
+
+  /* 解决 loadingDialog 写死 454px 出屏 */
+  .loading-dialog {
+    width: min(320px, calc(100vw - 32px)) !important;
+    left: 50% !important;
+    top: 50% !important;
+    transform: translate(-50%, -50%) !important;
+  }
+
+  /* 解决 editDialog 写死 380px 出屏 */
+  .edit-dialog-container {
+    width: min(340px, calc(100vw - 24px)) !important;
+    max-height: calc(100dvh - 40px) !important;
+    max-height: calc(100vh - 40px);
+    left: 50% !important;
+    top: 50% !important;
+    transform: translate(-50%, -50%) !important;
+  }
+
+  /* 解决 addDialog, deleteDialog 窄屏适配 */
+  .add-dialog-container,
+  .delete-dialog-container {
+    width: min(320px, calc(100vw - 24px)) !important;
+    left: 50% !important;
+    top: 50% !important;
+    transform: translate(-50%, -50%) !important;
+  }
+
+  /* 解决 opdsDialog, localFileDialog 等对话框 */
+  .opds-dialog-container,
+  .local-file-dialog-container,
+  .action-dialog-container,
+  .metadata-dialog-container {
+    width: min(340px, calc(100vw - 24px)) !important;
+    left: 50% !important;
+    top: 50% !important;
+    transform: translate(-50%, -50%) !important;
+  }
+
+  /* 解决 settingDialog 在手机端的全屏原生体验 */
+  .setting-dialog-container {
+    width: 100vw !important;
+    height: 100dvh !important;
+    height: 100vh !important;
+    left: 0 !important;
+    top: 0 !important;
+    border-radius: 0 !important;
+    padding-top: env(safe-area-inset-top, 0px) !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+  }
+
+  .setting-close-container {
+    top: calc(12px + env(safe-area-inset-top, 0px)) !important;
+    right: 12px !important;
+    width: 36px !important;
+    height: 36px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+}
+
+.mobile-mode .sort-dialog-container {
+  position: fixed !important;
+  top: calc(56px + env(safe-area-inset-top, 0px)) !important;
+  right: 16px !important;
+  left: auto !important;
+  z-index: 100 !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18) !important;
+}
+
+.mobile-mode .loading-dialog {
+  width: min(320px, calc(100vw - 32px)) !important;
+  left: 50% !important;
+  top: 50% !important;
+  transform: translate(-50%, -50%) !important;
+}
+
+.mobile-mode .edit-dialog-container {
+  width: min(340px, calc(100vw - 24px)) !important;
+  max-height: calc(100dvh - 40px) !important;
+  max-height: calc(100vh - 40px);
+  left: 50% !important;
+  top: 50% !important;
+  transform: translate(-50%, -50%) !important;
+}
+
+.mobile-mode .add-dialog-container,
+.mobile-mode .delete-dialog-container {
+  width: min(320px, calc(100vw - 24px)) !important;
+  left: 50% !important;
+  top: 50% !important;
+  transform: translate(-50%, -50%) !important;
+}
+
+.mobile-mode .opds-dialog-container,
+.mobile-mode .local-file-dialog-container,
+.mobile-mode .action-dialog-container,
+.mobile-mode .metadata-dialog-container {
+  width: min(340px, calc(100vw - 24px)) !important;
+  left: 50% !important;
+  top: 50% !important;
+  transform: translate(-50%, -50%) !important;
+}
+
+.mobile-mode .setting-dialog-container {
+  width: 100vw !important;
+  height: 100dvh !important;
+  height: 100vh !important;
+  left: 0 !important;
+  top: 0 !important;
+  border-radius: 0 !important;
+  padding-top: env(safe-area-inset-top, 0px) !important;
+  padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+}
+
+.mobile-mode .setting-close-container {
+  top: calc(12px + env(safe-area-inset-top, 0px)) !important;
+  right: 12px !important;
+  width: 36px !important;
+  height: 36px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
