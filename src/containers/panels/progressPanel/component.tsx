@@ -7,7 +7,7 @@ import { configStore, readingProgressStore } from "../../../core/ports/stores";
 import { scrollContents } from "../../../utils/common";
 import {
   toggleReadingPanel,
-  toggleDoodleDrawer,
+  toggleNavTab,
 } from "../../../utils/reader/mouseEvent";
 import { isMobileRuntime } from "../../../utils/mobileRuntime";
 import StyleUtil from "../../../utils/reader/styleUtil";
@@ -325,10 +325,19 @@ class ProgressPanel extends React.Component<
             <button
               type="button"
               className="mobile-bottom-tab"
-              onClick={() => toggleDoodleDrawer()}
-              title="随心笔记"
+              onClick={() => {
+                // 「笔记」在这里 = 笔记 / 高光的汇总列表（左侧面板的「笔记」页签，
+                // 同页签栏里还有书签与高光）。它与顶栏右上角那个「随心笔记（涂鸦）」
+                // 是两个不同的东西 —— 汇总归底栏、随手画归顶栏，别再把两件事叠一起。
+                // ⚠️ 只发这一个事件就够了：NavigationPanel 的 handleNavTabToggle
+                // 自己就带「面板没开就开、开着同一页签就关」的逻辑，
+                // 再补一个 toggleReadingPanel("left") 会变成双重切换（状态批处理下
+                // 表现为偶发的「点了没反应」或「关不掉」）。
+                toggleNavTab("notes");
+              }}
+              title="笔记与高光"
             >
-              <span className="icon-edit mobile-tab-icon" />
+              <span className="icon-note mobile-tab-icon" />
               <span className="mobile-tab-text">笔记</span>
             </button>
             <button

@@ -24,6 +24,7 @@ import {
   setDoodleSyncEnabled,
 } from "../../utils/file/doodleUtil";
 import toast from "react-hot-toast";
+import { isMobileRuntime } from "../../utils/mobileRuntime";
 
 const PENDING_ROOM_KEY = "koodo-collab-pending-room";
 const PENDING_JOIN_KEY = "koodo-collab-pending-join";
@@ -95,10 +96,27 @@ class CollabPanel extends React.Component<CollabPanelProps, CollabPanelState> {
   }
 
   /* ── 面板拖动 ── */
+  /**
+   * 真正生效的拖动偏移。
+   * 手机端把 y 夹到 >= 0：面板的默认位置本来就已经在阅读器顶栏下沿，
+   * 再往上拖只会把「可拖动的标题栏」塞进顶栏底下 ⇒ 手指命中的是顶栏、
+   * 把手抓不到（这就是果冻反馈的「叠在导航栏那里拖不动」）。
+   * 这里夹一道还能顺带救回老版本存进 localStorage 的负 y —— 否则重开面板
+   * 又回到那个抓不到的位置。
+   */
+  panelOffset = (): { x: number; y: number } | null => {
+    const offset = this.state.dragOffset;
+    if (!offset) return null;
+    const isMobile =
+      isMobileRuntime() || document.body.clientWidth < 570;
+    if (!isMobile) return offset;
+    return { x: offset.x, y: Math.max(0, offset.y) };
+  };
+
   handleDragStart = (event: React.PointerEvent<HTMLDivElement>) => {
     // 只响应鼠标左键 / 触摸主指针
     if (event.button !== undefined && event.button !== 0) return;
-    const origin = this.state.dragOffset || { x: 0, y: 0 };
+    const origin = this.panelOffset() || { x: 0, y: 0 };
     this.dragStart = {
       pointerX: event.clientX,
       pointerY: event.clientY,
@@ -111,6 +129,7 @@ class CollabPanel extends React.Component<CollabPanelProps, CollabPanelState> {
 
   handleDragMove = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!this.dragStart) return;
+    const cur = this.panelOffset();
     const next = {
       x: this.dragStart.originX + (event.clientX - this.dragStart.pointerX),
       y: this.dragStart.originY + (event.clientY - this.dragStart.pointerY),
@@ -119,12 +138,16 @@ class CollabPanel extends React.Component<CollabPanelProps, CollabPanelState> {
     const panel = event.currentTarget.closest(".collab-panel") as HTMLElement;
     if (panel) {
       const rect = panel.getBoundingClientRect();
-      const defaultLeft = rect.left - (this.state.dragOffset?.x || 0);
-      const defaultTop = rect.top - (this.state.dragOffset?.y || 0);
+      const defaultLeft = rect.left - (cur?.x || 0);
+      const defaultTop = rect.top - (cur?.y || 0);
       const maxX = window.innerWidth - rect.width - defaultLeft;
       const maxY = window.innerHeight - rect.height - defaultTop;
+      // 手机端不让往上拖（理由见 panelOffset 的注释）：下界取 0 而不是 -defaultTop
+      const isMobile =
+        isMobileRuntime() || document.body.clientWidth < 570;
+      const minY = isMobile ? 0 : -defaultTop;
       next.x = Math.max(-defaultLeft, Math.min(next.x, maxX));
-      next.y = Math.max(-defaultTop, Math.min(next.y, maxY));
+      next.y = Math.max(minY, Math.min(next.y, maxY));
     }
     this.setState({ dragOffset: next });
   };
@@ -574,15 +597,18 @@ class CollabPanel extends React.Component<CollabPanelProps, CollabPanelState> {
   render() {
     const isInRoom = Boolean(this.state.activeRoomId);
     const { rooms, isLoadingRooms } = this.state;
+    const isMobile = isMobileRuntime() || document.body.clientWidth < 570;
+    // 手机端生效的拖动偏移（y 夹到 >= 0，见 panelOffset）
+    const offset = this.panelOffset();
     return (
       <div
         className={
           "collab-panel" + (this.state.isDragging ? " collab-panel-dragging" : "")
         }
         style={
-          this.state.dragOffset
+          offset
             ? {
-                transform: `translate(${this.state.dragOffset.x}px, ${this.state.dragOffset.y}px)`,
+                transform: `translate(${offset.x}px, ${offset.y}px)`,
               }
             : undefined
         }
@@ -858,49 +884,56 @@ class CollabPanel extends React.Component<CollabPanelProps, CollabPanelState> {
             />
           </label>
           <div className="collab-status">{this.state.status}</div>
-          <div
-            className="collab-link"
-            onClick={() =>
-              this.setState((prev) => ({
-                isAdvancedVisible: !prev.isAdvancedVisible,
-              }))
-            }
-          >
-            {this.state.isAdvancedVisible ? "收起高级设置" : "高级设置"}
-          </div>
-          {this.state.isAdvancedVisible && (
+          {/* 「高级设置」(服务器地址 / 鉴权 Token) 在手机上去掉：
+              它跟「个人中心 → 共读服务器」是同一份设置，手机上从这里进本就多余，
+              还让本来就不高的面板被挤到只能滚。桌面端一字不动。 */}
+          {!isMobile && (
             <>
-              <label className="collab-field">
-                服务器地址
-                <input
-                  value={this.state.serverUrl}
-                  disabled={isInRoom}
-                  placeholder="https://your-server.example.com"
-                  onChange={(event) =>
-                    this.setState({ serverUrl: event.target.value })
-                  }
-                  onBlur={this.handleServerUrlBlur}
-                />
-                <span className="collab-field-note">
-                  与「个人中心 → 共读服务器」是同一份设置；留空则只用本地阅读
-                </span>
-              </label>
-              <label className="collab-field" style={{ marginTop: "8px" }}>
-                鉴权 Token（可选）
-                <input
-                  type="password"
-                  value={this.state.serverToken}
-                  disabled={isInRoom}
-                  placeholder="共读服务 Token (如服务端开启)"
-                  onChange={(event) =>
-                    this.setState({ serverToken: event.target.value })
-                  }
-                  onBlur={this.handleServerTokenBlur}
-                />
-                <span className="collab-field-note">
-                  服务端配置 COLLAB_TOKEN 时必填；留空表示服务端未开启鉴权
-                </span>
-              </label>
+              <div
+                className="collab-link"
+                onClick={() =>
+                  this.setState((prev) => ({
+                    isAdvancedVisible: !prev.isAdvancedVisible,
+                  }))
+                }
+              >
+                {this.state.isAdvancedVisible ? "收起高级设置" : "高级设置"}
+              </div>
+              {this.state.isAdvancedVisible && (
+                <>
+                  <label className="collab-field">
+                    服务器地址
+                    <input
+                      value={this.state.serverUrl}
+                      disabled={isInRoom}
+                      placeholder="https://your-server.example.com"
+                      onChange={(event) =>
+                        this.setState({ serverUrl: event.target.value })
+                      }
+                      onBlur={this.handleServerUrlBlur}
+                    />
+                    <span className="collab-field-note">
+                      与「个人中心 → 共读服务器」是同一份设置；留空则只用本地阅读
+                    </span>
+                  </label>
+                  <label className="collab-field" style={{ marginTop: "8px" }}>
+                    鉴权 Token（可选）
+                    <input
+                      type="password"
+                      value={this.state.serverToken}
+                      disabled={isInRoom}
+                      placeholder="共读服务 Token (如服务端开启)"
+                      onChange={(event) =>
+                        this.setState({ serverToken: event.target.value })
+                      }
+                      onBlur={this.handleServerTokenBlur}
+                    />
+                    <span className="collab-field-note">
+                      服务端配置 COLLAB_TOKEN 时必填；留空表示服务端未开启鉴权
+                    </span>
+                  </label>
+                </>
+              )}
             </>
           )}
         </div>

@@ -23,14 +23,35 @@
   pointer-events: none;
 }
 
+/* ── 手机端定位：让开阅读器顶栏 + 收窄 ────────────────────────────────
+   ① 「拖不动」的根因：阅读器的移动端顶栏（.mobile-reader-top-bar）是
+   fixed、高 `48px + 安全区`、z-index 35；而面板原来是 top:50px / z-index:30，
+   正好把**整条可拖动的标题栏**塞在顶栏底下（有安全区的机型顶栏下沿到 85px）。
+   手指按上去命中的是顶栏，不是面板的把手 ⇒ 看起来「拖不动」。
+   现在起点落到顶栏下沿，标题栏一定露在顶栏之外。
+   ② 原来 left/right 各 12px ⇒ 面板铺满整屏，手机上太占地方；
+   改成右侧贴边、宽度 78vw 且不超过 300px。 */
 @media (max-width: 570px) {
   .collab-panel {
+    left: auto;
     right: 12px;
-    left: 12px;
-    width: auto;
-    top: 50px;
-    max-height: calc(100vh - 70px);
+    width: min(78vw, 300px);
+    top: calc(48px + var(--coread-safe-top) + 8px);
+    max-height: calc(100vh - 48px - var(--coread-safe-top) - 20px);
+    max-height: calc(100dvh - 48px - var(--coread-safe-top) - 20px);
   }
+}
+
+/* 视口够宽但仍是移动形态（安卓壳 / 触屏平板）时顶栏同样存在，
+   所以同一套让位规则按 .mobile-reader-mode 再兜一层。
+   注意必须写在上面那条媒体查询之后：同源同值规则下，靠特异性取胜。 */
+.mobile-reader-mode .collab-panel {
+  left: auto;
+  right: 12px;
+  width: min(78vw, 300px);
+  top: calc(48px + var(--coread-safe-top) + 8px);
+  max-height: calc(100vh - 48px - var(--coread-safe-top) - 20px);
+  max-height: calc(100dvh - 48px - var(--coread-safe-top) - 20px);
 }
 
 .collab-panel-header {

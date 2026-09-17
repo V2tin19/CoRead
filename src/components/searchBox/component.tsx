@@ -4,6 +4,7 @@ import { SearchBoxProps, SearchBoxState } from "./interface";
 import { ConfigService } from '../../services';
 import ConfigUtil from "../../utils/file/configUtil";
 import BookUtil from "../../utils/file/bookUtil";
+import { isMobileRuntime } from "../../utils/mobileRuntime";
 
 class SearchBox extends React.Component<SearchBoxProps, SearchBoxState> {
   private searchBoxRef: React.RefObject<HTMLInputElement>;
@@ -136,7 +137,13 @@ class SearchBox extends React.Component<SearchBoxProps, SearchBoxState> {
                 ? this.props.t("Search my notes")
                 : this.props.tabMode === "highlight"
                   ? this.props.t("Search my highlights")
-                  : this.props.t("Search my library")
+                  : // 书架顶栏那条搜索框：手机上它被挤在图标群左边，宽度放不下
+                    // 「搜索我的书库」，占位文字会被截成「搜索我的…」。
+                    // 与其显示半个词，不如不写字 —— 右侧的放大镜已经说明用途。
+                    // 桌面端宽度够，保持原文案。
+                    isMobileRuntime()
+                    ? ""
+                    : this.props.t("Search my library")
           }
           style={
             this.props.mode === "nav"

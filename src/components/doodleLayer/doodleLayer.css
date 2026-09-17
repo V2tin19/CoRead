@@ -468,14 +468,16 @@
   box-sizing: border-box;
 }
 
+/* 遮罩只负责「点一下收起」和一层极淡的压暗（提示当前在面板态）。
+   ⚠️ 这里刻意**不加 backdrop-filter**：果冻要求「面板出现时不要模糊书页」——
+   面板是要一边看正文一边画的，书页被糊掉就等于没法临摹。
+   压暗也压到很轻（0.1），正文仍然读得清。 */
 .doodle-drawer-mask {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(0, 0, 0, 0.1);
   z-index: 60;
   animation: fade-in 0.2s ease-out;
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
 }
 
 .doodle-drawer {
@@ -483,7 +485,10 @@
   top: 0;
   left: 0;
   bottom: 0;
-  width: min(84vw, 320px);
+  /* 收窄一档：原来 min(84vw, 320px) 一摊开就盖掉手机大半屏，
+     而抽屉里的控件（色点 26px、粗细点 30px、工具键竖排）本来 250px 就够排。
+     留给正文的区域越宽，才能真的「一边看一边画」。 */
+  width: min(70vw, 252px);
   display: flex;
   flex-direction: column;
   box-sizing: border-box;

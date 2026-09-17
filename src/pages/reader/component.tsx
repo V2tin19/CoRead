@@ -25,8 +25,8 @@ import {
 } from "../../utils/reader/discordRPC";
 import {
   READING_PANEL_TOGGLE_EVENT,
-  toggleNavTab,
   TOGGLE_DOODLE_DRAWER_EVENT,
+  toggleDoodleDrawer,
 } from "../../utils/reader/mouseEvent";
 import CollabPanel from "../../containers/collabPanel";
 import DoodleLayer from "../../components/doodleLayer";
@@ -792,17 +792,21 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
             </button>
             <div className="mobile-reader-top-spacer" />
             <div className="mobile-reader-top-actions">
-              {/* 笔记与想法（对应微信读书截图第一个图标） */}
+              {/* 随心笔记（自由涂鸦）：手机端的入口在顶栏这里。
+                  底栏那个「笔记」是「笔记/高光汇总」，两者刻意分开 ——
+                  果冻的要求：汇总归底栏、随手画归顶栏。 */}
               <button
                 type="button"
-                className="mobile-reader-top-action"
-                onClick={() => {
-                  toggleNavTab("notes");
-                  this.handleEnterReader("left");
-                }}
-                title="想法与笔记"
+                className={
+                  "mobile-reader-top-action" +
+                  (this.state.isDoodleDrawerOpen
+                    ? " mobile-reader-top-action-active"
+                    : "")
+                }
+                onClick={() => toggleDoodleDrawer()}
+                title="随心笔记"
               >
-                <span className="icon-note" style={{ fontSize: "18px" }} />
+                <span className="icon-edit" style={{ fontSize: "18px" }} />
               </button>
               {/* 在线共读（对应截图分享位置，遵照指示改为在线共读面板） */}
               <button
