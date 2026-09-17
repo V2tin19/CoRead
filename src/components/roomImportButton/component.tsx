@@ -21,6 +21,7 @@ import { ConfigService } from '../../services';
 import DOMPurify from "dompurify";
 import { Readability } from "@mozilla/readability";
 import toast from "react-hot-toast";
+import { isMobileConfigValue } from "../../utils/mobileRuntime";
 
 // 提取房间书的封面:与个人导入同一套 kookit 解析,拿到 base64 后转字节。
 // PDF/漫画解析太重,跳过(它们继续用占位封面);失败静默,不影响上传本身。
@@ -48,7 +49,7 @@ async function extractCoverBytes(
         textOrientation: ConfigService.getReaderConfig("textOrientation"),
         parserRegex: "",
         isDarkMode: "no",
-        isMobile: "no",
+        isMobile: isMobileConfigValue(),
         password: "",
         isScannedPDF: "no",
         isKeepPDFBackground: "no",

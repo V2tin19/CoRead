@@ -26,6 +26,7 @@ import {
 } from "../../utils/common";
 import DatabaseService from "../../utils/storage/databaseService";
 import { BookHelper } from "../../vendor/kookit.esm";
+import { isMobileConfigValue } from "../../utils/mobileRuntime";
 
 // Convert supportedFormats to react-dropzone v14+ accept format
 // Key is MIME type, value is array of file extensions
@@ -295,7 +296,7 @@ class ImportLocal extends React.Component<ImportLocalProps, ImportLocalState> {
                     ConfigService.getReaderConfig("textOrientation"),
                   parserRegex: "",
                   isDarkMode: "no",
-                  isMobile: "no",
+                  isMobile: isMobileConfigValue(),
                   password: "",
                   isScannedPDF: "no",
                   isKeepPDFBackground: "no",

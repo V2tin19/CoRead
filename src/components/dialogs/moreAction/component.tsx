@@ -22,6 +22,7 @@ import {
   getTextRules,
 } from "../../../utils/common";
 import { BookHelper } from "../../../vendor/kookit.esm";
+import { isMobileConfigValue } from "../../../utils/mobileRuntime";
 declare var window: any;
 class MoreAction extends React.Component<MoreActionProps, MoreActionState> {
   constructor(props: MoreActionProps) {
@@ -288,7 +289,7 @@ class MoreAction extends React.Component<MoreActionProps, MoreActionState> {
                         ConfigService.getReaderConfig("textOrientation"),
                       parserRegex: "",
                       isDarkMode: "no",
-                      isMobile: "no",
+                      isMobile: isMobileConfigValue(),
                       password: getPdfPassword(this.props.currentBook),
                       isScannedPDF: "no",
                       isKeepPDFBackground: "no",

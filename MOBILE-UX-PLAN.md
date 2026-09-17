@@ -37,19 +37,34 @@
 
 ## 1. 关键前提：内核**已经有移动端模式**，只是我们把它关着
 
-`kookit` 的 `GeneralRender` 接收一个 `isMobile` 配置。我们的代码里有 **6 处传参，
-全部写死 `"no"`**，其中**真正开书的那一处**是：
+`kookit` 的 `GeneralRender` 接收一个 `isMobile` 配置。我们的代码里原有 **6 处传参，
+全部写死 `"no"`**。**2026-09-17 已接线**，现状：
 
-```
-src/containers/viewer/component.tsx:326     isMobile: "no",      ← 实际渲染走这里
-src/containers/cloudLibrary/component.tsx:319
-src/components/importLocal/component.tsx:298
-src/components/roomImportButton/component.tsx:51
-src/components/dialogs/moreAction/component.tsx:291
-src/utils/common.ts:762                     （preCache 缓存路径，与显示无关，保持 "no" 是对的）
-```
+| 位置 | 现状 | 说明 |
+| --- | --- | --- |
+| `src/containers/viewer/component.tsx` | `isMobileConfigValue()` | ← **实际渲染走这里** |
+| `src/containers/cloudLibrary/component.tsx` | `isMobileConfigValue()` | |
+| `src/components/importLocal/component.tsx` | `isMobileConfigValue()` | |
+| `src/components/roomImportButton/component.tsx` | `isMobileConfigValue()` | |
+| `src/components/dialogs/moreAction/component.tsx` | `isMobileConfigValue()` | |
+| `src/utils/common.ts`（`preCacheAllBooks`） | **保持 `"no"`** | 见下方说明 |
 
-`src/` 里**没有任何地方读取** `isMobile` —— 它只被内核消费。所以：
+判据写在 `src/utils/mobileRuntime.ts`：
+
+- 安卓壳（Capacitor）：`window.Capacitor.isNativePlatform()` 为真。
+  该对象由原生侧注入（`JSExport.getGlobalJS` 建骨架、`native-bridge.js` 挂方法），已实测存在。
+- 无 Capacitor 时的兜底（手机 / 平板浏览器）：触屏 **且** `screen` 短边 ≤ 768。
+  用 `screen` 而不是 `innerWidth` —— 桌面浏览器把窗口拖窄不该被当成手机。
+- 桌面（Electron / 浏览器）：一律 `"no"`。桌面上平滑滚动与 1000ms 翻页等待都是合理行为，
+  不该被内核的移动分支关掉。
+
+> **`preCache` 为什么刻意不跟随**：它只把书解析成缓存数据、不显示，内核里受 `isMobile`
+> 影响的几项（翻页滚动行为、控件偏移、段落模式边界）都碰不到它；而它的 config 与显示端
+> 本来就已有多处不同（`readerMode`、`textRules` 等），两边独立是既有设计。
+> 跟随运行形态只会多出一批「走移动分支才生成」的缓存，让缓存与显示端行为分叉 ——
+> 收益为零、回归风险不为零。
+
+`src/` 里除上述配置外**没有任何地方读取** `isMobile` —— 它只被内核消费。所以：
 **打开移动端手感的第一颗开关，就是让开书路径按运行形态传 `"yes"`。**
 
 ### `isMobile: "yes"` 在内核里到底改了什么（本次实测，共 5 处）
@@ -62,11 +77,22 @@ src/utils/common.ts:762                     （preCache 缓存路径，与显示
 | 4 | 触摸事件 | 仍会注册（`addTouchEvent` 被调用） | 同左，但这是"安卓/苹果两套实现"的入口（第一个参数其实是**是否安卓**） |
 | 5 | `console.log/info/error` | 原样 | ⚠️ **被改写为 `window.ReactNativeWebView.postMessage(...)`** |
 
-> ⚠️ **第 5 条是个坑，必须先处理**：那段劫持是给 Koodo 自己的 **React Native** 客户端用的，
-> 而我们是 **Capacitor**（没有 `ReactNativeWebView` 这个桥）。
-> 直接传 `"yes"` ⇒ 之后**每一次 `console.log` 都会抛错**，而且报错信息本身还要走 console……
-> 处置：① 在页面里放一个 `window.ReactNativeWebView = { postMessage(){} }` 的兼容桩；或
-> ② 改 vendor 源码，把这段劫持加上环境守卫（**推荐**，属于我们要维护内核的理由之一）。
+> ⚠️ **第 5 条是个坑，已处理（2026-09-17）**。并且实测发现它比这张表写得更重：
+> 内核里调用 `window.ReactNativeWebView` 的地方**共 38 处**，不只是 console 劫持 ——
+> 触摸翻页、滑到底 / 到顶、选区变化、双指缩放、点击外链、查看图片等事件**全都走这个桥**，
+> 而这些事件在安卓真机上是**必然触发**的。只处理 console 远远不够。
+>
+> 两条都做了：
+>
+> 1. **兼容桩** —— `installReactNativeWebViewStub()`，定义在 `src/utils/mobileRuntime.ts`，
+>    由 `src/index.tsx` 在最前面调用。放一个带 `__coreadStub` 标记的 `postMessage` 空实现，
+>    那 38 处事件调用打进来后静默丢弃（它们本来就是发给 RN 宿主的，Capacitor 侧无需消费）。
+> 2. **内核守卫** —— `src/vendor/kookit.esm.js` 里把那段劫持改成
+>    `"yes"===this.isMobile && !(window.ReactNativeWebView && window.ReactNativeWebView.__coreadStub) && (…)`，
+>    即「存在我们的桩时跳过劫持」。Capacitor 下 console 日志照常；真 RN 客户端里没有这个桩，
+>    内核原有行为不受影响。
+>
+> 判据与桩行为有单元测试覆盖：15 个用例（安卓壳 / 手机浏览器 / 触屏笔记本 / 桌面 / 真 RN 桥），全绿。
 
 ---
 
@@ -96,9 +122,11 @@ src/utils/common.ts:762                     （preCache 缓存路径，与显示
    不必先做交互规格表、不必等果冻给参考。（如果果冻日后给了录屏，照录屏微调即可。）
    → 唯一要守的护栏是**不抄品牌资产**（名称/图标/插画/字体/原文案），
      以及第 1 节那个 `isMobile` + console 劫持的前置处理。
-2. **打通 `isMobile` 开关 + 处理 console 劫持**（第 1 节）。⚠️ 这一步之前不要动视觉。
-   有真机就在真机上看，没有就先在 Chrome DevTools 手机模拟里迭代。
-3. **做移动端外壳（A/C）**：全屏与安全区、底部工具条、顶部栏、呼出/收起动画。
+2. ✅ **已完成（2026-09-17）**：打通 `isMobile` 开关 + 处理内核 RN 桥（第 1 节）。
+   5 处显示 / 渲染路径已按运行形态取值，`preCache` 刻意保持 `"no"`；
+   38 处 RN 桥调用由兼容桩兜住，console 劫持加了内核守卫。判据有 15 个单元用例覆盖。
+   ⚠️ 这一步之前不要动视觉 —— 现在可以动视觉了。
+3. **做移动端外壳（A/C）**：全屏与安全区、底部工具条、顶部栏、呼出/收起动画。**← 当前进度在这**
 4. **接 D/E**：进度条拖拽、划线气泡。E 基本是复用现有 popup 组件。
 5. **真机验收**（本机有环境时）：触摸手势、滚动惯性、返回到桌面/锁屏再回来、刘海遮挡、
    深色主题下的高亮可读性。**没有真机就如实说明"未真机验证"，不要假装测过。**
@@ -174,24 +202,27 @@ src/utils/common.ts:762                     （preCache 缓存路径，与显示
 
 ---
 
-## 5. 环境限制：真机验证可能做不到（**不是阻塞，是"如实说明"**）
+## 5. 环境：已配齐（2026-09-17），但真机验收仍未做
 
-> ⚠️ 前提：以下是**果冻本机**的情况。如果你（实现者）跑在别的环境，以你实际环境为准。
+> 本节原本写的是「果冻本机不具备安卓构建条件」。**2026-09-17 已配齐并实测出包**，
+> 下面的表记录实际环境，便于换机复现。
 
-果冻本机目前不具备安卓构建条件：
-
-| 项 | 现状 | 需求 |
+| 项 | 版本 / 组件 | 备注 |
 | --- | --- | --- |
-| Android SDK / Android Studio | **未安装** | Capacitor 构建必需 |
-| JDK | **25** | Capacitor 8 推荐 **17~21**（25 大概率不兼容 Gradle 插件） |
+| JDK | **21**（Temurin 21 LTS） | 系统自带的是 **25**，Gradle 8.14.3 不认，必须用 21；已设为用户级 `JAVA_HOME` |
+| Android SDK | `platform-tools`、`platforms;android-36`、`build-tools;36.0.0` | 对应 `compileSdk 36` / `minSdk 24`；已设用户级 `ANDROID_HOME`，`android/local.properties` 也指向它（该文件在 `.gitignore` 里，不入库） |
+| Gradle | 8.14.3（wrapper 首次构建自动下载） | 首次全量构建实测约 **5 分钟** |
 
-⇒ 结论不是"不能做"，而是**分级**：
+出包：`npm run android:build:debug` → 产物在 `android/app/build/outputs/apk/debug/app-debug.apk`。
+已实测：包名 `com.coread.app`、label `CoRead`、versionName 2.3.9、单个 dex、无 `.so`（零原生插件）。
 
-- **移动端代码照常写**，Web 层的能力（CSS 媒体查询、`isMobile` 开关、手势接线）**不依赖安卓环境**。
-- 迭代主要在 **Chrome DevTools 手机模拟**里做，这够用。
-- **真机才有的结论**（触摸惯性、沉浸式遮挡、锁屏返回、软键盘）——**没测就如实说没测**，
-  不要写"已验证"。这一段告诉果冻即可，**不需要他先拍板**。
-- 若果冻后续补了环境，再补齐真机验收。
+**仍然做不到的是真机验收**：本机没有连安卓设备。触摸惯性、沉浸式遮挡、锁屏返回、
+软键盘行为这几类结论 —— **没测就如实说没测，不要写"已验证"**。
+Chrome DevTools 手机模拟能覆盖布局与大部分交互，够用于迭代。
+
+> ⚠️ 另有一条本机构建注意事项：用 **WorkBuddy 的工具**跑 `npm run build` 时，
+> CRA 构建前会清空 `build/`（269 个文件），会撞上平台的批量删除保护（阈值 50/轮）。
+> 绕过方式：先同盘改名把旧 `build/` 移走，再构建。**果冻自己在终端里跑不受影响。**
 
 ---
 

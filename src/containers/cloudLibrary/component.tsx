@@ -40,6 +40,7 @@ import {
   CloudLibraryProps,
   CloudLibraryState,
 } from "./interface";
+import { isMobileConfigValue } from "../../utils/mobileRuntime";
 
 const PENDING_JOIN_KEY = "koodo-collab-pending-join";
 
@@ -351,7 +352,7 @@ class CloudLibrary extends React.Component<
           textOrientation: ConfigService.getReaderConfig("textOrientation"),
           parserRegex: "",
           isDarkMode: "no",
-          isMobile: "no",
+          isMobile: isMobileConfigValue(),
           password: "",
           isScannedPDF: "no",
           isKeepPDFBackground: "no",

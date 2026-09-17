@@ -701,7 +701,8 @@ export const preCacheAllBooks = async (bookList: Book[]) => {
         textOrientation: ConfigService.getReaderConfig("textOrientation"),
         parserRegex: "",
         isDarkMode: "no",
-        isMobile: "no",
+        isMobile: "no", // 预缓存是纯数据准备(不显示),刻意不跟随运行形态,
+        // 免得多出一批走内核移动分支才生成的缓存,与显示端行为分叉
         password: getPdfPassword(selectedBook),
         isScannedPDF:
           selectedBook.description.indexOf("scanned") > -1 ? "yes" : "no",

@@ -37,6 +37,7 @@ import {
   sanitizeRemoteNote,
   sanitizeRemoteNoteKey,
 } from "../../utils/collab/remoteNote";
+import { isMobileConfigValue } from "../../utils/mobileRuntime";
 declare var window: any;
 let lock = false; //prevent from clicking too fasts
 
@@ -319,7 +320,7 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
               ? "yes"
               : "no",
           backgroundColor: ConfigService.getReaderConfig("backgroundColor"),
-          isMobile: "no",
+          isMobile: isMobileConfigValue(),
           isIndent: ConfigService.getReaderConfig("isIndent"),
           isHyphenation: ConfigService.getReaderConfig("isHyphenation"),
           isStartFromEven: ConfigService.getReaderConfig("isStartFromEven"),
