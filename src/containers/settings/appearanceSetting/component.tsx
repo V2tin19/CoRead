@@ -12,6 +12,7 @@ import {
   appearanceSettingList,
   skinList,
 } from "../../../constants/settingList";
+import { viewMode } from "../../../constants/viewMode";
 import { themeList } from "../../../constants/themeList";
 import { HexColorPicker } from "react-colorful";
 import { reloadManager, parseColorInput } from "../../../utils/common";
@@ -33,6 +34,11 @@ class AppearanceSetting extends React.Component<
     const ttsHighlight = this.highlightUtil.getTtsHighlightValue();
     const searchHighlight = this.highlightUtil.getSearchHighlightValue();
     this.state = {
+      viewMode:
+        this.props.viewMode ||
+        ConfigService.getReaderConfig("viewMode") ||
+        "card",
+      cardScale: parseFloat(ConfigService.getReaderConfig("cardScale") || "1"),
       appSkin: ConfigService.getReaderConfig("appSkin"),
       currentThemeIndex: themeList.findIndex(
         (item) =>
@@ -60,6 +66,12 @@ class AppearanceSetting extends React.Component<
     };
   }
 
+  componentDidUpdate(prevProps: SettingInfoProps): void {
+    if (prevProps.viewMode !== this.props.viewMode && this.props.viewMode) {
+      this.setState({ viewMode: this.props.viewMode });
+    }
+  }
+
   componentDidMount(): void {
     this.loadFont();
     window.addEventListener("font-list-changed", this.loadFont);
@@ -79,6 +91,24 @@ class AppearanceSetting extends React.Component<
 
   handleRest = (_bool: boolean) => {
     toast.success(this.props.t("Change successful"));
+  };
+
+  changeViewMode = (mode: string) => {
+    ConfigService.setReaderConfig("viewMode", mode);
+    this.setState({ viewMode: mode });
+    if (this.props.handleFetchViewMode) {
+      this.props.handleFetchViewMode();
+    }
+    toast.success(this.props.t("Change successful"));
+  };
+
+  handleCardScaleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const scale = parseFloat(event.target.value);
+    ConfigService.setReaderConfig("cardScale", scale.toString());
+    this.setState({ cardScale: scale });
+    window.dispatchEvent(
+      new CustomEvent("card-scale-changed", { detail: scale })
+    );
   };
 
   handleSetting = (stateName: string) => {
@@ -340,6 +370,57 @@ class AppearanceSetting extends React.Component<
     return (
       <>
         {this.renderSwitchOption(appearanceSettingList)}
+        <div className="setting-dialog-new-title">
+          <Trans i18nKey="Book arrangement">书籍排列方式</Trans>
+        </div>
+        <ul className="view-mode-setting-container">
+          {viewMode.map((item) => (
+            <li
+              key={item.mode}
+              className={
+                item.mode === this.state.viewMode
+                  ? "view-mode-setting-item active-view-mode-item"
+                  : "view-mode-setting-item"
+              }
+              onClick={() => {
+                this.changeViewMode(item.mode);
+              }}
+            >
+              <span className={`icon-${item.icon} view-mode-setting-icon`} />
+              <span className="view-mode-setting-title">
+                {item.mode === "card"
+                  ? this.props.t("Card")
+                  : item.mode === "list"
+                    ? this.props.t("List")
+                    : (this.props.t("Cover") || "封面") +
+                      (this.props.t("Cover") === "封面" ? "模式" : " Mode")}
+              </span>
+            </li>
+          ))}
+        </ul>
+        {this.state.viewMode === "card" && (
+          <div className="card-scale-setting-container">
+            <div className="card-scale-setting-header">
+              <span className="setting-option-subtitle" style={{ margin: 0 }}>
+                <Trans i18nKey="Adjust cover size">封面大小</Trans>
+              </span>
+              <span className="card-scale-percentage">
+                {Math.round(this.state.cardScale * 100)}%
+              </span>
+            </div>
+            <div className="card-scale-slider-wrapper">
+              <input
+                type="range"
+                min="0.6"
+                max="2"
+                step="0.05"
+                value={this.state.cardScale}
+                onChange={this.handleCardScaleChange}
+                className="card-scale-slider-control"
+              />
+            </div>
+          </div>
+        )}
         <div className="setting-dialog-new-title">
           <Trans>System font</Trans>
           <select

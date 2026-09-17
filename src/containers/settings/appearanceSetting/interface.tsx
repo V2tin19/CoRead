@@ -2,8 +2,12 @@ import { RouteComponentProps } from "react-router-dom";
 
 export interface SettingInfoProps extends RouteComponentProps<any> {
   t: (title: string) => string;
+  viewMode?: string;
+  handleFetchViewMode?: () => void;
 }
 export interface SettingInfoState {
+  viewMode: string;
+  cardScale: number;
   appSkin: string;
   currentThemeIndex: number;
   isShowCustomColorPicker: boolean;

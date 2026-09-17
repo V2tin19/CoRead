@@ -12,6 +12,7 @@ import SelectBook from "../../../components/selectBook";
 import { Trans } from "react-i18next";
 import Book from "../../../models/Book";
 import { isElectron } from "react-device-detect";
+import { isMobileRuntime } from "../../../utils/mobileRuntime";
 import DatabaseService from "../../../utils/storage/databaseService";
 import { throttle } from "../../../utils/common";
 import BookGroupHeader from "../../../components/bookGroupHeader";
@@ -114,12 +115,15 @@ class BookList extends React.Component<BookListProps, BookListState> {
     window.addEventListener(FOCUS_GROUP_EVENT, this.handleFocusGroup);
     // 挂载前就已经发过的聚焦请求也别丢：requestFocusGroup 会留一份待领取记录
     this.handleFocusGroup();
+    // 监听外观设置中的封面大小实时调节
+    window.addEventListener("card-scale-changed", this.handleCardScaleEvent);
   }
 
   componentWillUnmount() {
     // 清理滚动监听器
     this.cleanupScrollListener();
 
+    window.removeEventListener("card-scale-changed", this.handleCardScaleEvent);
     window.removeEventListener(GROUPS_CHANGED_EVENT, this.handleGroupsChanged);
     window.removeEventListener(FOCUS_GROUP_EVENT, this.handleFocusGroup);
 
@@ -362,6 +366,12 @@ class BookList extends React.Component<BookListProps, BookListState> {
     this.setState({ cardScale: scale });
     ConfigService.setReaderConfig("cardScale", String(scale));
   };
+  handleCardScaleEvent = (event: any) => {
+    const scale = event?.detail;
+    if (typeof scale === "number") {
+      this.setState({ cardScale: scale });
+    }
+  };
 
   filterBooksByReadingStatus = (books: Book[], status: string): Book[] => {
     if (!status) return books;
@@ -562,17 +572,21 @@ class BookList extends React.Component<BookListProps, BookListState> {
       return <Redirect to="/manager/empty" />;
     }
     const { books, bookMode } = this.handleBooks();
+    const isMobile =
+      isMobileRuntime() ||
+      (typeof document !== "undefined" && document.body.clientWidth < 570);
     return (
       <>
-        <div
-          className="book-list-header"
-          style={
-            this.props.isCollapsed
-              ? { width: "calc(100% - 70px)", left: "70px" }
-              : {}
-          }
-        >
-          <SelectBook />
+        {(!isMobile || this.props.isSelectBook) && (
+          <div
+            className={`book-list-header ${this.props.isSelectBook ? "is-selecting" : ""}`}
+            style={
+              this.props.isCollapsed
+                ? { width: "calc(100% - 70px)", left: "70px" }
+                : {}
+            }
+          >
+            <SelectBook />
 
           <div
             style={this.props.isSelectBook ? { display: "none" } : {}}
@@ -642,6 +656,7 @@ class BookList extends React.Component<BookListProps, BookListState> {
             <ViewMode />
           </div>
         </div>
+        )}
         <div
           className="book-list-container-parent"
           style={

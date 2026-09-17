@@ -3,10 +3,17 @@ import AppearanceSetting from "./component";
 import { withTranslation } from "react-i18next";
 import { withRouter } from "react-router-dom";
 
-const mapStateToProps = () => {
-  return {};
+import { handleFetchViewMode } from "../../../store/actions";
+import { stateType } from "../../../store";
+
+const mapStateToProps = (state: stateType) => {
+  return {
+    viewMode: state.manager.viewMode,
+  };
 };
-const actionCreator = {};
+const actionCreator = {
+  handleFetchViewMode,
+};
 export default connect(
   mapStateToProps,
   actionCreator
