@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- CoRead 品牌近黑（与 assets/icons 的图标底色一致）。
+         注意：ic_launcher_foreground 是白色字形，这里若改回浅色会变成白压白、图标隐形。 -->
+    <color name="ic_launcher_background">#09090B</color>
+</resources>
