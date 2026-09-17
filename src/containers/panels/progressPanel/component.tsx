@@ -285,6 +285,15 @@ class ProgressPanel extends React.Component<
           </div>
         </div>
         <div className="progress-row progress-row-actions">
+          {/* 目录:手机上没有键盘快捷键,从屏幕左缘划出又容易误触,
+              给一个明确入口。桌面端这个按钮同样可用(等价于左侧面板开关)。 */}
+          <button
+            className="progress-action-btn"
+            title="打开目录"
+            onClick={() => toggleReadingPanel("left")}
+          >
+            <Trans>Content</Trans>
+          </button>
           <button
             className="progress-option-btn"
             title="打开阅读选项"

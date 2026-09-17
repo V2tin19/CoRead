@@ -62,8 +62,18 @@ https 页面请求 http 资源 = **mixed content**，WebView 默认拦截。所�
 | Android SDK | 通过 Android Studio 安装 |
 | 编译版本 | `compileSdk` / `targetSdk` = 36，`minSdk` = 24（见 `android/variables.gradle`） |
 
-⚠️ **本机当前不满足**：没装 Android SDK / Android Studio，且 JDK 是 **25**（超出 Capacitor 8 期望的 17–21）。
-⇒ 在补齐之前**出不了包**，但 `android:sync` 与 Web 层开发不受影响。
+**本机已配齐**（2026-09-17）：
+
+| 项 | 落点 |
+| --- | --- |
+| JDK 21 | Temurin 21 LTS，已设为**用户级** `JAVA_HOME`（系统自带的是 25，Gradle 8.14.3 不认） |
+| Android SDK | `cmdline-tools/latest` + `platform-tools` + `platforms;android-36` + `build-tools;36.0.0`，已设为**用户级** `ANDROID_HOME` |
+| SDK 定位 | `android/local.properties` 的 `sdk.dir`（该文件在 `.gitignore` 里，不入库） |
+
+⚠️ `java -version` 与 Gradle 实际用的 JDK **不是一回事**：Gradle 读的是 `JAVA_HOME`。
+命令行里手工指定时形如 `JAVA_HOME=<jdk21 路径> ./gradlew.bat assembleDebug`。
+
+首次全量构建实测约 **5 分钟**（含下载 Gradle 发行包与 Maven 依赖），增量约 1.5 分钟。
 
 ## 4. 命令
 

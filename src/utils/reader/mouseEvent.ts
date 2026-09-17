@@ -359,6 +359,19 @@ const isTypingOutsideIframe = () => {
   );
 };
 
+/**
+ * 底部工具条(进度面板)当前是否展开。
+ *
+ * 读的是 `pages/reader/component.tsx` 挂上去的 `data-open` —— 刻意不去解析
+ * 容器上的 transform:面板的显隐用了 translateY 内联样式,解析字符串等于把
+ * 样式实现当契约,改一次样式就会静默失灵。
+ */
+const isReadingPanelOpen = () =>
+  Boolean(
+    typeof document !== "undefined" &&
+      document.querySelector('.progress-panel-container[data-open="yes"]')
+  );
+
 export const bindHtmlEvent = (
   rendition: any,
   doc: any,
@@ -467,9 +480,11 @@ export const bindHtmlEvent = (
     });
   }
 
-  // 点按翻页(触屏):手机上点一下通常就是想翻页,而不是打开两侧收纳起来的
-  // 面板。左 40% 上一页、右 40% 下一页,中间 20% 不动作(留给选中/复制)。
-  // 点在链接/脚注/笔记图标上、或正在选中文字时不翻页。
+  // 点按分区(触屏):手机上点一下通常就是想翻页,而不是打开两侧收纳起来的
+  // 面板。左 35% 上一页、右 35% 下一页、中间 30% 呼出底部工具条。
+  // (2026-09-17 改:原为「左 40% / 右 40% / 中间 20% 不动作」——中间是死区。
+  //  微信读书那类阅读器点中间就是呼出菜单,这里补上;两侧各收 5% 让中间更好点中。)
+  // 点在链接/脚注/笔记图标上、或正在选中文字时不动作。
   // 窄屏窗口(手机/半屏)也按"点一下=翻页"处理
   const isNarrowScreen =
     typeof document !== "undefined" && document.body.clientWidth < 570;
@@ -491,15 +506,27 @@ export const bindHtmlEvent = (
         if (now - lastTapFlipAt < throttleTime) return;
         const viewWidth = doc.body ? doc.body.clientWidth : 0;
         if (!viewWidth) return;
+        // 工具条开着时,点正文任意处先收起它(这一下不翻页) —— 否则面板会一直
+        // 挡着正文,用户得专门去点那个小 × 才能继续读。
+        if (isReadingPanelOpen()) {
+          lastTapFlipAt = now;
+          toggleReadingPanel("bottom");
+          return;
+        }
         const x = event.clientX;
-        if (x < viewWidth * 0.4) {
+        if (x < viewWidth * 0.35) {
           lastTapFlipAt = now;
           await rendition.prev();
           handleLocation(key, rendition);
-        } else if (x > viewWidth * 0.6) {
+        } else if (x > viewWidth * 0.65) {
           lastTapFlipAt = now;
           await rendition.next();
           handleLocation(key, rendition);
+        } else if (isTouchEnabled) {
+          // 中间区:呼出/收起底部工具条。只在触屏上做 —— 桌面把窗口缩窄时
+          // 中间区保持原来的「不动作」,免得点正文就弹出面板。
+          lastTapFlipAt = now;
+          toggleReadingPanel("bottom");
         }
       } catch (e) {
         // 翻页失败不打断其它点击行为

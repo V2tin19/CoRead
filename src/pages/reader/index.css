@@ -447,3 +447,29 @@
     height: 26px;
   }
 }
+
+/* ─────────────── 移动端外壳：安全区（2026-09-17 加） ───────────────
+   此前全项目没有任何 safe-area-inset 样式：刘海 / 挖孔屏上页眉会被系统状态栏压住，
+   底部触发条与进度面板会跟手势条重叠。这里配合 index.html 的 viewport-fit=cover 让位。
+   注：不支持 env() 的浏览器会让整条声明失效，所以每处都带兜底值 0px。 */
+@media (max-width: 570px) {
+  /* 顶部：让开刘海与状态栏 */
+  .reader-top-dock {
+    top: env(safe-area-inset-top, 0px);
+  }
+  /* 左右：横屏时的圆角 / 手势返回区 */
+  .left-panel {
+    left: env(safe-area-inset-left, 0px);
+  }
+  .right-panel {
+    right: env(safe-area-inset-right, 0px);
+  }
+  /* 底部：触发条抬到手势条之上，否则「从底部往上划」会先被系统吃掉 */
+  .bottom-panel {
+    bottom: env(safe-area-inset-bottom, 0px);
+  }
+  /* 进度面板同步上抬，不然最下面一行会被手势条盖住 */
+  .progress-panel-container {
+    top: calc(100vh - 60px - env(safe-area-inset-bottom, 0px));
+  }
+}

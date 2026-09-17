@@ -883,6 +883,10 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
         </div>
         <div
           className="progress-panel-container"
+          /* 展开状态暴露到 DOM：iframe 里的点按处理(mouseEvent.ts)要据此判断
+             「这一下是收起工具条还是翻页」。走 data 属性而不是让那边去解析
+             transform，避免样式一改就静默失效。 */
+          data-open={this.state.isOpenBottomPanel ? "yes" : "no"}
           onMouseEnter={() => {
             this.cancelLeaveReader("bottom");
           }}

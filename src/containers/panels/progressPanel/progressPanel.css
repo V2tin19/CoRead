@@ -334,7 +334,21 @@
   }
   .progress-option-btn,
   .progress-action-btn {
-    height: 32px;
+    /* 32 → 40:手指点击目标放大;窄屏一行四个按钮(目录/阅读选项/AI/听书)
+       仍放得下,只在 320px 级别的屏上会挤,所以同时允许文字收缩省略。 */
+    height: 40px;
     font-size: 12px;
+    padding: 0 6px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  /* 进度条拖拽手柄放大:桌面 14px 在手机屏上很难拖准 */
+  .input-progress::-webkit-slider-thumb {
+    width: 22px;
+    height: 22px;
+  }
+  .input-progress::-moz-range-thumb {
+    width: 22px;
+    height: 22px;
   }
 }
