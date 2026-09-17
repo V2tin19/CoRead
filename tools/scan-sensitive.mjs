@@ -11,9 +11,10 @@
  *
  * 退出码：0 = 干净；1 = 有命中（必须处理后再提交）
  *
- * 跳过范围 = `.gitignore` 里的东西（node_modules / dist / build / .workbuddy / 本地数据目录 …）。
- * 判断标准只有一条：**这份内容会不会进仓库**。不会进的东西（agent 工作目录、本机诊断日志、
- * 用户导入的书和笔记）根本没有"泄露"可言，扫它们只会把真问题埋掉。
+ * 跳过范围 = `.gitignore` 里的东西（node_modules / dist / build / .workbuddy / 本地数据目录 /
+ * android 的 cap sync 生成物 …）。判断标准只有一条：**这份内容会不会进仓库**。不会进的东西
+ * （agent 工作目录、本机诊断日志、用户导入的书和笔记、从 build/ 拷进 android 的副本）
+ * 根本没有"泄露"可言，扫它们只会把真问题埋掉。
  *
  * 为什么默认跳过 vendor/ 与 public/lib/：这两处是第三方固化源码（kookit 上游、pdf.js 等），
  * 我们不维护、也不该为了"扫描通过"去改写它们；而且它们内部天然含上游自己的 CDN 地址与作者
@@ -40,6 +41,12 @@ const SKIP_DIRS = new Set([
   "dist",
   ".next",
   ".cache",
+  // ── 安卓（Capacitor）构建产物：都在 android/.gitignore 里 ──
+  // （2026-09-17 加：android/app/build 与 android/.gradle 是 Gradle 产物；
+  //   capacitor-cordova-android-plugins 由 `cap sync` 生成）
+  ".gradle",
+  "capacitor-cordova-android-plugins",
+  ".idea",
   // ── 本地工作目录：都在 .gitignore 里，永远不会进仓库，凭据/路径都无所谓 ──
   // （2026-09-16 体检发现：少了这几项，扫描会被本机诊断日志淹没 ——
   //   实测 6773 处命中里 6753 处来自 .workbuddy/，退出码恒为 1，
@@ -65,6 +72,19 @@ const SKIP_ROOT_DIRS = new Set([
 // 第三方自带资产目录：内容不由我们维护（见文件头说明）。--include-vendor 时不再跳过。
 const SKIP_PATH_PREFIXES = INCLUDE_VENDOR ? [] : ["public/lib/", "vendor/"];
 
+// 生成物目录：**恒跳过**，与 --include-vendor 无关。
+// 判据同文件头那条：**这份内容会不会进仓库**。下面这些是 `cap sync` 从 build/ 拷过去的
+// 副本或生成出来的配置，都在 android/.gitignore 里 ⇒ 既不会进仓库，内容也与源文件完全一致。
+// ⚠️ 不能把 `assets` 塞进 SKIP_DIRS —— 仓库根的 `assets/`（图标）是要扫的真源码。
+// （2026-09-17 加：不跳这两处时，扫描被 assets/public 里那份 build/ 副本刷出 165 处误报，
+//   其中绝大多数来自 pdf.js / 7z-wasm 的第三方注释与 xml 命名空间）
+const SKIP_REL_PREFIXES = [
+  "android/app/src/main/assets/", // web 产物副本 + capacitor.config.json / capacitor.plugins.json
+];
+const SKIP_REL_EXACT = new Set([
+  "android/app/src/main/res/xml/config.xml", // `cap update` 生成的 Cordova 兼容配置
+]);
+
 // 依赖锁文件：里面全是 npm 的资助链接与维护者邮箱，不是我们的信息
 const SKIP_FILENAMES = new Set(["package-lock.json", "yarn.lock", "npm-shrinkwrap.json"]);
 
@@ -74,6 +94,9 @@ const ALLOWED_HOSTS = new Set([
   "w3.org", "www.w3.org", "idpf.org", "www.idpf.org", "daisy.org", "www.daisy.org",
   "unicode.org", "purl.org", "ns.adobe.com", "pubs.opengroup.org",
   "tools.ietf.org", "www.ietf.org", "ietf.org", "opds-spec.org",
+  // 安卓 / Cordova 的 XML 命名空间（出现在每一个 Android 资源文件与 manifest 里，
+  // 是格式约定而不是网络端点。2026-09-17 加）
+  "schemas.android.com", "schemas.amazon.com", "cordova.apache.org",
   // 开发文档 / 代码托管
   "developer.mozilla.org", "github.com", "raw.githubusercontent.com", "codeload.github.com",
   "unpkg.com", "esm.sh", "cdn.jsdelivr.net", "cdnjs.cloudflare.com",
@@ -205,6 +228,8 @@ function walk(dir, out = []) {
     const rel = path.relative(ROOT, full).split(path.sep).join("/");
     if (e.isDirectory()) {
       if (SKIP_DIRS.has(e.name)) continue;
+      // 生成物目录整棵剪掉（不扫也不计数，省得无意义地走几万个文件）
+      if (SKIP_REL_PREFIXES.some((p) => (rel + "/").startsWith(p))) { skipped.generated++; continue; }
       // 本地数据目录与 tmp-* 只在仓库根成立（.gitignore 里是 /xxx/ 锚定的写法）
       if (isRoot && (SKIP_ROOT_DIRS.has(e.name) || /^tmp-/.test(e.name))) {
         skipped.localData++;
@@ -214,6 +239,7 @@ function walk(dir, out = []) {
       continue;
     }
     if (SKIP_FILENAMES.has(e.name)) { skipped.names++; continue; }
+    if (SKIP_REL_EXACT.has(rel)) { skipped.generated++; continue; }
     if (SKIP_PATH_PREFIXES.some((p) => rel.startsWith(p))) { skipped.thirdParty++; continue; }
     if (e.name.endsWith(".min.js") || e.name.endsWith(".min.mjs")) { skipped.minified++; continue; }
     const ext = path.extname(e.name).toLowerCase();
@@ -226,7 +252,7 @@ function walk(dir, out = []) {
   return out;
 }
 
-const skipped = { thirdParty: 0, minified: 0, nonText: 0, tooLarge: 0, names: 0, localData: 0 };
+const skipped = { thirdParty: 0, minified: 0, nonText: 0, tooLarge: 0, names: 0, localData: 0, generated: 0 };
 
 const files = walk(ROOT);
 const banned = loadBanned();
@@ -266,9 +292,11 @@ console.log(`[scan] 扫描文件数：${files.length}`);
 if (!INCLUDE_VENDOR) {
   console.log(
     `[scan] 已跳过：第三方目录 ${skipped.thirdParty} 个文件、压缩产物 ${skipped.minified} 个、` +
-      `锁文件 ${skipped.names} 个、非文本 ${skipped.nonText} 个、本地数据目录 ${skipped.localData} 个`
+      `锁文件 ${skipped.names} 个、非文本 ${skipped.nonText} 个、本地数据目录 ${skipped.localData} 个、` +
+      `生成物 ${skipped.generated} 个`
   );
   console.log("[scan] 本地工作目录（.workbuddy/ 等）与 data/books/rooms/doodles 恒不扫描：它们在 .gitignore 里");
+  console.log("[scan] 安卓的 android/app/src/main/assets/ 与生成物也恒不扫描：cap sync 从 build/ 拷的副本");
   console.log("[scan] 想连第三方目录一起看：npm run scan:all（结果只作参考，不是提交门槛）");
 } else {
   console.log("[scan] 已开启 --include-vendor：第三方目录/压缩产物也在扫描范围内（仅供参考）");
