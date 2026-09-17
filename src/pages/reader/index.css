@@ -469,9 +469,13 @@
     transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1) !important;
   }
 
+  /* 右侧「阅读选项」面板比左侧目录面板再窄一点：
+     它内部最宽的控件（拉杆、下拉框）实测只需要 200~220px，
+     299px 的抽屉在手机上既占屏又够不着（单手够不到左半边）。
+     收窄后把这些控件的写死宽度改成流式（见下面 .mobile-reader-mode 那段）。 */
   .setting-panel-container {
-    width: 82vw !important;
-    max-width: 320px !important;
+    width: 72vw !important;
+    max-width: 276px !important;
     height: 100dvh !important;
     height: 100vh;
     z-index: 40 !important;
@@ -530,6 +534,132 @@
   height: 100dvh !important;
   height: 100vh;
   z-index: 40 !important;
+}
+
+/* 右侧「阅读选项」面板：比左侧目录面板再窄一档（理由见上面媒体查询里的注释）。
+   注意这个规则必须写在上面那条之后：同源 `!important` 之间先比特异性、再比顺序。 */
+.mobile-reader-mode .setting-panel-container {
+  width: 72vw !important;
+  max-width: 276px !important;
+}
+
+/* ─────────── 手机端「阅读选项」面板瘦身（桌面端不受影响） ───────────
+   果冻反馈三件事：① 左上角「×」和「锁」叠在一起；② 面板占屏太大、单手够不着；
+   ③ 面板太长。下面这套规则全部挂在 .mobile-reader-mode 下，
+   桌面端（无这个类）逐字不变。
+
+   ① 锁在手机上没有意义：桌面端锁 = 「把面板钉住，鼠标移开也不收」，
+      手机既没有 hover 也没有「移开」，锁定只会让阅读器一进书就自动展开抽屉。
+      入口直接去掉（SettingPanel 挂载时还会把遗留的 "yes" 清掉）。
+      去掉之后左上角只剩「×」，不再重叠。 */
+.mobile-reader-mode .setting-panel-container .lock-icon {
+  display: none !important;
+}
+
+/* 「×」固定在最左上角。原来只有窄屏媒体查询里给它定位，
+   安卓壳 / 触屏平板（视口够宽但仍是移动形态）会连按钮都不显示 ——
+   这里按 .mobile-reader-mode 再兜一层（媒体查询里那条保留，互不冲突）。 */
+.mobile-reader-mode .setting-panel-container .panel-close-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  top: 6px;
+  right: auto;
+  left: 6px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(120, 120, 120, 0.28);
+  font-size: 20px;
+  line-height: 1;
+  color: inherit;
+  z-index: 20;
+}
+
+/* ② 收窄后内层宽度必须跟着走：.setting-panel-parent 原本写死 299px，
+   父级是 overflow:hidden，不改的话右侧会被裁掉一条。 */
+.mobile-reader-mode .setting-panel-container .setting-panel-parent {
+  width: 100% !important;
+}
+
+/* ③ 竖向留白整体收紧（原值各 10~20px，手机上纯属浪费滚动距离） */
+.mobile-reader-mode .setting-panel-container .setting-panel {
+  padding-top: 0;
+}
+.mobile-reader-mode .setting-panel-container .setting-panel-title {
+  height: 34px;
+  margin: 2px 18px;
+  width: calc(100% - 36px);
+}
+.mobile-reader-mode .setting-panel-container .single-control-container {
+  height: 46px;
+}
+.mobile-reader-mode .setting-panel-container .single-page-icon,
+.mobile-reader-mode .setting-panel-container .two-page-icon {
+  font-size: 46px;
+}
+.mobile-reader-mode .setting-panel-container .background-color-setting,
+.mobile-reader-mode .setting-panel-container .font-size-setting,
+.mobile-reader-mode .setting-panel-container .paragraph-character-setting {
+  width: calc(100% - 36px);
+  margin-left: 18px;
+  margin-right: 18px;
+}
+.mobile-reader-mode .setting-panel-container .background-color-text {
+  height: 18px;
+  margin-top: 2px;
+  margin-bottom: -6px;
+}
+.mobile-reader-mode .setting-panel-container .background-color-list {
+  margin-top: 4px;
+  min-height: 40px;
+}
+.mobile-reader-mode .setting-panel-container .background-color-circle {
+  width: 34px;
+  height: 34px;
+  margin: 5px;
+  margin-top: 3px;
+}
+/* 手机端「主题」预设一行的个数由原规则自己保证，**不要动 flex**：
+   item 外框 = flex 基准(20% - 14px) + padding/border(约 9px) + margin(4px) ≈ 47px，
+   收窄后的内容宽（约 240px）刚好仍放下 5 个、第 6 个换行。
+   （实测记录：改成 calc(20% - 5px) 反而只能放 4 个，因为 padding/border 也是算进去的。） */
+.mobile-reader-mode .setting-panel-container .preset-theme-list {
+  margin-bottom: 8px;
+}
+.mobile-reader-mode .setting-panel-container .font-size-title {
+  margin-top: 2px;
+  padding-bottom: 0;
+  line-height: 24px;
+}
+/* 拉杆/下拉框原先是按 299px 面板写死的 200px / 220px，
+   面板收窄后必须改成流式，否则右侧溢出。 */
+.mobile-reader-mode .setting-panel-container .font-size-selector {
+  width: auto;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+/* 拉杆本体是绝对定位（只给了 bottom）+ 宽度 auto：替换元素的 width:auto
+   取的是 UA 默认宽度，跟容器宽窄无关 —— 这正是「拉杆没占面板多长距离」的来源。
+   手机上让它左右都锚住容器，真正铺满可用宽度。 */
+.mobile-reader-mode .setting-panel-container .font-size-selector .input-progress {
+  left: 0;
+  right: 0;
+  width: auto;
+}
+.mobile-reader-mode .setting-panel-container .general-setting-dropdown {
+  width: calc(100% - 15px);
+}
+.mobile-reader-mode .setting-panel-container .paragraph-character-container {
+  margin-bottom: 10px;
+}
+.mobile-reader-mode .setting-panel-container .general-setting-title {
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
+.mobile-reader-mode .setting-panel-container .single-control-switch-container {
+  margin: 8px 18px 6px;
 }
 
 /* 移动端专属顶部滑出导航条（宁框勿线，宁方勿圆）

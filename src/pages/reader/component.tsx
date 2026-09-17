@@ -130,7 +130,10 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
       isOpenBottomPanel: false,
       hoverPanel: "",
       isOpenLeftPanel: this.props.isNavLocked,
-      isOpenRightPanel: this.props.isSettingLocked,
+      // 手机端忽略「锁定阅读选项面板」：锁定 = 桌面端把面板钉住不收，
+      // 手机上没有任何可感知效果，却会让每次进书都被抽屉挡住。
+      // 锁定入口在手机上已隐藏，SettingPanel 挂载时也会清掉遗留的 "yes"。
+      isOpenRightPanel: isMobileRuntime() ? false : this.props.isSettingLocked,
       totalDuration: 0,
       currentDuration: 0,
       scale: configStore.getReaderConfig("scale") || "1",

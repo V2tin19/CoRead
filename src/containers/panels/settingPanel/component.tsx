@@ -12,6 +12,7 @@ import {
 } from '../../../services';
 import { configStore } from '../../../core/ports/stores';
 import { sliderConfigs } from "../../../constants/dropdownList";
+import { isMobileRuntime } from "../../../utils/mobileRuntime";
 import toast from "react-hot-toast";
 
 class SettingPanel extends React.Component<
@@ -27,6 +28,19 @@ class SettingPanel extends React.Component<
           : false,
       isShowMenu: false,
     };
+  }
+
+  componentDidMount() {
+    // 手机端把遗留的「锁定」清掉。
+    // 锁定键在手机上已隐藏（见 pages/reader/index.css）：它原本的作用是
+    // 「鼠标移开也不收起面板」，手机没有 hover 也就没有可感知效果；
+    // 但它会让阅读器一进书就自动展开右侧抽屉（isOpenRightPanel 初值取自它），
+    // 上一个版本点过锁的用户会一直中招，所以这里主动归零一次。
+    // 只改本机 readerConfig，桌面端另有自己的一份配置。
+    if (isMobileRuntime() && this.props.isSettingLocked) {
+      this.props.handleSettingLock(false);
+      configStore.setReaderConfig("isSettingLocked", "no");
+    }
   }
 
   handleLock = () => {

@@ -112,6 +112,41 @@
   color: inherit;
   box-sizing: border-box;
 }
+/* 手机端专用：预设之外的颜色（用户自取色 / 补位色）另起一行，
+   不挤占「黑 / 白 / 取色板」那一行。块级元素在 inline-block 的圆球之间
+   就是一个换行符，本身不占高度。桌面端不会渲染这个节点。 */
+.color-list-break {
+  display: list-item;
+  list-style: none;
+  height: 0;
+  margin: 0;
+  padding: 0;
+  line-height: 0;
+  font-size: 0;
+}
+/* 手机端专用：「主题」预设行的展开 / 收起开关（只在手机上渲染，
+   桌面端 20 个预设全量铺开，不受影响）。 */
+.theme-expand-toggle {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 12px;
+  margin: 6px 0 4px;
+  border-radius: 6px;
+  background: rgba(128, 128, 128, 0.14);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+}
+.theme-expand-caret {
+  font-size: 11px;
+  margin-left: 4px;
+  transition: transform 0.2s ease;
+}
+.theme-expand-caret.is-open {
+  transform: rotate(180deg);
+}
 .color-input-box:focus {
   border-color: currentColor;
 }

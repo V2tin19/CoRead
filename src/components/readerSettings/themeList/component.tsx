@@ -11,6 +11,15 @@ import {
 import { HexColorPicker } from "react-colorful";
 import toast from "react-hot-toast";
 import { normalizePickerColor, parseColorInput } from "../../../utils/common";
+import { isMobileRuntime } from "../../../utils/mobileRuntime";
+
+// 手机端「主题」预设默认只露第一行（5 个），其余折叠在「展开全部」后面。
+const MOBILE_THEME_ROW = 5;
+// 手机端「背景色 / 文字色」各只保留两个预设：
+// 背景 = 白 / 深，文字 = 黑 / 白。
+// 其余彩色预设由下面「主题」那一行和取色板承担，用户自取的颜色照旧另起一行追加。
+const MOBILE_BG_PRESETS = 2;
+const MOBILE_TEXT_PRESETS = 2;
 
 class ThemeList extends React.Component<ThemeListProps, ThemeListState> {
   constructor(props: ThemeListProps) {
@@ -33,8 +42,6 @@ class ThemeList extends React.Component<ThemeListProps, ThemeListState> {
             (ConfigService.getReaderConfig("textColor") || "rgba(0,0,0,1)")
           );
         }),
-      isShowTextPicker: false,
-      isShowBgPicker: false,
       currentPresetIndex: KookitConfig.PresetThemeList.findIndex((item) => {
         return (
           item.backgroundColor ===
@@ -44,6 +51,9 @@ class ThemeList extends React.Component<ThemeListProps, ThemeListState> {
             (ConfigService.getReaderConfig("textColor") || "rgba(0,0,0,1)")
         );
       }),
+      isShowTextPicker: false,
+      isShowBgPicker: false,
+      isShowAllThemes: false,
       bgColorInput: normalizePickerColor(
         ConfigService.getReaderConfig("backgroundColor"),
         "#ffffff"
@@ -54,6 +64,44 @@ class ThemeList extends React.Component<ThemeListProps, ThemeListState> {
       ),
     };
   }
+
+  // ────────────── 手机端色板瘦身（桌面端逐字不动） ──────────────
+  // 判据放在取值源头：只有 isMobileRuntime() 为真时才裁预设，
+  // 桌面端拿到的仍然是 backgroundList / textList 原样（各 4 个）。
+  isMobilePanel = () => isMobileRuntime();
+  presetBgColors = () =>
+    this.isMobilePanel()
+      ? backgroundList.slice(0, MOBILE_BG_PRESETS)
+      : backgroundList;
+  presetTextColors = () =>
+    this.isMobilePanel()
+      ? textList.slice(0, MOBILE_TEXT_PRESETS)
+      : textList;
+
+  currentBgColor = () =>
+    ConfigService.getReaderConfig("backgroundColor") || "rgba(255,255,255,1)";
+  currentTextColor = () =>
+    ConfigService.getReaderConfig("textColor") || "rgba(0,0,0,1)";
+
+  // 一份色板 = 预设 + 补位色 + 用户自取色。
+  // 「补位色」只在手机上出现：当前颜色既不是预设、也不在用户自取的色里时
+  //（典型：从桌面端带过来的羊皮 / 护眼），把它补在预设之后 ——
+  // ① 选中的圆球永远看得见，② 它落在下一行，不挤占「黑 / 白 / 取色板」那一行。
+  // 桌面端不补，顺序与裁剪前逐字一致。
+  buildColorList = (presets: string[], current: string) => {
+    const custom = ConfigService.getAllListConfig("themeColors");
+    const extra =
+      this.isMobilePanel() &&
+      !presets.includes(current) &&
+      !custom.includes(current)
+        ? [current]
+        : [];
+    return {
+      list: presets.concat(extra).concat(custom),
+      extraCount: extra.length,
+    };
+  };
+
   handleChangeBgColor = (color: string, index: number = -1) => {
     ConfigService.setReaderConfig("backgroundColor", color);
     this.props.handleBackgroundColor(color);
@@ -91,7 +139,7 @@ class ThemeList extends React.Component<ThemeListProps, ThemeListState> {
   handleColorTextPicker = (isShowTextPicker: boolean) => {
     if (
       !isShowTextPicker &&
-      textList
+      this.presetTextColors()
         .concat(ConfigService.getAllListConfig("themeColors"))
         .findIndex((item) => {
           return (
@@ -110,7 +158,7 @@ class ThemeList extends React.Component<ThemeListProps, ThemeListState> {
   handleColorBgPicker = (isShowBgPicker: boolean) => {
     if (
       !isShowBgPicker &&
-      backgroundList
+      this.presetBgColors()
         .concat(ConfigService.getAllListConfig("themeColors"))
         .findIndex((item) => {
           return (
@@ -129,15 +177,11 @@ class ThemeList extends React.Component<ThemeListProps, ThemeListState> {
   };
   handleChooseTextColor = (color: string) => {
     this.setState({
-      currentTextIndex: textList
+      currentTextIndex: this.presetTextColors()
         .concat(ConfigService.getAllListConfig("themeColors"))
         .indexOf(color),
       textColorInput: color,
-      currentPresetIndex: this.getPresetIndex(
-        ConfigService.getReaderConfig("backgroundColor") ||
-          "rgba(255,255,255,1)",
-        color
-      ),
+      currentPresetIndex: this.getPresetIndex(this.currentBgColor(), color),
     });
     ConfigService.setReaderConfig("textColor", color);
     this.props.renderBookFunc();
@@ -171,77 +215,72 @@ class ThemeList extends React.Component<ThemeListProps, ThemeListState> {
     });
     this.props.renderBookFunc();
   };
+  // 「背景色 / 文字色」两行圆球共用一套渲染：
+  // 预设 → （手机端）补位色 → 用户自取色，只有用户自取的色带右上角删除键。
+  // 手机端在预设之后插一个换行块，让自取色落到下一行。
+  renderColorRow = (kind: "background" | "text") => {
+    const isBg = kind === "background";
+    const presets = isBg ? this.presetBgColors() : this.presetTextColors();
+    const current = isBg ? this.currentBgColor() : this.currentTextColor();
+    const { list, extraCount } = this.buildColorList(presets, current);
+    // 桌面端：沿用原来的「点击时记录的下标」，行为与改动前逐字一致。
+    // 手机端：预设被裁剪过、下标会漂移，改成按当前配置现算，保证选中的圆球一定对得上。
+    const activeIndex = this.isMobilePanel()
+      ? list.indexOf(current)
+      : isBg
+        ? this.state.currentBackgroundIndex
+        : this.state.currentTextIndex;
+    const customStart = presets.length + extraCount;
+    return list.map((item, index) => (
+      <React.Fragment key={kind + item + index}>
+        {index === presets.length &&
+          list.length > presets.length &&
+          this.isMobilePanel() && <li className="color-list-break" />}
+        <li
+          className={
+            index === activeIndex
+              ? "active-color background-color-circle"
+              : "background-color-circle"
+          }
+          onClick={() => {
+            if (isBg) {
+              this.handleChangeBgColor(item, index);
+            } else {
+              this.handleChooseTextColor(item);
+            }
+          }}
+          style={{ backgroundColor: item }}
+        >
+          {index >= customStart && (
+            <span
+              className="icon-close theme-color-delete theme-color-delete-hover"
+              onClick={(e) => {
+                e.stopPropagation();
+                ConfigService.deleteListConfig(item, "themeColors");
+                if (index === activeIndex) {
+                  if (isBg) {
+                    this.handleChangeBgColor(presets[0], 0);
+                  } else {
+                    this.handleChooseTextColor(presets[0]);
+                  }
+                } else {
+                  this.forceUpdate();
+                }
+              }}
+            ></span>
+          )}
+        </li>
+      </React.Fragment>
+    ));
+  };
   render() {
-    const renderBackgroundColorList = () => {
-      return backgroundList
-        .concat(ConfigService.getAllListConfig("themeColors"))
-        .map((item, index) => {
-          return (
-            <li
-              key={item + index}
-              className={
-                index === this.state.currentBackgroundIndex
-                  ? "active-color background-color-circle"
-                  : "background-color-circle"
-              }
-              onClick={() => {
-                this.handleChangeBgColor(item, index);
-              }}
-              style={{ backgroundColor: item }}
-            >
-              {index > 3 && (
-                <span
-                  className="icon-close theme-color-delete theme-color-delete-hover theme-color-delete-button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    ConfigService.deleteListConfig(item, "themeColors");
-                    if (index === this.state.currentBackgroundIndex) {
-                      this.handleChangeBgColor(backgroundList[0], 0);
-                    } else {
-                      this.forceUpdate();
-                    }
-                  }}
-                ></span>
-              )}
-            </li>
-          );
-        });
-    };
-    const renderTextColorList = () => {
-      return textList
-        .concat(ConfigService.getAllListConfig("themeColors"))
-        .map((item, index) => {
-          return (
-            <li
-              key={item + index}
-              className={
-                index === this.state.currentTextIndex
-                  ? "active-color background-color-circle"
-                  : "background-color-circle"
-              }
-              onClick={() => {
-                this.handleChooseTextColor(item);
-              }}
-              style={{ backgroundColor: item }}
-            >
-              {index > 3 && (
-                <span
-                  className="icon-close theme-color-delete theme-color-delete-hover"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    ConfigService.deleteListConfig(item, "themeColors");
-                    if (index === this.state.currentTextIndex) {
-                      this.handleChooseTextColor(textList[0]);
-                    } else {
-                      this.forceUpdate();
-                    }
-                  }}
-                ></span>
-              )}
-            </li>
-          );
-        });
-    };
+    const isMobile = this.isMobilePanel();
+    const themePresets = KookitConfig.PresetThemeList;
+    // 手机上默认只渲染第一行，桌面端照旧全量渲染。
+    const visibleThemes =
+      isMobile && !this.state.isShowAllThemes
+        ? themePresets.slice(0, MOBILE_THEME_ROW)
+        : themePresets;
     return (
       <div className="background-color-setting">
         <div
@@ -278,7 +317,7 @@ class ThemeList extends React.Component<ThemeListProps, ThemeListState> {
             ></span>
           </li>
 
-          {renderBackgroundColorList()}
+          {this.renderColorRow("background")}
         </ul>
         {this.state.isShowBgPicker && (
           <div style={{ margin: "10px 20px" }}>
@@ -353,7 +392,7 @@ class ThemeList extends React.Component<ThemeListProps, ThemeListState> {
             ></span>
           </li>
 
-          {renderTextColorList()}
+          {this.renderColorRow("text")}
         </ul>
         {this.state.isShowTextPicker && (
           <div style={{ margin: "10px 20px" }}>
@@ -406,7 +445,7 @@ class ThemeList extends React.Component<ThemeListProps, ThemeListState> {
           <Trans>Theme</Trans>
         </div>
         <div className="preset-theme-list">
-          {KookitConfig.PresetThemeList.map((item, index) => {
+          {visibleThemes.map((item, index) => {
             return (
               <div
                 key={item.key}
@@ -431,6 +470,24 @@ class ThemeList extends React.Component<ThemeListProps, ThemeListState> {
             );
           })}
         </div>
+        {isMobile && themePresets.length > MOBILE_THEME_ROW && (
+          <span
+            className="theme-expand-toggle"
+            onClick={() => {
+              this.setState({ isShowAllThemes: !this.state.isShowAllThemes });
+            }}
+          >
+            {this.state.isShowAllThemes
+              ? "收起"
+              : `展开全部 ${themePresets.length} 个主题`}
+            <span
+              className={
+                "icon-dropdown theme-expand-caret" +
+                (this.state.isShowAllThemes ? " is-open" : "")
+              }
+            ></span>
+          </span>
+        )}
       </div>
     );
   }
