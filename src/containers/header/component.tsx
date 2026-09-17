@@ -13,6 +13,7 @@ import DatabaseService from "../../utils/storage/databaseService";
 import BookUtil from "../../utils/file/bookUtil";
 import { throttle } from "../../utils/common";
 import { LocalFileManager } from "../../utils/file/localFile";
+import { isMobileRuntime } from "../../utils/mobileRuntime";
 declare var window: any;
 
 class Header extends React.Component<HeaderProps, HeaderState> {
@@ -104,22 +105,30 @@ class Header extends React.Component<HeaderProps, HeaderState> {
       );
     } else {
       upgradeConfig();
-      const status = await LocalFileManager.getPermissionStatus();
-      if (
-        !ConfigService.getItem("isUseLocal") &&
-        LocalFileManager.isSupported()
-      ) {
-        this.props.handleLocalFileDialog(true);
-      } else if (
-        ConfigService.getItem("isUseLocal") === "yes" &&
-        !status.directoryName
-      ) {
-        this.props.handleLocalFileDialog(true);
-      } else if (
-        ConfigService.getItem("isUseLocal") === "yes" &&
-        (status.needsReauthorization || !status.hasAccess)
-      ) {
-        this.props.handleLocalFileDialog(true);
+      // ── 移动端（安卓壳）：跳过程序化的「授权本地文件夹」引导弹窗 ──
+      // 那个弹窗依赖 File System Access API 的 showDirectoryPicker 选目录，
+      // 安卓 WebView 里没有可用的目录授权能力（点击只会弹「系统限制」提示），
+      // 首次进入却会先挡住书架，用户看到的就是「是否继续使用网页端浏览」。
+      // 手机端数据本来就落在 IndexedDB，不需要它，所以整段跳过；
+      // isUseLocal 也就保持未设置状态，不会走后面的「重新授权」分支。
+      if (!isMobileRuntime()) {
+        const status = await LocalFileManager.getPermissionStatus();
+        if (
+          !ConfigService.getItem("isUseLocal") &&
+          LocalFileManager.isSupported()
+        ) {
+          this.props.handleLocalFileDialog(true);
+        } else if (
+          ConfigService.getItem("isUseLocal") === "yes" &&
+          !status.directoryName
+        ) {
+          this.props.handleLocalFileDialog(true);
+        } else if (
+          ConfigService.getItem("isUseLocal") === "yes" &&
+          (status.needsReauthorization || !status.hasAccess)
+        ) {
+          this.props.handleLocalFileDialog(true);
+        }
       }
     }
     this.resizeHandler = throttle(() => {

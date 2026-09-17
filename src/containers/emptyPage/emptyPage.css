@@ -26,6 +26,11 @@
   left: 30px;
   top: 60px;
 }
+/* 非当前 mode 的文案块（组件里用类名而不是内联 visibility 标记，
+   这样移动端可以改用 display:none 让它彻底不占布局位置） */
+.empty-page-info-hidden {
+  visibility: hidden;
+}
 .empty-page-info-main {
   font-size: 28px;
   font-weight: 600;
@@ -104,4 +109,168 @@
   font-size: 12px;
   line-height: 1.55;
   opacity: 0.65;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   移动端空书架页：一屏看完，不再滚动
+   ──────────────────────────────────────────────────────────────────
+   桌面端是「左侧文案 + 右下角大插图」的绝对定位拼贴；窄屏下插图按 80%
+   高度铺开，直接压到文案和卡片上。移动端改成竖向流式排版：
+     顶部小插图 → 标题 → 副标题 → 三条横排紧凑卡片
+   全部塞进一屏（.empty-page-container 的高度已由 manager.css 扣掉
+   顶栏 56px 与底部 Tab 栏 54px，这里只负责让内容放得下）。
+   全部规则限定在 .mobile-mode 下，桌面端观感保持不变。 */
+
+.mobile-mode .empty-page-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* 收紧内边距。manager.css 的 @media 断点里写了 padding !important，
+   同源 !important 之间比的是特异性，所以这里用 .manager 多提一级来覆盖。 */
+.manager.mobile-mode .empty-page-container {
+  padding: 6px 18px 14px !important;
+}
+
+/* 插图：右下绝对定位的大图 → 顶部居中的自适应小图 */
+.mobile-mode .empty-illustration-container {
+  position: static !important;
+  left: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  top: auto !important;
+  width: 100% !important;
+  height: auto !important;
+  z-index: auto !important;
+  overflow: visible !important;
+  display: flex;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.mobile-mode .empty-page-illustration {
+  position: static !important;
+  left: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  top: auto !important;
+  height: 118px !important;
+  /* 矮屏（老机型 / 分屏）自动再收一档，兜住「一屏看完」这条底线 */
+  max-height: 17vh !important;
+  width: auto !important;
+}
+
+/* 文案块：绝对定位 → 流式，在剩余空间里垂直居中 */
+.mobile-mode .empty-page-info-container {
+  position: static !important;
+  left: auto !important;
+  top: auto !important;
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.mobile-mode .empty-page-info-hidden {
+  display: none !important;
+}
+
+.mobile-mode .empty-page-info-main {
+  font-size: 20px;
+  line-height: 28px;
+  text-align: center;
+}
+
+.mobile-mode .empty-page-info-sub {
+  max-width: none;
+  font-size: 13px;
+  line-height: 19px;
+  margin-top: 4px;
+  text-align: center;
+}
+
+/* 欢迎卡：三列网格 → 三条横排紧凑行 */
+.mobile-mode .empty-welcome-grid {
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin-top: 14px;
+  max-width: none;
+  flex: 0 0 auto;
+}
+
+.mobile-mode .empty-welcome-card {
+  flex-direction: row;
+  align-items: center;
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: rgba(128, 128, 128, 0.06);
+  border: 1px solid var(--coread-shell-border, rgba(128, 128, 128, 0.18));
+  box-shadow: none;
+  transition: none;
+}
+
+/* 触摸屏没有 hover，点一下会命中 :hover 闪一次蓝，这里直接把高亮态抹平 */
+.mobile-mode .empty-welcome-card:hover,
+.mobile-mode .empty-welcome-card:active {
+  transform: none;
+  background: rgba(128, 128, 128, 0.06);
+  border-color: var(--coread-shell-border, rgba(128, 128, 128, 0.18));
+  box-shadow: none;
+}
+
+/* 统一灰黑：原来的品牌蓝 #4b89ff / rgba(75,137,255,·) 在这里换掉 */
+.mobile-mode .empty-welcome-icon-box {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  margin: 0 10px 0 0;
+  border-radius: 8px;
+  font-size: 15px;
+  color: var(--coread-shell-fg-dim, rgba(75, 75, 75, 0.62));
+  background: var(--coread-shell-hover, rgba(75, 75, 75, 0.07));
+}
+
+.mobile-mode .empty-welcome-card-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.mobile-mode .empty-welcome-card-title {
+  font-size: 13px;
+  line-height: 17px;
+  margin-bottom: 1px;
+}
+
+.mobile-mode .empty-welcome-card-desc {
+  font-size: 11px;
+  line-height: 15px;
+}
+
+/* 极短屏再收一档，保证仍然一屏看完 */
+@media (max-height: 660px) {
+  .mobile-mode .empty-page-illustration {
+    height: 84px !important;
+  }
+
+  .mobile-mode .empty-page-info-main {
+    font-size: 18px;
+    line-height: 24px;
+  }
+
+  .mobile-mode .empty-page-info-sub {
+    font-size: 12px;
+    line-height: 17px;
+  }
+
+  .mobile-mode .empty-welcome-grid {
+    margin-top: 10px;
+    gap: 6px;
+  }
+
+  .mobile-mode .empty-welcome-card-desc {
+    display: none;
+  }
 }
