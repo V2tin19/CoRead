@@ -88,3 +88,32 @@ export function installReactNativeWebViewStub(): void {
     },
   };
 }
+
+/**
+ * 诊断测量：输出布局视口、物理屏幕、断点匹配与 Capacitor 环境数据。
+ * 用于验证移动端视口设置与断点生效情况。
+ */
+export function logViewportDiagnostics(): void {
+  if (typeof window === "undefined") return;
+  try {
+    const diag = {
+      innerWidth: window.innerWidth,
+      clientWidth: document.documentElement.clientWidth,
+      dpr: window.devicePixelRatio,
+      visualW: window.visualViewport ? window.visualViewport.width : null,
+      visualH: window.visualViewport ? window.visualViewport.height : null,
+      screen: [window.screen.width, window.screen.height],
+      is570: window.matchMedia("(max-width: 570px)").matches,
+      is576: window.matchMedia("(max-width: 576px)").matches,
+      capacitor: !!(
+        (window as any).Capacitor &&
+        (window as any).Capacitor.isNativePlatform &&
+        (window as any).Capacitor.isNativePlatform()
+      ),
+      isMobile: isMobileRuntime(),
+    };
+    console.log("[ViewportDiagnostics]", JSON.stringify(diag));
+  } catch (err) {
+    console.error("[ViewportDiagnostics] failed", err);
+  }
+}
