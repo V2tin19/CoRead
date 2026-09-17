@@ -143,7 +143,7 @@ class SearchBox extends React.Component<SearchBoxProps, SearchBoxState> {
               ? {
                   width: this.props.width,
                   height: this.props.height,
-                  paddingRight: "30px",
+                  paddingRight: "38px",
                 }
               : {}
           }
@@ -171,9 +171,6 @@ class SearchBox extends React.Component<SearchBoxProps, SearchBoxState> {
             onClick={() => {
               this.handleCancel();
             }}
-            style={
-              this.props.mode === "nav" ? { right: "-9px", top: "14px" } : {}
-            }
           >
             <span className="icon-close theme-color-delete"></span>
           </span>
@@ -184,10 +181,7 @@ class SearchBox extends React.Component<SearchBoxProps, SearchBoxState> {
               this.handleMouse();
             }}
           >
-            <span
-              className="icon-search header-search-icon"
-              style={this.props.mode === "nav" ? { right: "5px" } : {}}
-            ></span>
+            <span className="icon-search header-search-icon"></span>
           </span>
         )}
       </div>

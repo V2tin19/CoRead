@@ -606,20 +606,42 @@
   margin-left: 18px;
   margin-right: 18px;
 }
+/* 「背景颜色 / 文字颜色」标签与它下面那行圆球：上游 `.background-color-text`
+   带 margin-bottom:-5px，实测手机上标签底 134 / 圆球顶 135，只差 1px ——
+   视觉上就是「圆球顶到文字上」。这里把负边距收回正值，给出一条缝。 */
 .mobile-reader-mode .setting-panel-container .background-color-text {
   height: 18px;
   margin-top: 2px;
-  margin-bottom: -6px;
+  margin-bottom: 1px;
 }
 .mobile-reader-mode .setting-panel-container .background-color-list {
   margin-top: 4px;
-  min-height: 40px;
+  min-height: 36px;
 }
+/* 圆球 35px → 28px（用户反馈「选色小圆球太大，都顶到文字了」） */
 .mobile-reader-mode .setting-panel-container .background-color-circle {
-  width: 34px;
-  height: 34px;
-  margin: 5px;
-  margin-top: 3px;
+  width: 28px;
+  height: 28px;
+  margin: 4px 4px 0;
+  font-size: 16px;
+}
+/* 圆球内的图标（取色板 ⋮ / 选中对勾）上游是靠 margin:8px 定位的，
+   圆球缩到 28px 后 8px 边距会把图标顶出去 ⇒ 改成铺满整球 + 居中。
+   ⚠️ 不要顺手加上 .icon-close：那个类同时被右上角的「删除自取色」小按钮复用，
+   一起改会把删除键从 13px 小点撑成整球。 */
+.mobile-reader-mode .setting-panel-container .background-color-circle .icon-more,
+.mobile-reader-mode .setting-panel-container .background-color-circle .icon-check {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+.mobile-reader-mode .setting-panel-container .background-color-circle .theme-color-delete-hover {
+  top: -3px;
+  right: -3px;
 }
 /* 手机端「主题」预设一行的个数由原规则自己保证，**不要动 flex**：
    item 外框 = flex 基准(20% - 14px) + padding/border(约 9px) + margin(4px) ≈ 47px，
@@ -628,10 +650,18 @@
 .mobile-reader-mode .setting-panel-container .preset-theme-list {
   margin-bottom: 8px;
 }
+/* 滑块标题与拉杆：上游 `.font-size-title` 带 margin-bottom:-5px，
+   而拉杆是绝对定位（bottom:11px）⇒ 实测拉杆顶比标题底还高 8px（gap = -8），
+   六条滑块（字体大小/页边距/字间距/段落间距/页面宽度/屏幕亮度）全是这个状态，
+   看着就是一坨。收回正值，让标题与拉杆之间留出缝。 */
 .mobile-reader-mode .setting-panel-container .font-size-title {
   margin-top: 2px;
+  margin-bottom: 8px;
   padding-bottom: 0;
   line-height: 24px;
+}
+.mobile-reader-mode .setting-panel-container .font-size-setting {
+  margin-bottom: 4px;
 }
 /* 拉杆/下拉框原先是按 299px 面板写死的 200px / 220px，
    面板收窄后必须改成流式，否则右侧溢出。 */
@@ -648,8 +678,12 @@
   right: 0;
   width: auto;
 }
+/* 下拉框上游写死 `left: 15px` ⇒ 实测「图书排版」标题 left 132 / 下拉框 left 147，
+   两者差 15px，看着就是没对齐。归零并铺满，标题与「默认」下拉框左对齐。 */
 .mobile-reader-mode .setting-panel-container .general-setting-dropdown {
-  width: calc(100% - 15px);
+  left: 0;
+  width: 100%;
+  margin-right: 0;
 }
 .mobile-reader-mode .setting-panel-container .paragraph-character-container {
   margin-bottom: 10px;

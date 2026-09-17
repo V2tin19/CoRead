@@ -284,8 +284,8 @@ class NavigationPanel extends React.Component<
   render() {
     const searchProps = {
       mode: this.state.searchState ? "" : "nav",
-      width: "100px",
-      height: "35px",
+      width: "100%",
+      height: "40px",
       isNavSearch: this.state.searchState,
       handleNavSearchState: this.handleNavSearchState,
       handleSearchList: this.handleSearchList,
@@ -372,11 +372,16 @@ class NavigationPanel extends React.Component<
                   <img className="book-cover" src={this.state.cover} alt="" />
                 ) : (
                   <div className="book-cover">
+                    {/* EmptyCover 的原生尺寸是 105×137，这里必须缩到容器
+                        `.book-cover`（82×106）以内，否则整个默认封面连同底部的
+                        「CoRead」页脚一起溢出到封面框外面（实测 0.86 时溢出
+                        宽 8.3px / 高 12.8px，页脚整整冒出下边缘 6.7px）。
+                        82/105 = 0.781，取 0.775 留一点余量。 */}
                     <EmptyCover
                       {...{
                         format: this.props.currentBook.format,
                         title: this.props.currentBook.name,
-                        scale: 0.86,
+                        scale: 0.775,
                       }}
                     />
                   </div>

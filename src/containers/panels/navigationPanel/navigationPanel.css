@@ -140,18 +140,42 @@
   opacity: 0.72;
 }
 
-/* ③ 全书搜索 —— 独占一行 */
+/* ③ 全书搜索 —— 独占一行，与下方 Tab 行等宽。
+   上游给的是 100×35 的小胶囊（宽度由 searchProps.width 内联写死），
+   窄面板里 placeholder「全书搜索」只能分到 52px、而四个字要 56px ⇒ 被省略号切掉，
+   视觉上也是孤零零一颗药丸。这里改成方长框：左右与「图书信息」同为 12px，
+   宽高铺满，圆角收到 8px（承接移动端「宁方勿圆」的取向）。 */
 .navigation-search-row {
   position: absolute;
   top: 200px;
   left: 12px;
   right: 12px;
-  height: 36px;
+  height: 40px;
   display: flex;
   align-items: center;
 }
-.navigation-search-row .search-box {
+/* 🔴 搜索框的包裹层（SearchBox 内层那个 position:relative 的 div）在 flex 行里
+   默认是 `flex:0 1 auto`，宽度要靠内容反推；而输入框本身写的是 width:100%，
+   两者互相依赖 ⇒ 浏览器退回用 input 的默认宽度（实测只有 224px / 行宽 275px）。
+   让包裹层自己撑着，width:100% 才有真实参照。 */
+.navigation-search-row > div {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.navigation-search-row .header-search-box {
   width: 100% !important;
+  height: 40px;
+  border-radius: 8px;
+  padding: 0 42px 0 14px;
+}
+.navigation-search-row .header-search-text {
+  top: 0;
+  right: 0;
+  height: 100%;
+}
+/* 展开搜索那一屏的输入框同步用方角，免得同一个面板里两种形状 */
+.navigation-panel .header-search-container .header-search-box {
+  border-radius: 8px;
 }
 
 /* ④ Tab 栏 */
