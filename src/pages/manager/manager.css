@@ -63,8 +63,8 @@
   .book-list-container-parent {
     left: 0 !important;
     width: 100% !important;
-    top: calc(56px + env(safe-area-inset-top, 0px)) !important;
-    height: calc(100% - 56px - 54px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+    top: calc(56px + var(--coread-safe-top)) !important;
+    height: calc(100% - 56px - 54px - var(--coread-safe-top) - env(safe-area-inset-bottom, 0px)) !important;
     padding: 10px 12px 20px !important;
     box-sizing: border-box !important;
     overflow-y: auto !important;
@@ -84,8 +84,8 @@
   .empty-page-container {
     left: 0 !important;
     width: 100% !important;
-    top: calc(56px + env(safe-area-inset-top, 0px)) !important;
-    height: calc(100% - 56px - 54px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+    top: calc(56px + var(--coread-safe-top)) !important;
+    height: calc(100% - 56px - 54px - var(--coread-safe-top) - env(safe-area-inset-bottom, 0px)) !important;
     padding: 20px 16px !important;
     box-sizing: border-box !important;
   }
@@ -93,8 +93,8 @@
   .personal-center-container-parent {
     left: 0 !important;
     width: 100% !important;
-    top: calc(56px + env(safe-area-inset-top, 0px)) !important;
-    height: calc(100% - 56px - 54px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+    top: calc(56px + var(--coread-safe-top)) !important;
+    height: calc(100% - 56px - 54px - var(--coread-safe-top) - env(safe-area-inset-bottom, 0px)) !important;
     padding: 0 16px 20px !important;
     box-sizing: border-box !important;
   }
@@ -102,8 +102,8 @@
   .cloud-page-container-parent {
     left: 0 !important;
     width: 100% !important;
-    top: calc(56px + env(safe-area-inset-top, 0px)) !important;
-    height: calc(100% - 56px - 54px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+    top: calc(56px + var(--coread-safe-top)) !important;
+    height: calc(100% - 56px - 54px - var(--coread-safe-top) - env(safe-area-inset-bottom, 0px)) !important;
     padding: 0 16px 20px !important;
     box-sizing: border-box !important;
   }
@@ -111,8 +111,8 @@
   .card-list-container-parent {
     left: 0 !important;
     width: 100% !important;
-    top: calc(56px + env(safe-area-inset-top, 0px)) !important;
-    height: calc(100% - 56px - 54px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+    top: calc(56px + var(--coread-safe-top)) !important;
+    height: calc(100% - 56px - 54px - var(--coread-safe-top) - env(safe-area-inset-bottom, 0px)) !important;
     padding: 0 16px 20px !important;
     box-sizing: border-box !important;
   }
@@ -125,8 +125,8 @@
 .mobile-mode .book-list-container-parent {
   left: 0 !important;
   width: 100% !important;
-  top: calc(56px + env(safe-area-inset-top, 0px)) !important;
-  height: calc(100% - 56px - 54px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+  top: calc(56px + var(--coread-safe-top)) !important;
+  height: calc(100% - 56px - 54px - var(--coread-safe-top) - env(safe-area-inset-bottom, 0px)) !important;
   padding: 10px 12px 20px !important;
   box-sizing: border-box !important;
   overflow-y: auto !important;
@@ -146,8 +146,8 @@
 .mobile-mode .empty-page-container {
   left: 0 !important;
   width: 100% !important;
-  top: calc(56px + env(safe-area-inset-top, 0px)) !important;
-  height: calc(100% - 56px - 54px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+  top: calc(56px + var(--coread-safe-top)) !important;
+  height: calc(100% - 56px - 54px - var(--coread-safe-top) - env(safe-area-inset-bottom, 0px)) !important;
   padding: 20px 16px !important;
   box-sizing: border-box !important;
 }
@@ -155,8 +155,8 @@
 .mobile-mode .personal-center-container-parent {
   left: 0 !important;
   width: 100% !important;
-  top: calc(56px + env(safe-area-inset-top, 0px)) !important;
-  height: calc(100% - 56px - 54px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+  top: calc(56px + var(--coread-safe-top)) !important;
+  height: calc(100% - 56px - 54px - var(--coread-safe-top) - env(safe-area-inset-bottom, 0px)) !important;
   padding: 0 16px 20px !important;
   box-sizing: border-box !important;
 }
@@ -164,8 +164,8 @@
 .mobile-mode .cloud-page-container-parent {
   left: 0 !important;
   width: 100% !important;
-  top: calc(56px + env(safe-area-inset-top, 0px)) !important;
-  height: calc(100% - 56px - 54px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+  top: calc(56px + var(--coread-safe-top)) !important;
+  height: calc(100% - 56px - 54px - var(--coread-safe-top) - env(safe-area-inset-bottom, 0px)) !important;
   padding: 0 16px 20px !important;
   box-sizing: border-box !important;
 }
@@ -173,8 +173,8 @@
 .mobile-mode .card-list-container-parent {
   left: 0 !important;
   width: 100% !important;
-  top: calc(56px + env(safe-area-inset-top, 0px)) !important;
-  height: calc(100% - 56px - 54px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+  top: calc(56px + var(--coread-safe-top)) !important;
+  height: calc(100% - 56px - 54px - var(--coread-safe-top) - env(safe-area-inset-bottom, 0px)) !important;
   padding: 0 16px 20px !important;
   box-sizing: border-box !important;
 }

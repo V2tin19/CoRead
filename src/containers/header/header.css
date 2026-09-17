@@ -233,11 +233,11 @@
   .header {
     margin-left: 0 !important;
     width: 100% !important;
-    height: calc(56px + env(safe-area-inset-top, 0px)) !important;
+    height: calc(56px + var(--coread-safe-top)) !important;
     top: 0 !important;
     left: 0 !important;
     position: fixed !important;
-    padding-top: env(safe-area-inset-top, 0px) !important;
+    padding-top: var(--coread-safe-top) !important;
     padding-left: 12px !important;
     padding-right: 12px !important;
     box-sizing: border-box !important;
@@ -348,11 +348,11 @@
 .mobile-mode .header {
   margin-left: 0 !important;
   width: 100% !important;
-  height: calc(56px + env(safe-area-inset-top, 0px)) !important;
+  height: calc(56px + var(--coread-safe-top)) !important;
   top: 0 !important;
   left: 0 !important;
   position: fixed !important;
-  padding-top: env(safe-area-inset-top, 0px) !important;
+  padding-top: var(--coread-safe-top) !important;
   padding-left: 12px !important;
   padding-right: 12px !important;
   box-sizing: border-box !important;

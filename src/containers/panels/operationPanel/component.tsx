@@ -229,42 +229,49 @@ class OperationPanel extends React.Component<
             </div>
           </div>
         </div>
-        <div
-          className="add-bookmark-button"
-          onClick={() => {
-            this.handleAddBookmark();
-          }}
-        >
-          <div className="operation-button-container">
-            <div style={{ display: "flex", alignItems: "center" }}>
-              <span className="icon-add add-bookmark-icon"></span>
-              <span className="add-bookmark-text">
-                <Trans>Bookmark</Trans>
-              </span>
+        {/* 手机端顶栏只留「退出」。
+            书签改由阅读页「手指下滑」手势完成（见 pageSwipeTurn.ts），
+            全屏则交给系统（安卓 WebView 里这个按钮本来也没多大意义）。 */}
+        {!isMobileRuntime() && (
+          <div
+            className="add-bookmark-button"
+            onClick={() => {
+              this.handleAddBookmark();
+            }}
+          >
+            <div className="operation-button-container">
+              <div style={{ display: "flex", alignItems: "center" }}>
+                <span className="icon-add add-bookmark-icon"></span>
+                <span className="add-bookmark-text">
+                  <Trans>Bookmark</Trans>
+                </span>
+              </div>
             </div>
           </div>
-        </div>
-        <div
-          className="enter-fullscreen-button"
-          onClick={() => {
-            this.handleScreen();
-          }}
-        >
-          <div className="operation-button-container">
-            <div style={{ display: "flex", alignItems: "center" }}>
-              <span
-                className={`${this.state.isFullscreen ? "icon-collapse" : "icon-fullscreen"} enter-fullscreen-icon`}
-              ></span>
-              <span className="enter-fullscreen-text">
-                {this.state.isFullscreen ? (
-                  <Trans>Exit full screen</Trans>
-                ) : (
-                  <Trans>Full screen</Trans>
-                )}
-              </span>
+        )}
+        {!isMobileRuntime() && (
+          <div
+            className="enter-fullscreen-button"
+            onClick={() => {
+              this.handleScreen();
+            }}
+          >
+            <div className="operation-button-container">
+              <div style={{ display: "flex", alignItems: "center" }}>
+                <span
+                  className={`${this.state.isFullscreen ? "icon-collapse" : "icon-fullscreen"} enter-fullscreen-icon`}
+                ></span>
+                <span className="enter-fullscreen-text">
+                  {this.state.isFullscreen ? (
+                    <Trans>Exit full screen</Trans>
+                  ) : (
+                    <Trans>Full screen</Trans>
+                  )}
+                </span>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     );
   }

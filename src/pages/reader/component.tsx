@@ -34,6 +34,8 @@ import collabClient, {
   getCollabBookKey,
 } from "../../utils/collab/collabClient";
 import { isMobileRuntime, setMobileStatusBar } from "../../utils/mobileRuntime";
+import { TOGGLE_BOOKMARK_BY_GESTURE_EVENT } from "../../utils/reader/pageSwipeTurn";
+import { toggleBookmarkByGesture } from "../../utils/reader/bookmarkUtil";
 
 let lock = false; //prevent from clicking too fasts
 let throttleTime = 200;
@@ -203,6 +205,12 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
       TOGGLE_DOODLE_DRAWER_EVENT,
       this.handleToggleDoodleDrawer
     );
+    // 手机端「下拉页面加 / 撤标签」：动作在 iframe 里识别（pageSwipeTurn.ts），
+    // 事件派发到外层窗口，由这里落到书签库。
+    window.addEventListener(
+      TOGGLE_BOOKMARK_BY_GESTURE_EVENT,
+      this.handleToggleBookmarkByGesture
+    );
     // 注册 Android 系统返回键专用处理器
     (window as any).readerAndroidBackHandler = () => {
       // 1. 如果有打开的抽屉 / 菜单面板，按返回键先收起抽屉
@@ -330,6 +338,10 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
     window.removeEventListener(
       TOGGLE_DOODLE_DRAWER_EVENT,
       this.handleToggleDoodleDrawer
+    );
+    window.removeEventListener(
+      TOGGLE_BOOKMARK_BY_GESTURE_EVENT,
+      this.handleToggleBookmarkByGesture
     );
     this.collabUnsubs.forEach((unsubscribe) => unsubscribe());
     this.collabUnsubs = [];
@@ -574,6 +586,78 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
       this.handleEnterReader(position);
     }
   };
+
+  // ── 目录面板「左滑收起」（移动端）─────────────────────────────────
+  // 手机上没有 hover，原先只有右上角一个 × 能关；这里做成抽屉式手势：
+  // 手指往左划时面板跟手左移，松手超过面板宽 30% 就收起，否则弹回原位。
+  // 桌面端完全不参与（每个入口都有 isMobileRuntime 守卫）。
+  private leftPanelRef = React.createRef<HTMLDivElement>();
+  private leftSwipeActive = false;
+  private leftSwipeStartX = 0;
+  private leftSwipeStartY = 0;
+  private leftSwipeDx = 0;
+
+  handleLeftPanelTouchStart = (event: React.TouchEvent) => {
+    if (!isMobileRuntime() || !event.touches || event.touches.length !== 1) {
+      return;
+    }
+    this.leftSwipeActive = false;
+    this.leftSwipeDx = 0;
+    this.leftSwipeStartX = event.touches[0].clientX;
+    this.leftSwipeStartY = event.touches[0].clientY;
+  };
+
+  handleLeftPanelTouchMove = (event: React.TouchEvent) => {
+    if (!isMobileRuntime() || !event.touches || event.touches.length !== 1) {
+      return;
+    }
+    const el = this.leftPanelRef.current;
+    if (!el) return;
+    const dx = event.touches[0].clientX - this.leftSwipeStartX;
+    const dy = event.touches[0].clientY - this.leftSwipeStartY;
+    if (!this.leftSwipeActive) {
+      // 只接管明确的「往左横划」；纵向留给目录列表自己的滚动。
+      if (dx > -8 || Math.abs(dx) < Math.abs(dy)) {
+        return;
+      }
+      this.leftSwipeActive = true;
+      el.style.transition = "none";
+    }
+    const width = el.offsetWidth || 299;
+    const x = Math.max(-width, Math.min(0, dx));
+    this.leftSwipeDx = x;
+    el.style.transform = `translateX(${x}px)`;
+  };
+
+  handleLeftPanelTouchEnd = () => {
+    if (!this.leftSwipeActive) return;
+    this.leftSwipeActive = false;
+    const el = this.leftPanelRef.current;
+    if (!el) return;
+    const width = el.offsetWidth || 299;
+    const shouldClose = Math.abs(this.leftSwipeDx) > width * 0.3;
+    el.style.transition = "transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)";
+    if (shouldClose) {
+      // 先把面板滑到底再交还状态：直接 setState 的话 React 会立刻写
+      // translateX(-105%)，中途这段 transition 被跳过，看着像「啪」地消失。
+      el.style.transform = `translateX(${-width}px)`;
+      window.setTimeout(() => {
+        const node = this.leftPanelRef.current;
+        if (node) {
+          node.style.transition = "";
+          node.style.transform = "";
+        }
+        this.setState({ isOpenLeftPanel: false });
+      }, 210);
+    } else {
+      el.style.transform = "translateX(0px)";
+      window.setTimeout(() => {
+        const node = this.leftPanelRef.current;
+        if (node) node.style.transition = "";
+      }, 210);
+    }
+    this.leftSwipeDx = 0;
+  };
   handleLocation = () => {
     let position = this.props.htmlBook.rendition.getPosition();
 
@@ -582,6 +666,27 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
       position,
       "recordLocation"
     );
+  };
+
+  /**
+   * 手机端「下拉页面 → 加标签 / 再次下拉 → 撤标签」的落点。
+   *
+   * 手势侧（`utils/reader/pageSwipeTurn.ts`）只负责识别纵向下拉、把页面壳跟手下移、
+   * 越过阈值后回弹，然后无条件派发 `TOGGLE_BOOKMARK_BY_GESTURE_EVENT` ——
+   * 「加还是撤」必须在这一层判，因为只有这里同时握有 currentBook 与书签库。
+   * 判定细节（位置指纹、为什么不复用操作面板那套）见 `utils/reader/bookmarkUtil.ts`。
+   */
+  handleToggleBookmarkByGesture = async () => {
+    if (!isMobileRuntime()) return;
+    const result = await toggleBookmarkByGesture({
+      bookKey: this.props.currentBook?.key || "",
+      rendition: this.props.htmlBook?.rendition,
+      t: this.props.t,
+    });
+    // 书签列表挂在 redux 上：不重新拉一次，「目录面板 → 书签」里看不到刚加的这条
+    if (result !== "failed") {
+      this.props.handleFetchBookmarks();
+    }
   };
   render() {
     const isMobile = isMobileRuntime() || document.body.clientWidth < 570;
@@ -1120,6 +1225,11 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
         </div>
         <div
           className="navigation-panel-container"
+          ref={this.leftPanelRef}
+          onTouchStart={this.handleLeftPanelTouchStart}
+          onTouchMove={this.handleLeftPanelTouchMove}
+          onTouchEnd={this.handleLeftPanelTouchEnd}
+          onTouchCancel={this.handleLeftPanelTouchEnd}
           onMouseEnter={() => {
             this.cancelLeaveReader("left");
           }}
@@ -1137,12 +1247,17 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
                 }
           }
         >
-          <span
-            className="panel-close-button"
-            onClick={() => this.setState({ isOpenLeftPanel: false })}
-          >
-            ×
-          </span>
+          {/* 手机端不再给目录面板放 × 关闭键：收藏夹式抽屉靠「手指左滑收起」
+              （见本文件 handleLeftPanelTouch* ），留一个 × 反而挤在右上角。
+              桌面端照旧保留。 */}
+          {!isMobile && (
+            <span
+              className="panel-close-button"
+              onClick={() => this.setState({ isOpenLeftPanel: false })}
+            >
+              ×
+            </span>
+          )}
           <NavigationPanel
             {...({
               totalDuration: this.state.totalDuration,

@@ -50,6 +50,21 @@ const SNAP_MS = 200;
 /** 拖过一整页之后的阻尼系数（越小越"拉不动"） */
 const OVER_DRAG_DAMP = 0.25;
 
+/** 【下拉加标签】手指下滑多少像素算「够到阈值」 */
+const PULL_THRESHOLD = 72;
+/** 【下拉加标签】在这个位移内页面**严格跟手**（1:1 跟手指走） */
+const PULL_MAX = 150;
+/** 【下拉加标签】越过 PULL_MAX 之后的阻尼（越小越"拉不动"，给"到头了"的手感） */
+const PULL_OVER_DAMP = 0.3;
+/** 【下拉加标签】回弹动画时长 */
+const PULL_SNAP_MS = 220;
+
+/**
+ * 手势 ⇒ 标签的开关键，由 `pages/reader` 那一侧监听。
+ * 约定：**当前页没有标签就加上，已经有就撤掉**（果冻的原话是「再次下滑取消标签」）。
+ */
+export const TOGGLE_BOOKMARK_BY_GESTURE_EVENT = "coread-toggle-bookmark-by-gesture";
+
 /**
  * 页步长：**刻意与内核 `yt()` 用同一个口径**（`clientWidth + 偶数化的 clientWidth/12`）。
  *
@@ -100,6 +115,49 @@ function animateScrollLeft(
         requestAnimationFrame(tick);
       } else {
         el.scrollLeft = to;
+        resolve();
+      }
+    };
+    requestAnimationFrame(tick);
+  });
+}
+
+/**
+ * 找到 iframe 外面那层「页面壳」—— 下拉手势要跟手下移的是它，不是书文档本身。
+ * 真实 DOM 是 `div.html-viewer-page#page-area > iframe#kookit-iframe`，
+ * 在 iframe 内部用 `frameElement` 就能拿到自己的壳（同源，拿得到）。
+ */
+function getPageShell(win: any): HTMLElement | null {
+  try {
+    const frame: HTMLElement | null =
+      win && win.frameElement ? win.frameElement : null;
+    if (!frame) return null;
+    const shell =
+      (frame.closest && frame.closest("#page-area")) || frame.parentElement;
+    return (shell as HTMLElement) || null;
+  } catch (err) {
+    return null;
+  }
+}
+
+/** 把「页面壳」纵向平移（下拉回弹用），同样是 rAF 缓动 */
+function animateTranslateY(
+  el: HTMLElement,
+  from: number,
+  to: number,
+  ms: number
+): Promise<void> {
+  return new Promise<void>((resolve) => {
+    const t0 = performance.now();
+    const ease = (p: number) => 1 - Math.pow(1 - p, 3);
+    const tick = (now: number) => {
+      const p = Math.max(0, Math.min(1, (now - t0) / Math.max(1, ms)));
+      el.style.transform = `translateY(${from + (to - from) * ease(p)}px)`;
+      if (p < 1) {
+        requestAnimationFrame(tick);
+      } else {
+        el.style.transform = "";
+        el.style.transition = "";
         resolve();
       }
     };
@@ -170,12 +228,27 @@ export function bindPageSwipeTurn(
 
   const body = doc.body as HTMLElement;
   const win: any = doc.defaultView || window;
-  let mode: "idle" | "h" | "v" = "idle";
+  let mode: "idle" | "h" | "v" | "pull" | "done" = "idle";
   let startX = 0;
   let startY = 0;
   let origin = 0;
   let startT = 0;
   let busy = false;
+  /**
+   * 横向拖动时**未经阻尼**的手指位移（正=往后翻）。
+   * 🔴 必须用这个判阈值，不能用 `body.scrollLeft` 的实际变化量：
+   * 本章最后一页继续往后拖时会走「橡皮筋」分支（只走 0.35 倍），
+   * 实测拖 100px 实际只挪 35px，折算比例 0.093 —— 永远够不到 0.22 的阈值，
+   * 于是 `pages` 恒为 0，跨章那一下永远不触发（这就是「跨章只能点、不能滑」）。
+   * 用原始手指位移判阈值，跟手阻尼只负责观感，两件事分开。
+   */
+  let rawMove = 0;
+  /** 「下拉加标签」要纵向平移的那层壳（iframe 外层 #page-area） */
+  let pullEl: HTMLElement | null = null;
+  /** 下拉过程中当前的视觉位移（回弹时要用它当起点） */
+  let pullY = 0;
+  /** 本次下拉是否已经越过阈值并触发过（保证一次手势只触发一次） */
+  let pullTriggered = false;
 
   const onStart = (e: TouchEvent) => {
     if (busy || !e.touches || e.touches.length !== 1) {
@@ -188,10 +261,20 @@ export function bindPageSwipeTurn(
     startY = t.clientY;
     startT = performance.now();
     origin = body.scrollLeft;
+    rawMove = 0;
+    pullEl = null;
+    pullY = 0;
+    pullTriggered = false;
   };
 
   const onMove = (e: TouchEvent) => {
-    if (mode === "v" || busy || !e.touches || e.touches.length !== 1) {
+    if (
+      mode === "v" ||
+      mode === "done" ||
+      busy ||
+      !e.touches ||
+      e.touches.length !== 1
+    ) {
       return;
     }
     const t = e.touches[0];
@@ -200,36 +283,85 @@ export function bindPageSwipeTurn(
 
     if (mode === "idle") {
       if (Math.abs(dy) > V_ABORT_PX && Math.abs(dy) >= Math.abs(dx)) {
-        mode = "v";
+        if (dy <= 0) {
+          mode = "v"; // 上滑不归我们管，交回原来的逻辑
+          return;
+        }
+        // 正在划选文字时不接管：长按选词后的「往下拖」是扩大选区，
+        // 跟我们的下拉长得一样，必须让位给选区（否则拖一下就多一个书签）。
+        const pullingSel = doc.getSelection && doc.getSelection();
+        if (pullingSel && String(pullingSel).length > 0) {
+          mode = "v";
+          return;
+        }
+        // 下滑 ⇒「下拉加标签」：整页跟手下移，越过阈值就落标签并回弹
+        const shell = getPageShell(win);
+        if (!shell) {
+          mode = "v";
+          return;
+        }
+        pullEl = shell;
+        mode = "pull";
+      } else if (Math.abs(dx) <= H_INTENT_PX || Math.abs(dx) <= Math.abs(dy)) {
         return;
+      } else {
+        // 正在划选文字时不接管（选区是另一套交互）
+        const sel = doc.getSelection && doc.getSelection();
+        if (sel && String(sel).length > 0) {
+          mode = "v";
+          return;
+        }
+        // 长按起手：安卓上「按住不动 → 拖」是选词手势（长按阈值约 500ms），
+        // 不是翻页。真的滑动会在几十毫秒内越过 H_INTENT_PX，所以「已经按了
+        // 450ms 还几乎没位移」就放行给原生选区，别把选词抢成翻页。
+        if (performance.now() - startT > 450 && Math.abs(dx) < 24) {
+          mode = "v";
+          return;
+        }
+        mode = "h";
+        // 内核的笔记/脚注处理器靠这个标志区分「划动」和「点按」，
+        // 不设的话划过笔记图标会弹菜单（内核自己的触摸实现里有这一步）。
+        (win as any).isSwiping = true;
       }
-      if (Math.abs(dx) <= H_INTENT_PX || Math.abs(dx) <= Math.abs(dy)) {
-        return;
+    }
+
+    if (mode === "pull") {
+      // 压掉浏览器的原生下拉（刷新 / overscroll）
+      e.preventDefault();
+      // 前 PULL_MAX 像素严格跟手（1:1 跟手指走，观感才是"页面被拽下来了"），
+      // 再往下加阻尼，给"拉到头"的手感。
+      const y =
+        dy <= PULL_MAX ? dy : PULL_MAX + (dy - PULL_MAX) * PULL_OVER_DAMP;
+      pullY = y;
+      if (pullEl) {
+        pullEl.style.transition = "none";
+        pullEl.style.transform = `translateY(${y}px)`;
       }
-      // 正在划选文字时不接管（选区是另一套交互）
-      const sel = doc.getSelection && doc.getSelection();
-      if (sel && String(sel).length > 0) {
-        mode = "v";
-        return;
+      if (!pullTriggered && dy >= PULL_THRESHOLD) {
+        pullTriggered = true;
+        try {
+          // 交给 pages/reader 那一侧决定「加」还是「撤」——它手里才有书签库
+          (win.parent || window).dispatchEvent(
+            new CustomEvent(TOGGLE_BOOKMARK_BY_GESTURE_EVENT)
+          );
+        } catch (err) {
+          /* 跨窗口派发失败不影响回弹 */
+        }
+        // 越过阈值即刻生效 + 回弹，手感像「拉到头，咔哒一下」
+        if (pullEl) {
+          animateTranslateY(pullEl, y, 0, PULL_SNAP_MS);
+        }
+        mode = "done";
       }
-      // 长按起手：安卓上「按住不动 → 拖」是选词手势（长按阈值约 500ms），
-      // 不是翻页。真的滑动会在几十毫秒内越过 H_INTENT_PX，所以「已经按了
-      // 450ms 还几乎没位移」就放行给原生选区，别把选词抢成翻页。
-      if (performance.now() - startT > 450 && Math.abs(dx) < 24) {
-        mode = "v";
-        return;
-      }
-      mode = "h";
-      // 内核的笔记/脚注处理器靠这个标志区分「划动」和「点按」，
-      // 不设的话划过笔记图标会弹菜单（内核自己的触摸实现里有这一步）。
-      (win as any).isSwiping = true;
+      return;
     }
 
     e.preventDefault();
 
-    // 手指左移 => 内容左移 => 往后翻
+    // 手指左移 => 内容左移 => 往后翻（rawMove 是手指原始位移，跟手用阻尼后的）
+    rawMove = -dx;
     const step = pageStep(body);
-    let move = -dx;
+    let move = rawMove;
     const overshoot = Math.abs(move) - step;
     if (overshoot > 0) {
       move = Math.sign(move) * (step + overshoot * OVER_DRAG_DAMP);
@@ -245,6 +377,25 @@ export function bindPageSwipeTurn(
   };
 
   const onEnd = async () => {
+    if (mode === "pull") {
+      // 下拉没够到阈值就松手：整页弹回去，不动标签
+      const el = pullEl;
+      const y = pullY;
+      mode = "idle";
+      pullEl = null;
+      pullY = 0;
+      if (el && y > 0) {
+        animateTranslateY(el, y, 0, PULL_SNAP_MS);
+      }
+      return;
+    }
+    if (mode === "done") {
+      // 阈值已经在 move 阶段处理过了（派发了事件 + 回弹），这里只需收尾
+      mode = "idle";
+      pullEl = null;
+      pullY = 0;
+      return;
+    }
     if (mode !== "h") {
       mode = "idle";
       (win as any).isSwiping = false;
@@ -257,7 +408,11 @@ export function bindPageSwipeTurn(
       const max = maxScrollOffset(body);
       const from = body.scrollLeft;
       const dt = Math.max(1, performance.now() - startT);
-      const move = from - origin;
+      // 🔴 阈值必须按**未阻尼的手指位移**算，不能按 `from - origin`（实际滚动量）：
+      // 本章最后一页继续往后拖走橡皮筋分支，只落实 0.35 倍位移，
+      // 拖 100px 只挪 35px ⇒ 折算比例 0.09，永远够不到 0.22 ⇒ pages 恒 0 ⇒
+      // 跨章那一下永远不触发（这就是「跨章只能点、不能滑」的根因）。
+      const move = rawMove;
       const ratio = move / step;
       const velocity = move / dt;
 
@@ -303,6 +458,13 @@ export function bindPageSwipeTurn(
   };
 
   const onCancel = () => {
+    // 下拉被打断（来电、多指）时也要把壳弹回去，别让它卡在下移位置。
+    // （"done" 不用管：那一步的回弹动画已经在 onMove 里起来了，再起一次会往回跳）
+    if (mode === "pull" && pullEl && pullY > 0) {
+      animateTranslateY(pullEl, pullY, 0, PULL_SNAP_MS);
+    }
+    pullEl = null;
+    pullY = 0;
     mode = "idle";
     busy = false;
     (win as any).isSwiping = false;

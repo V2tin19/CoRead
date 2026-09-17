@@ -75,6 +75,29 @@
 .navigation-operation-slot .enter-fullscreen-text {
   display: none;
 }
+
+/* 手机端顶栏只剩「退出」一个键（书签与全屏已在组件层按 isMobileRuntime()
+   条件渲染去掉），不必再等分整行：改成宽度自适应的普通按钮、左对齐，
+   并把「退出」两个字放出来。 */
+.mobile-reader-mode .navigation-operation-slot .book-operation-panel {
+  justify-content: flex-start;
+}
+.mobile-reader-mode .navigation-operation-slot .exit-reading-button {
+  flex: 0 0 auto;
+  width: auto;
+  padding: 0 12px;
+}
+.mobile-reader-mode .navigation-operation-slot .exit-reading-text {
+  display: inline;
+  margin-left: 6px;
+  font-size: 13px;
+}
+
+/* 目录面板右上角那个锁图标：手机上没有鼠标 hover，「把面板钉住」这个语义
+   根本不存在（阅读选项面板的锁上轮已经删掉，这里是同类残留），一并隐藏。 */
+.mobile-reader-mode .navigation-panel .nav-lock-icon {
+  display: none;
+}
 .navigation-operation-slot .exit-reading-icon,
 .navigation-operation-slot .add-bookmark-icon,
 .navigation-operation-slot .enter-fullscreen-icon {

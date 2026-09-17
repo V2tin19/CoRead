@@ -1,3 +1,24 @@
+/* ── 移动端「给安卓顶栏让路」的安全区变量 ─────────────────────────────
+ * 背景：安卓 15+（本项目 targetSdk = 36）会**强制 edge-to-edge** —— 网页一直绘制到
+ * 系统状态栏底下。于是书架顶栏、侧栏抽屉、弹窗的顶部会和状态栏叠在一起，
+ * 上半截既看不见也点不到（"有的机型安卓顶栏和应用顶部重合无法使用"）。
+ *
+ * 拿真实高度有两条路，这里两条都留着：
+ *  1. `--safe-area-inset-top` —— Capacitor 的 SystemBars 插件（v8 起内置、自动注册）
+ *     在每次窗口 inset 变化时注入到 `<html>` 的行内样式上，单位 px。这是主路。
+ *  2. `env(safe-area-inset-top)` —— 浏览器原生安全区。桌面/浏览器里没有 (1)，
+ *     就落到它；桌面上它通常是 0 ⇒ **桌面观感不受影响**。
+ *
+ * ⚠️ 别只写 `env(safe-area-inset-top)`：部分机型 / WebView 版本下它只反映屏幕挖孔、
+ *    不反映状态栏高度，会返回 0 —— 顶栏就又被系统栏压住了。(1) 是 Capacitor 自己
+ *    按 `WindowInsetsCompat.Type.systemBars()` 量出来的，才是可信的那个。
+ * ⚠️ 阅读页里系统状态栏是我们主动隐藏的（见 utils/mobileRuntime.ts 的
+ *    setMobileStatusBar），此时 inset 变 0、本变量跟着变 0 ⇒ 沉浸阅读不受影响。
+ */
+:root {
+  --coread-safe-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+}
+
 .icon-return {
   cursor: pointer;
 }

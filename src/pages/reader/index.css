@@ -484,7 +484,7 @@
 
   /* 移动端正文区域上下撑满 */
   .view-area-page {
-    top: env(safe-area-inset-top, 0px) !important;
+    top: var(--coread-safe-top) !important;
     bottom: env(safe-area-inset-bottom, 0px) !important;
   }
 
@@ -705,8 +705,8 @@
   left: 0;
   right: 0;
   width: 100%;
-  height: calc(48px + env(safe-area-inset-top, 0px));
-  padding-top: env(safe-area-inset-top, 0px);
+  height: calc(48px + var(--coread-safe-top));
+  padding-top: var(--coread-safe-top);
   padding-left: 10px;
   padding-right: 10px;
   background: var(--coread-shell-bg, #ffffff);

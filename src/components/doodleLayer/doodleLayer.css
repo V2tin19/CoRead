@@ -487,7 +487,7 @@
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  padding-top: env(safe-area-inset-top, 0px);
+  padding-top: var(--coread-safe-top);
   padding-bottom: env(safe-area-inset-bottom, 0px);
   border-radius: 0 14px 14px 0;
   background: var(--coread-shell-bg, #ffffff);

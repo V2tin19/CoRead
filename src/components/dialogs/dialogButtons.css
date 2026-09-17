@@ -38,7 +38,7 @@
   /* 解决 sortDialog 写死 left: 425px 导致的 100% 出屏 */
   .sort-dialog-container {
     position: fixed !important;
-    top: calc(56px + env(safe-area-inset-top, 0px)) !important;
+    top: calc(56px + var(--coread-safe-top)) !important;
     right: 16px !important;
     left: auto !important;
     z-index: 100 !important;
@@ -90,12 +90,12 @@
     left: 0 !important;
     top: 0 !important;
     border-radius: 0 !important;
-    padding-top: env(safe-area-inset-top, 0px) !important;
+    padding-top: var(--coread-safe-top) !important;
     padding-bottom: env(safe-area-inset-bottom, 0px) !important;
   }
 
   .setting-close-container {
-    top: calc(12px + env(safe-area-inset-top, 0px)) !important;
+    top: calc(12px + var(--coread-safe-top)) !important;
     right: 12px !important;
     width: 36px !important;
     height: 36px !important;
@@ -107,7 +107,7 @@
 
 .mobile-mode .sort-dialog-container {
   position: fixed !important;
-  top: calc(56px + env(safe-area-inset-top, 0px)) !important;
+  top: calc(56px + var(--coread-safe-top)) !important;
   right: 16px !important;
   left: auto !important;
   z-index: 100 !important;
@@ -154,12 +154,12 @@
   left: 0 !important;
   top: 0 !important;
   border-radius: 0 !important;
-  padding-top: env(safe-area-inset-top, 0px) !important;
+  padding-top: var(--coread-safe-top) !important;
   padding-bottom: env(safe-area-inset-bottom, 0px) !important;
 }
 
 .mobile-mode .setting-close-container {
-  top: calc(12px + env(safe-area-inset-top, 0px)) !important;
+  top: calc(12px + var(--coread-safe-top)) !important;
   right: 12px !important;
   width: 36px !important;
   height: 36px !important;
@@ -197,6 +197,15 @@
   .more-options-dropdown {
     z-index: 200 !important;
   }
+  /* 🔴 书架「更多」菜单一点就关的根因就在上面这几行。
+     ActionDialog 是**贴着触点的浮层菜单**（不是居中模态框），它自带一层全屏
+     `.action-dialog-backdrop` 负责「点外部收起」。上面把菜单抬到 200，而遮罩在
+     actionDialog.css 里是 z-index 998 ⇒ 遮罩反压在菜单之上，用户看到的菜单
+     其实点不到，点哪儿都命中遮罩 = 面板瞬间关闭。
+     这里把遮罩压到菜单之下（190），同时仍高于顶栏(50)与阅读页顶部条(25)。 */
+  .action-dialog-backdrop {
+    z-index: 190 !important;
+  }
 }
 
 .mobile-mode .action-dialog-container,
@@ -215,4 +224,8 @@
 .mobile-mode .popup-box-container,
 .mobile-mode .more-options-dropdown {
   z-index: 200 !important;
+}
+/* 与上面 @media 块同理：遮罩必须待在浮层菜单下面，否则菜单点不到。 */
+.mobile-mode .action-dialog-backdrop {
+  z-index: 190 !important;
 }
