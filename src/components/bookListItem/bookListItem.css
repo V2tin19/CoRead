@@ -17,6 +17,12 @@
   /* overflow: hidden; */
   border-radius: 1px;
   display: inline-block;
+  transition: transform 0.15s ease;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.book-item-list-cover:active {
+  transform: scale(0.96);
 }
 
 .book-item-list-title {

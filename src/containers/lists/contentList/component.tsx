@@ -6,6 +6,8 @@ import { scrollContents } from "../../../utils/common";
 import { Trans } from "react-i18next";
 import i18n from "../../../i18n";
 import _ from "underscore";
+import { toggleReadingPanel } from "../../../utils/reader/mouseEvent";
+import { isMobileRuntime } from "../../../utils/mobileRuntime";
 
 interface FlatChapterItem {
   item: any;
@@ -221,6 +223,12 @@ class ContentList extends React.Component<ContentListProps, ContentListState> {
     this.props.handleCurrentChapter(item.label);
     this.props.handleCurrentChapterIndex(item.index);
     scrollContents(item.label, item.href);
+    const isMobile =
+      isMobileRuntime() ||
+      (typeof document !== "undefined" && document.body.clientWidth < 570);
+    if (isMobile) {
+      toggleReadingPanel("left");
+    }
   }
   componentDidMount() {
     if (this.props.htmlBook) {

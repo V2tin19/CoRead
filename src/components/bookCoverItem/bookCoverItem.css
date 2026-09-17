@@ -45,6 +45,12 @@
   justify-content: center;
   align-items: center;
   border-radius: 3px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.book-cover-item-cover:active {
+  transform: scale(0.96);
 }
 .book-cover-item-title {
   width: 240px;

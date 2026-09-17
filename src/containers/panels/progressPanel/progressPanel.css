@@ -432,6 +432,16 @@
   transform: scale(0.94);
 }
 
+.mobile-progress-step-btn .previous-chapter-icon {
+  display: inline-block;
+  transform: rotate(90deg);
+}
+
+.mobile-progress-step-btn .next-chapter-icon {
+  display: inline-block;
+  transform: rotate(-90deg);
+}
+
 /* 快速主题选择面板（方块微倒角色卡，宁框勿线，宁方勿圆） */
 .mobile-quick-theme-panel {
   display: flex;

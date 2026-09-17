@@ -13,6 +13,8 @@ import ConfigUtil from "../../../utils/file/configUtil";
 import Book from "../../../models/Book";
 import Bookmark from "../../../models/Bookmark";
 import Note from "../../../models/Note";
+import { toggleReadingPanel } from "../../../utils/reader/mouseEvent";
+import { isMobileRuntime } from "../../../utils/mobileRuntime";
 
 class NavList extends React.Component<NavListProps, NavListState> {
   private searchInputRef: React.RefObject<HTMLInputElement>;
@@ -186,6 +188,12 @@ class NavList extends React.Component<NavListProps, NavListState> {
         page: bookLocation.page,
       })
     );
+    const isMobile =
+      isMobileRuntime() ||
+      (typeof document !== "undefined" && document.body.clientWidth < 570);
+    if (isMobile) {
+      toggleReadingPanel("left");
+    }
   }
   async handleCurrentDataUpdate(
     currentTab: string,
