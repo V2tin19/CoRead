@@ -3,11 +3,14 @@
 > 本文件是**入口**，不是全部。**开工前请完整读一遍 [`REFACTOR-BRIEF.md`](./REFACTOR-BRIEF.md)**（约 700 行），
 > 那是这个项目的总纲。本文件只负责把你领到正确的位置，并强调最容易出错的地方。
 >
-> 另有两份**专项文档**，按需读、但**动手相关模块前必须读**：
+> 另有三份**专项文档**，按需读、但**动手相关模块前必须读**：
 > - **[`AI-AND-TTS-KEEP.md`](./AI-AND-TTS-KEEP.md)** —— AI 问书 / 听书里哪些是"免费、用户自配置"的能力、
 >   必须保留；以及**为什么 `src/utils/request/` 不许整目录删**。
 > - **[`MOBILE-UX-PLAN.md`](./MOBILE-UX-PLAN.md)** —— 移动端阅读体验：内核 `isMobile` 开关的位置、
 >   必须先处理的 console 劫持坑、环境限制。**外观与交互由你自由发挥，不是复刻任务。**
+> - **[`ANDROID.md`](./ANDROID.md)** —— 安卓（Capacitor）构建：环境要求、出包命令、产物位置。
+>   安卓壳在**独立分支 `android`**（`main` 上没有），另见
+>   [`START-PROMPT-ANDROID.md`](./START-PROMPT-ANDROID.md)（安卓前端重构的专项交接）。
 
 ## 一句话背景
 
@@ -57,8 +60,11 @@
 
 - 根目录 `LICENSE`、`vendor/kookit/`（要改必须说明改了什么、为什么）、
   `build/` 的输出流程与 `react-scripts` 构建链。
-- **本副本之外的东西**：`main.js`、`capacitor.config.ts`、`android/`、部署配置
-  —— 这些不在副本里，你**改不到**，需要改动时告诉果冻（见第 9.5 节末尾）。
+- ⚠️ **本节原写"`main.js`、`capacitor.config.ts`、`android/` 不在副本里、你改不到"——
+  这条已过期**（2026-09-17 更正）：三者**现在都在仓库里**，其中 `android/` 在
+  **独立分支 `android`**（`main` 上没有）。要动安卓壳请先切到该分支。
+  仍然算"改之前先说一声"的是：**引入任何 Capacitor 原生插件**（当前是零原生插件的交付形态）、
+  以及**部署配置**。
 
 ## 五个最容易踩的坑
 
