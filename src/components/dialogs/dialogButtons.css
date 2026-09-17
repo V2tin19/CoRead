@@ -75,7 +75,6 @@
   /* 解决 opdsDialog, localFileDialog 等对话框 */
   .opds-dialog-container,
   .local-file-dialog-container,
-  .action-dialog-container,
   .metadata-dialog-container {
     width: min(340px, calc(100vw - 24px)) !important;
     left: 50% !important;
@@ -141,7 +140,6 @@
 
 .mobile-mode .opds-dialog-container,
 .mobile-mode .local-file-dialog-container,
-.mobile-mode .action-dialog-container,
 .mobile-mode .metadata-dialog-container {
   width: min(340px, calc(100vw - 24px)) !important;
   left: 50% !important;

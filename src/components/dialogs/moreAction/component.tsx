@@ -59,10 +59,44 @@ class MoreAction extends React.Component<MoreActionProps, MoreActionState> {
       this.props.handleActionDialog(false);
     };
 
-    const baseLeft = this.props.left + (this.props.isExceed ? -195 : 195) + 195;
+    const isMobile =
+      (typeof window !== "undefined"
+        ? window.innerWidth || document.documentElement.clientWidth
+        : 1024) <= 570;
+    const menuWidth = isMobile ? 148 : 168;
+    const formatMenuWidth = isMobile ? 100 : 110;
+    const screenW =
+      typeof window !== "undefined"
+        ? window.innerWidth || document.documentElement.clientWidth || 360
+        : 360;
+    const screenH =
+      typeof window !== "undefined"
+        ? window.innerHeight || document.documentElement.clientHeight || 640
+        : 640;
+
+    let subLeft: number;
+    if (
+      this.props.isExceed ||
+      this.props.left + menuWidth + menuWidth > screenW - 8
+    ) {
+      subLeft = Math.max(8, this.props.left - menuWidth);
+    } else {
+      subLeft = Math.min(screenW - menuWidth - 8, this.props.left + menuWidth);
+    }
+
+    let formatLeft: number;
+    if (subLeft + menuWidth + formatMenuWidth > screenW - 8) {
+      formatLeft = Math.max(8, subLeft - formatMenuWidth);
+    } else {
+      formatLeft = subLeft + menuWidth;
+    }
+
     const noteOffset = isNotes ? 1 : 2;
-    const itemHeight = 33;
-    const baseTop = this.props.top + 103 + noteOffset * itemHeight;
+    const itemHeight = isMobile ? 28 : 32;
+    const baseTop = Math.max(
+      10,
+      Math.min(this.props.top + 70 + noteOffset * itemHeight, screenH - 180)
+    );
 
     return (
       <div
@@ -71,9 +105,9 @@ class MoreAction extends React.Component<MoreActionProps, MoreActionState> {
           isVisible
             ? {
                 position: "fixed",
-                left: `${baseLeft}px`,
+                left: `${formatLeft}px`,
                 top: `${baseTop}px`,
-                zIndex: 10,
+                zIndex: 1001,
               }
             : { display: "none" }
         }
@@ -82,8 +116,10 @@ class MoreAction extends React.Component<MoreActionProps, MoreActionState> {
         }}
         onMouseLeave={() => {
           this.setState({ exportSubmenu: "" });
-          this.props.handleMoreAction(false);
-          this.props.handleActionDialog(false);
+          if (!isMobile) {
+            this.props.handleMoreAction(false);
+            this.props.handleActionDialog(false);
+          }
         }}
       >
         <div className="action-dialog-actions-container">
@@ -113,12 +149,37 @@ class MoreAction extends React.Component<MoreActionProps, MoreActionState> {
   }
 
   render() {
+    const isMobile =
+      (typeof window !== "undefined"
+        ? window.innerWidth || document.documentElement.clientWidth
+        : 1024) <= 570;
+    const menuWidth = isMobile ? 148 : 168;
+    const screenW =
+      typeof window !== "undefined"
+        ? window.innerWidth || document.documentElement.clientWidth || 360
+        : 360;
+    const screenH =
+      typeof window !== "undefined"
+        ? window.innerHeight || document.documentElement.clientHeight || 640
+        : 640;
+
+    let subLeft: number;
+    if (
+      this.props.isExceed ||
+      this.props.left + menuWidth + menuWidth > screenW - 8
+    ) {
+      subLeft = Math.max(8, this.props.left - menuWidth);
+    } else {
+      subLeft = Math.min(screenW - menuWidth - 8, this.props.left + menuWidth);
+    }
+    const subTop = Math.max(10, Math.min(this.props.top + 70, screenH - 280));
+
     return (
       <>
         <div
           className="action-dialog-container"
           onMouseLeave={() => {
-            if (!this.state.exportSubmenu) {
+            if (!isMobile && !this.state.exportSubmenu) {
               this.props.handleMoreAction(false);
               this.props.handleActionDialog(false);
             }
@@ -132,8 +193,9 @@ class MoreAction extends React.Component<MoreActionProps, MoreActionState> {
             this.props.isShowExport
               ? {
                   position: "fixed",
-                  left: this.props.left + (this.props.isExceed ? -195 : 195),
-                  top: this.props.top + 103,
+                  left: `${subLeft}px`,
+                  top: `${subTop}px`,
+                  zIndex: 1000,
                 }
               : { display: "none" }
           }
@@ -207,11 +269,19 @@ class MoreAction extends React.Component<MoreActionProps, MoreActionState> {
             <div
               className="action-dialog-edit"
               style={{ paddingLeft: "0px" }}
+              onClick={(e) => {
+                e.stopPropagation();
+                this.setState((prev) => ({
+                  exportSubmenu: prev.exportSubmenu === "notes" ? "" : "notes",
+                }));
+              }}
               onMouseEnter={() => {
                 this.setState({ exportSubmenu: "notes" });
               }}
               onMouseLeave={() => {
-                this.setState({ exportSubmenu: "" });
+                if (!isMobile) {
+                  this.setState({ exportSubmenu: "" });
+                }
               }}
             >
               <p className="action-name export-action-name">
@@ -222,11 +292,19 @@ class MoreAction extends React.Component<MoreActionProps, MoreActionState> {
             <div
               className="action-dialog-edit"
               style={{ paddingLeft: "0px" }}
+              onClick={(e) => {
+                e.stopPropagation();
+                this.setState((prev) => ({
+                  exportSubmenu: prev.exportSubmenu === "highlights" ? "" : "highlights",
+                }));
+              }}
               onMouseEnter={() => {
                 this.setState({ exportSubmenu: "highlights" });
               }}
               onMouseLeave={() => {
-                this.setState({ exportSubmenu: "" });
+                if (!isMobile) {
+                  this.setState({ exportSubmenu: "" });
+                }
               }}
             >
               <p className="action-name export-action-name">

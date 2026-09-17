@@ -5,7 +5,7 @@ import ActionDialog from "../dialogs/actionDialog";
 import { withRouter } from "react-router-dom";
 import EmptyCover from "../emptyCover";
 import { ConfigService } from '../../services';
-import { useBookItem } from "../bookItem/useBookItem";
+import { useBookItem, computeActionDialogPosition } from "../bookItem/useBookItem";
 import { getFileNameWithoutExtension } from "../../utils/common";
 
 declare var window: any;
@@ -34,18 +34,9 @@ const BookCardItem: React.FC<BookCardProps> = (props) => {
   const handleMoreAction = (event: any) => {
     event.preventDefault();
     const e = event || window.event;
-    let x = e.clientX;
-    if (x > document.body.clientWidth - 300) {
-      x = x - 190;
-    } else {
-      x = x - 10;
-    }
+    const { x, y } = computeActionDialogPosition(e?.clientX, e?.clientY);
     setLeft(x);
-    setTop(
-      document.body.clientHeight - e.clientY > 250
-        ? e.clientY - 10
-        : e.clientY - 220
-    );
+    setTop(y);
     props.handleActionDialog(true);
     props.handleReadingBook(props.book);
   };

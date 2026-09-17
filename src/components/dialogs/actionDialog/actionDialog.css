@@ -1,45 +1,124 @@
+.action-dialog-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 998;
+  background: transparent;
+  -webkit-tap-highlight-color: transparent;
+}
+
 .action-dialog-container {
-  width: 200px;
-  /* height: 340px; */
+  width: 168px;
   opacity: 1;
   position: fixed;
-  z-index: 9;
-  animation: popup 0.1s ease-in-out 0s 1;
-  border-radius: 5px;
+  z-index: 999;
+  animation: popup 0.12s ease-in-out 0s 1;
+  border-radius: 6px;
   overflow: hidden;
   overflow-x: hidden;
+  border: 1px solid rgba(128, 128, 128, 0.18);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.2), 0 1px 4px rgba(0, 0, 0, 0.08);
+  box-sizing: border-box;
 }
+
 .view-icon {
-  font-size: 16px;
+  font-size: 14px;
+  min-width: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
+
 .action-dialog-actions-container {
-  font-size: 15px;
-  text-align: center;
-  line-height: 14px;
+  font-size: 13.5px;
+  line-height: 1.2;
   opacity: 1;
-  padding: 5px;
-  /* position: absolute;
-  top: 83px;
-  left: 29px; */
+  padding: 4px;
 }
+
 .action-dialog-add,
 .action-dialog-delete,
 .action-dialog-edit {
   cursor: pointer;
   display: flex;
   align-items: center;
-  padding: 4px 15px;
+  padding: 3px 8px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  padding-left: 10px;
-  border-radius: 3px;
+  border-radius: 4px;
+  transition: background-color 0.12s ease;
+  user-select: none;
+  min-height: 28px;
+  box-sizing: border-box;
 }
 
 .action-name {
-  font-size: 15px;
-  text-align: center;
-  line-height: 25px;
-  margin-left: 15px;
-  font-weight: 500;
+  font-size: 13px;
+  text-align: left;
+  line-height: 22px;
+  margin-left: 8px;
+  font-weight: 400;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 移动端紧凑微圆角卡片化风格（宁方勿圆） */
+@media (max-width: 570px), screen and (max-device-width: 768px) {
+  .action-dialog-container {
+    width: 148px !important;
+    border-radius: 6px !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.28) !important;
+  }
+  .action-dialog-actions-container {
+    padding: 3px !important;
+  }
+  .action-dialog-add,
+  .action-dialog-delete,
+  .action-dialog-edit {
+    padding: 2.5px 8px !important;
+    min-height: 27px !important;
+    border-radius: 4px !important;
+  }
+  .action-name {
+    font-size: 12.5px !important;
+    line-height: 21px !important;
+    margin-left: 7px !important;
+    font-weight: 400 !important;
+  }
+  .view-icon {
+    font-size: 13px !important;
+  }
+}
+
+.mobile-mode .action-dialog-container {
+  width: 148px !important;
+  border-radius: 6px !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.28) !important;
+}
+.mobile-mode .action-dialog-actions-container {
+  padding: 3px !important;
+}
+.mobile-mode .action-dialog-add,
+.mobile-mode .action-dialog-delete,
+.mobile-mode .action-dialog-edit {
+  padding: 2.5px 8px !important;
+  min-height: 27px !important;
+  border-radius: 4px !important;
+}
+.mobile-mode .action-name {
+  font-size: 12.5px !important;
+  line-height: 21px !important;
+  margin-left: 7px !important;
+  font-weight: 400 !important;
+}
+.mobile-mode .view-icon {
+  font-size: 13px !important;
 }

@@ -277,3 +277,44 @@ export function useBookItem(props: BookItemSharedProps) {
     isTopBook,
   };
 }
+
+export function computeActionDialogPosition(clientX?: number, clientY?: number) {
+  const screenWidth =
+    typeof window !== "undefined"
+      ? window.innerWidth || document.documentElement.clientWidth || 360
+      : 360;
+  const screenHeight =
+    typeof window !== "undefined"
+      ? window.innerHeight || document.documentElement.clientHeight || 640
+      : 640;
+  const isMobile = screenWidth <= 570;
+  const dialogWidth = isMobile ? 148 : 168;
+  const dialogHeight = isMobile ? 260 : 300;
+
+  const validClientX =
+    clientX !== undefined && !isNaN(clientX) && clientX > 0
+      ? clientX
+      : screenWidth / 2;
+  const validClientY =
+    clientY !== undefined && !isNaN(clientY) && clientY > 0
+      ? clientY
+      : screenHeight / 2;
+
+  let x = validClientX;
+  if (x + dialogWidth > screenWidth - 10) {
+    x = validClientX - dialogWidth;
+  } else {
+    x = validClientX - 10;
+  }
+  x = Math.max(10, Math.min(x, screenWidth - dialogWidth - 10));
+
+  let y = validClientY;
+  if (y + dialogHeight > screenHeight - 10) {
+    y = validClientY - dialogHeight;
+  } else {
+    y = validClientY - 10;
+  }
+  y = Math.max(10, Math.min(y, screenHeight - dialogHeight - 10));
+
+  return { x, y };
+}

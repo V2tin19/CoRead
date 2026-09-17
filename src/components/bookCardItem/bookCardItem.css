@@ -173,8 +173,5 @@
 }
 
 .action-dialog-parent {
-  position: fixed;
-  top: 0px;
-  left: 200px;
-  z-index: 10;
+  position: static;
 }

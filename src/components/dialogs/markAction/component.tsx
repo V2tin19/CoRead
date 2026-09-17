@@ -38,12 +38,42 @@ class MarkAction extends React.Component<MarkActionProps> {
   };
 
   render() {
+    const isMobile =
+      (typeof window !== "undefined"
+        ? window.innerWidth || document.documentElement.clientWidth
+        : 1024) <= 570;
+    const menuWidth = isMobile ? 148 : 168;
+    const screenW =
+      typeof window !== "undefined"
+        ? window.innerWidth || document.documentElement.clientWidth || 360
+        : 360;
+    const screenH =
+      typeof window !== "undefined"
+        ? window.innerHeight || document.documentElement.clientHeight || 640
+        : 640;
+
+    let subLeft: number;
+    if (
+      this.props.isExceed ||
+      this.props.left + menuWidth + menuWidth > screenW - 8
+    ) {
+      subLeft = Math.max(8, this.props.left - menuWidth);
+    } else {
+      subLeft = Math.min(screenW - menuWidth - 8, this.props.left + menuWidth);
+    }
+    const subTop = Math.max(
+      10,
+      Math.min(this.props.top + SUBMENU_TOP_OFFSET, screenH - 90)
+    );
+
     return (
       <div
         className="action-dialog-container"
         onMouseLeave={() => {
-          this.props.handleMarkAction(false);
-          this.props.handleActionDialog(false);
+          if (!isMobile) {
+            this.props.handleMarkAction(false);
+            this.props.handleActionDialog(false);
+          }
         }}
         onMouseEnter={(event) => {
           this.props.handleMarkAction(true);
@@ -54,8 +84,9 @@ class MarkAction extends React.Component<MarkActionProps> {
           this.props.isShowMark
             ? {
                 position: "fixed",
-                left: this.props.left + (this.props.isExceed ? -195 : 195),
-                top: this.props.top + SUBMENU_TOP_OFFSET,
+                left: `${subLeft}px`,
+                top: `${subTop}px`,
+                zIndex: 1000,
               }
             : { display: "none" }
         }

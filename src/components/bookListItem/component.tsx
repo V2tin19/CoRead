@@ -7,7 +7,7 @@ import EmptyCover from "../emptyCover";
 import ActionDialog from "../dialogs/actionDialog";
 import toast from "react-hot-toast";
 import { ConfigService } from '../../services';
-import { useBookItem } from "../bookItem/useBookItem";
+import { useBookItem, computeActionDialogPosition } from "../bookItem/useBookItem";
 import { getFileNameWithoutExtension } from "../../utils/common";
 
 declare var window: any;
@@ -37,14 +37,9 @@ const BookListItem: React.FC<BookItemProps> = (props) => {
   const handleMoreAction = (event: any) => {
     event.preventDefault();
     const e = event || window.event;
-    let x = e.clientX;
-    if (x > document.body.clientWidth - 300) {
-      x = x - 180;
-    }
+    const { x, y } = computeActionDialogPosition(e?.clientX, e?.clientY);
     setLeft(x);
-    setTop(
-      document.body.clientHeight - e.clientY > 250 ? e.clientY : e.clientY - 200
-    );
+    setTop(y);
     props.handleActionDialog(true);
     props.handleReadingBook(props.book);
   };

@@ -20,6 +20,20 @@ class ActionDialog extends React.Component<
       isExceed: false,
     };
   }
+
+  componentDidMount() {
+    window.addEventListener("keydown", this.handleKeyDown);
+  }
+
+  componentWillUnmount() {
+    window.removeEventListener("keydown", this.handleKeyDown);
+  }
+
+  handleKeyDown = (e: KeyboardEvent) => {
+    if (e.key === "Escape") {
+      this.props.handleActionDialog(false);
+    }
+  };
   handleDeleteBook = () => {
     this.props.handleReadingBook(this.props.currentBook);
     this.props.handleDeleteDialog(true);
@@ -99,9 +113,29 @@ class ActionDialog extends React.Component<
     return (
       <>
         <div
-          className="action-dialog-container"
-          onMouseLeave={() => {
+          className="action-dialog-backdrop"
+          onClick={(e) => {
+            e.stopPropagation();
             this.props.handleActionDialog(false);
+          }}
+          onTouchEnd={(e) => {
+            e.stopPropagation();
+            this.props.handleActionDialog(false);
+          }}
+        />
+        <div
+          className="action-dialog-container"
+          onClick={(e) => {
+            e.stopPropagation();
+          }}
+          onMouseLeave={() => {
+            if (
+              (typeof window !== "undefined"
+                ? window.innerWidth || document.documentElement.clientWidth
+                : 1024) > 570
+            ) {
+              this.props.handleActionDialog(false);
+            }
           }}
           onMouseEnter={() => {
             this.props.handleActionDialog(true);
@@ -208,6 +242,13 @@ class ActionDialog extends React.Component<
             </div>
             <div
               className="action-dialog-edit"
+              onClick={(event) => {
+                event.stopPropagation();
+                this.setState((prev) => ({
+                  isShowMark: !prev.isShowMark,
+                  isShowExport: false,
+                }));
+              }}
               onMouseEnter={(event) => {
                 this.setState({ isShowMark: true, isShowExport: false });
                 const e = event || window.event;
@@ -219,27 +260,30 @@ class ActionDialog extends React.Component<
                 }
               }}
               onMouseLeave={(event) => {
-                this.setState({ isShowMark: false });
+                if (
+                  (typeof window !== "undefined"
+                    ? window.innerWidth || document.documentElement.clientWidth
+                    : 1024) > 570
+                ) {
+                  this.setState({ isShowMark: false });
+                }
                 event.stopPropagation();
               }}
-              style={{ display: "flex", justifyContent: "space-between" }}
+              style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
             >
-              <p className="action-name" style={{ marginLeft: "0px" }}>
+              <p className="action-name" style={{ marginLeft: "0px", display: "flex", alignItems: "center" }}>
                 <span
                   className="icon-check view-icon"
                   style={{
                     display: "inline-block",
-                    marginRight: "12px",
-                    marginLeft: "3px",
+                    marginRight: "8px",
+                    marginLeft: "0px",
                     fontSize: "14px",
                   }}
                 ></span>
                 <Trans>Mark as</Trans>
               </p>
-              <span
-                className="icon-dropdown icon-export-all"
-                style={{ left: "95px" }}
-              ></span>
+              <span className="icon-dropdown icon-export-all"></span>
             </div>
             <div
               className="action-dialog-edit"
@@ -249,14 +293,21 @@ class ActionDialog extends React.Component<
             >
               <span
                 className="icon-idea-line view-icon"
-                style={{ fontSize: "18px" }}
+                style={{ fontSize: "16px" }}
               ></span>
-              <p className="action-name" style={{ marginLeft: "12px" }}>
+              <p className="action-name" style={{ marginLeft: "8px" }}>
                 <Trans>Details</Trans>
               </p>
             </div>
             <div
               className="action-dialog-edit"
+              onClick={(event) => {
+                event.stopPropagation();
+                this.setState((prev) => ({
+                  isShowExport: !prev.isShowExport,
+                  isShowMark: false,
+                }));
+              }}
               onMouseEnter={(event) => {
                 this.setState({ isShowExport: true, isShowMark: false });
                 const e = event || window.event;
@@ -268,18 +319,24 @@ class ActionDialog extends React.Component<
                 }
               }}
               onMouseLeave={(event) => {
-                this.setState({ isShowExport: false });
+                if (
+                  (typeof window !== "undefined"
+                    ? window.innerWidth || document.documentElement.clientWidth
+                    : 1024) > 570
+                ) {
+                  this.setState({ isShowExport: false });
+                }
                 event.stopPropagation();
               }}
-              style={{ display: "flex", justifyContent: "space-between" }}
+              style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
             >
-              <p className="action-name" style={{ marginLeft: "0px" }}>
+              <p className="action-name" style={{ marginLeft: "0px", display: "flex", alignItems: "center" }}>
                 <span
                   className="icon-more view-icon"
                   style={{
                     display: "inline-block",
-                    marginRight: "12px",
-                    marginLeft: "3px",
+                    marginRight: "8px",
+                    marginLeft: "0px",
                     transform: "rotate(90deg)",
                     fontSize: "14px",
                   }}
@@ -287,10 +344,7 @@ class ActionDialog extends React.Component<
                 <Trans>More actions</Trans>
               </p>
 
-              <span
-                className="icon-dropdown icon-export-all"
-                style={{ left: "95px" }}
-              ></span>
+              <span className="icon-dropdown icon-export-all"></span>
             </div>
           </div>
         </div>
