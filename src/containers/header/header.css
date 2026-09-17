@@ -420,6 +420,19 @@
   justify-content: center;
 }
 
+.mobile-mode .import-local-group {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  margin: 0 0 0 6px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  flex-shrink: 0 !important;
+}
+
 .mobile-mode .import-from-local,
 .mobile-mode .import-from-cloud {
   position: relative !important;
@@ -427,12 +440,12 @@
   left: auto !important;
   right: auto !important;
   bottom: auto !important;
-  margin: 0 0 0 6px !important;
+  margin: 0 !important;
   width: auto !important;
   min-width: 52px !important;
   height: 32px !important;
   line-height: 32px !important;
-  padding: 0 10px !important;
+  padding: 0 12px !important;
   font-size: 13px !important;
   border-radius: 16px !important;
   flex-shrink: 0 !important;
@@ -442,6 +455,24 @@
   box-shadow: none !important;
   background: var(--coread-accent-bg, #4b4b4b) !important;
   color: var(--coread-accent-fg, #ffffff) !important;
+}
+
+.mobile-mode .more-import-circle-btn {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  border-radius: 50% !important;
+  box-shadow: none !important;
+  background: var(--coread-accent-bg, #4b4b4b) !important;
+  color: var(--coread-accent-fg, #ffffff) !important;
+}
+
+.mobile-mode .more-options-dropdown {
+  top: calc(100% + 6px) !important;
+  bottom: auto !important;
+  right: 0 !important;
+  left: auto !important;
+  max-width: calc(100vw - 24px) !important;
 }
 
 .mobile-mode .import-book-box {

@@ -413,34 +413,66 @@ class RoomImportButton extends React.Component<
     const { room, isBusy } = this.state;
     if (!room) return null;
     return (
-      <div
-        className="import-from-local"
-        onClick={this.pickFiles}
-        style={{ cursor: isBusy ? "default" : "pointer" }}
-      >
-        <div className="more-import-option" onClick={this.toggleMenu}>
-          <span className="dropdown-triangle" />
+      <div className="import-local-group">
+        <div
+          className="import-from-local"
+          onClick={this.pickFiles}
+          style={{ cursor: isBusy ? "default" : "pointer" }}
+        >
+          <div className="animation-mask-local" />
+          <span>{isBusy ? "导入中..." : "导入图书到房间"}</span>
+          <input
+            ref={this.fileInputRef}
+            type="file"
+            accept={supportedFormats.join(",")}
+            multiple
+            style={{ display: "none" }}
+            onChange={(e) => this.handleFiles(e.target.files)}
+          />
+        </div>
+        <div className="more-import-btn-container">
+          <button
+            type="button"
+            className="more-import-circle-btn"
+            onClick={this.toggleMenu}
+            title="更多导入方式"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              width="16"
+              height="16"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              fill="none"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
           {this.state.isMenuVisible && (
-            <div className="more-options-dropdown" onMouseLeave={this.closeMenu}>
-              <div className="more-option-item" onClick={this.pickFiles}>
-                <span className="more-option-text">本地文件</span>
+            <>
+              <div
+                className="more-options-backdrop"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  this.closeMenu();
+                }}
+              />
+              <div
+                className="more-options-dropdown"
+                onMouseLeave={this.closeMenu}
+              >
+                <div className="more-option-item" onClick={this.pickFiles}>
+                  <span className="more-option-text">本地文件</span>
+                </div>
+                <div className="more-option-item" onClick={this.handleURLImport}>
+                  <span className="more-option-text">从 URL 导入</span>
+                </div>
               </div>
-              <div className="more-option-item" onClick={this.handleURLImport}>
-                <span className="more-option-text">从 URL 导入</span>
-              </div>
-            </div>
+            </>
           )}
         </div>
-        <div className="animation-mask-local" />
-        <span>{isBusy ? "导入中..." : "导入图书到房间"}</span>
-        <input
-          ref={this.fileInputRef}
-          type="file"
-          accept={supportedFormats.join(",")}
-          multiple
-          style={{ display: "none" }}
-          onChange={(e) => this.handleFiles(e.target.files)}
-        />
       </div>
     );
   }

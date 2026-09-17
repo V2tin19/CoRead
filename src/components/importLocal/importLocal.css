@@ -1,10 +1,19 @@
-.import-from-local {
+.import-local-group {
   position: fixed;
-  right: 0px;
-  top: 0px;
-  width: 138px;
-  margin-right: 25px;
-  margin-top: 23px;
+  right: 25px;
+  top: 23px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 15;
+}
+
+.import-from-local {
+  position: relative;
+  right: auto;
+  top: auto;
+  margin: 0;
+  width: 110px;
   min-width: 42px;
   height: 42px;
   opacity: 1;
@@ -17,92 +26,112 @@
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   font-weight: 500;
   box-shadow: 0 4px 14px rgba(75, 137, 255, 0.25);
-}
-
-.import-from-local:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(75, 137, 255, 0.38);
-}
-
-.import-from-local:active {
-  transform: scale(0.98);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .import-book-box {
-  position: relative;
-  bottom: 42px;
+  position: absolute;
+  left: 0;
+  top: 0;
   width: 100%;
   height: 100%;
-  border-radius: 50%;
+  border-radius: inherit;
   z-index: 10;
   opacity: 0;
   cursor: pointer;
   font-size: 0;
 }
-.drag-section {
-  position: absolute;
-  top: 75px;
-  width: calc(100% - 200px);
-  height: calc(100vh - 90px);
+
+.more-import-btn-container {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 5;
-}
-.more-import-option {
-  position: absolute;
-  width: 30px;
-  right: 0px;
-  top: 50%;
-  transform: translateY(-50%);
-  cursor: pointer;
-  z-index: 11;
-  background-color: rgba(0, 0, 0, 0.1); /* Semi-transparent white overlay */
-  border-radius: 0 30px 30px 0;
 }
 
-.icon-more {
-  font-size: 20px;
+.more-import-circle-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(75, 75, 75, 1);
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(75, 137, 255, 0.25);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 0;
+  margin: 0;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.more-import-circle-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(75, 137, 255, 0.38);
+}
+
+.more-import-circle-btn:active {
+  transform: scale(0.94);
+}
+
+.more-options-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 990;
+  background: transparent;
 }
 
 .more-options-dropdown {
   position: absolute;
   right: 0;
-  top: 100%;
-  border-radius: 10px;
-  width: 200px;
+  top: calc(100% + 6px);
+  bottom: auto;
+  border-radius: 12px;
+  width: 180px;
   z-index: 999;
-  margin-top: 5px;
   overflow: hidden;
-  padding-top: 4px;
-  padding-bottom: 4px;
+  padding: 4px 0;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+  border: 1px solid rgba(128, 128, 128, 0.18);
+  animation: fadeInDown 0.15s ease-out;
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .more-option-item {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  padding-left: 20px;
-  transition: 0.2s;
+  padding-left: 18px;
+  transition: 0.15s ease;
   line-height: 1;
-  height: 40px;
+  height: 42px;
   cursor: pointer;
   text-align: left;
+}
+
+.more-option-item:hover {
+  background-color: rgba(128, 128, 128, 0.12);
 }
 
 .more-option-item .icon-cloud {
   margin-right: 8px;
   font-size: 16px;
-}
-
-.dropdown-triangle {
-  display: inline-block;
-  width: 0;
-  height: 0;
-  margin-left: 2px;
-  margin-bottom: 5px;
-  vertical-align: middle;
-  border-top: 6px solid currentColor;
-  border-right: 4px solid transparent;
-  border-left: 4px solid transparent;
 }

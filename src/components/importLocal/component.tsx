@@ -683,170 +683,192 @@ class ImportLocal extends React.Component<ImportLocalProps, ImportLocalState> {
         multiple={true}
       >
         {({ getRootProps, getInputProps }) => (
-          <div
-            className="import-from-local"
-            {...getRootProps()}
-            style={
-              this.props.isCollapsed && document.body.clientWidth < 950
-                ? { width: "42px" }
-                : {}
-            }
-          >
-            {this.props.isCollapsed && this.state.width < 950 ? null : (
-              <div
-                className="more-import-option"
-                onClick={(e) => {
-                  e.stopPropagation(); // Prevent triggering the Dropzone
-                  this.toggleMoreOptions();
-                }}
-              >
-                <span className="dropdown-triangle"></span>
-                {this.state.isMoreOptionsVisible && (
-                  <div
-                    className="more-options-dropdown"
-                    onMouseLeave={this.toggleMoreOptions}
-                    style={
-                      this.state.width < 950
-                        ? {
-                            bottom: "calc(100% + 5px)",
-                            top: "unset",
-                            right: "unset",
-                            left: "-110px",
-                          }
-                        : {}
+          <div className="import-local-group">
+            <div
+              className="import-from-local"
+              {...getRootProps()}
+              style={
+                this.props.isCollapsed && document.body.clientWidth < 950
+                  ? { width: "42px" }
+                  : {}
+              }
+            >
+              <div className="animation-mask-local"></div>
+              {this.props.isCollapsed && this.state.width < 950 ? (
+                <span
+                  className="icon-folder"
+                  style={{ fontSize: "15px", fontWeight: 500 }}
+                ></span>
+              ) : (
+                <span>
+                  <Trans>Import</Trans>
+                </span>
+              )}
+
+              {!isElectron ? (
+                <input
+                  type="file"
+                  id="import-book-box"
+                  className="import-book-box"
+                  name="file"
+                  {...getInputProps()}
+                />
+              ) : (
+                <div
+                  className="import-book-box"
+                  onClick={async () => {
+                    const { ipcRenderer } = window.require("electron");
+                    let filePaths = await ipcRenderer.invoke(
+                      "select-book",
+                      "ping"
+                    );
+                    for (let filePath of filePaths) {
+                      try {
+                        const fs = window.require("fs").promises;
+                        const path = window.require("path");
+                        const buffer = await fs.readFile(filePath);
+
+                        let arraybuffer = new Uint8Array(buffer).buffer;
+                        let blob = new Blob([arraybuffer]);
+                        let fileName = path.basename(filePath);
+                        let file: any = new File([blob], fileName);
+                        file.path = filePath;
+
+                        await this.getMd5WithBrowser(file);
+                      } catch (error) {
+                        const errorMessage =
+                          error instanceof Error ? error.message : String(error);
+                        toast.error(errorMessage);
+                        console.error(
+                          `Error processing file ${filePath}:`,
+                          error
+                        );
+                      }
                     }
+                    if (
+                      ConfigService.getReaderConfig("isDisableAutoSync") !==
+                        "yes" &&
+                      ConfigService.getItem("defaultSyncOption")
+                    ) {
+                      await this.props.cloudSyncFunc();
+                    }
+                  }}
+                ></div>
+              )}
+            </div>
+
+            {/* 独立独立的圆形更多导入方式按钮 */}
+            {!(this.props.isCollapsed && this.state.width < 950) && (
+              <div className="more-import-btn-container">
+                <button
+                  type="button"
+                  className="more-import-circle-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    this.toggleMoreOptions();
+                  }}
+                  title="更多导入方式"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="16"
+                    height="16"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    fill="none"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
                   >
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+                {this.state.isMoreOptionsVisible && (
+                  <>
                     <div
-                      className="more-option-item"
-                      onClick={async (event) => {
-                        event.stopPropagation(); // Prevent triggering the Dropzone
-                        //select folder from local
-                        if (isElectron) {
-                          const { ipcRenderer } = window.require("electron");
-                          const newPath =
-                            await ipcRenderer.invoke("select-path");
-                          if (!newPath) {
-                            return;
-                          }
-                          //get all files in the folder
-                          const fs = window.require("fs");
-                          const path = window.require("path");
-                          const getAllFiles = (dirPath: string): string[] => {
-                            let files: string[] = [];
-
-                            try {
-                              const items = fs.readdirSync(dirPath);
-
-                              for (const item of items) {
-                                const fullPath = path.join(dirPath, item);
-                                const stat = fs.statSync(fullPath);
-
-                                if (stat.isDirectory()) {
-                                  // Recursively get files from subdirectories
-                                  files = files.concat(getAllFiles(fullPath));
-                                } else if (stat.isFile()) {
-                                  // Check if file has supported format
-                                  const ext = path
-                                    .extname(item)
-                                    .toLowerCase()
-                                    .substring(1);
-                                  if (supportedFormats.includes(`.${ext}`)) {
-                                    files.push(fullPath);
-                                  }
-                                }
-                              }
-                            } catch (error) {
-                              const errorMessage =
-                                error instanceof Error
-                                  ? error.message
-                                  : String(error);
-                              toast.error(errorMessage);
-                              console.error(
-                                `Error reading directory ${dirPath}:`,
-                                error
-                              );
-                            }
-
-                            return files;
-                          };
-
-                          // Get all supported book files
-                          const allFiles = getAllFiles(newPath);
-                          // Process each file
-                          for (const filePath of allFiles) {
-                            try {
-                              const buffer =
-                                await fs.promises.readFile(filePath);
-                              const arraybuffer = new Uint8Array(buffer).buffer;
-                              const blob = new Blob([arraybuffer]);
-                              const fileName = path.basename(filePath);
-
-                              let file: any = new File([blob], fileName);
-                              file.path = filePath;
-
-                              await this.getMd5WithBrowser(file);
-                            } catch (error) {
-                              const errorMessage =
-                                error instanceof Error
-                                  ? error.message
-                                  : String(error);
-                              toast.error(errorMessage);
-                              console.error(
-                                `Error processing file ${filePath}:`,
-                                error
-                              );
-                            }
-                          }
-                          this.setState({
-                            isMoreOptionsVisible: false,
-                          });
-                          if (
-                            ConfigService.getReaderConfig(
-                              "isDisableAutoSync"
-                            ) !== "yes" &&
-                            ConfigService.getItem("defaultSyncOption")
-                          ) {
-                            await this.props.cloudSyncFunc();
-                          }
-                        }
+                      className="more-options-backdrop"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        this.setState({ isMoreOptionsVisible: false });
                       }}
+                    />
+                    <div
+                      className="more-options-dropdown"
+                      onMouseLeave={this.toggleMoreOptions}
                     >
-                      <span className="more-option-text">
-                        <Trans>Import folder</Trans>
-                      </span>
-                      {!isElectron && (
-                        <input
-                          type="file"
-                          {...({
-                            webkitdirectory: "",
-                            mozdirectory: "",
-                            directory: "",
-                          } as React.InputHTMLAttributes<HTMLInputElement>)}
-                          multiple
-                          style={{
-                            position: "absolute",
-                            width: "100%",
-                            height: "45px",
-                            opacity: 0,
-                            marginLeft: "-20px",
-                            cursor: "pointer",
-                          }}
-                          onChange={async (e) => {
-                            const files = e.target.files;
-                            if (!files || files.length === 0) {
+                      <div
+                        className="more-option-item"
+                        onClick={async (event) => {
+                          event.stopPropagation();
+                          if (isElectron) {
+                            const { ipcRenderer } = window.require("electron");
+                            const newPath =
+                              await ipcRenderer.invoke("select-path");
+                            if (!newPath) {
                               return;
                             }
-                            for (let item of files) {
-                              if (
-                                !supportedFormats.find((format) =>
-                                  item.name.toLowerCase().endsWith(format)
-                                )
-                              ) {
-                                continue;
+                            const fs = window.require("fs");
+                            const path = window.require("path");
+                            const getAllFiles = (dirPath: string): string[] => {
+                              let files: string[] = [];
+                              try {
+                                const items = fs.readdirSync(dirPath);
+                                for (const item of items) {
+                                  const fullPath = path.join(dirPath, item);
+                                  const stat = fs.statSync(fullPath);
+                                  if (stat.isDirectory()) {
+                                    files = files.concat(getAllFiles(fullPath));
+                                  } else if (stat.isFile()) {
+                                    const ext = path
+                                      .extname(item)
+                                      .toLowerCase()
+                                      .substring(1);
+                                    if (supportedFormats.includes(`.${ext}`)) {
+                                      files.push(fullPath);
+                                    }
+                                  }
+                                }
+                              } catch (error) {
+                                const errorMessage =
+                                  error instanceof Error
+                                    ? error.message
+                                    : String(error);
+                                toast.error(errorMessage);
+                                console.error(
+                                  `Error reading directory ${dirPath}:`,
+                                  error
+                                );
                               }
-                              await this.getMd5WithBrowser(item);
+                              return files;
+                            };
+
+                            const allFiles = getAllFiles(newPath);
+                            for (const filePath of allFiles) {
+                              try {
+                                const buffer =
+                                  await fs.promises.readFile(filePath);
+                                const arraybuffer = new Uint8Array(buffer).buffer;
+                                const blob = new Blob([arraybuffer]);
+                                const fileName = path.basename(filePath);
+
+                                let file: any = new File([blob], fileName);
+                                file.path = filePath;
+
+                                await this.getMd5WithBrowser(file);
+                              } catch (error) {
+                                const errorMessage =
+                                  error instanceof Error
+                                    ? error.message
+                                    : String(error);
+                                toast.error(errorMessage);
+                                console.error(
+                                  `Error processing file ${filePath}:`,
+                                  error
+                                );
+                              }
                             }
-                            this.toggleMoreOptions();
+                            this.setState({
+                              isMoreOptionsVisible: false,
+                            });
                             if (
                               ConfigService.getReaderConfig(
                                 "isDisableAutoSync"
@@ -855,91 +877,77 @@ class ImportLocal extends React.Component<ImportLocalProps, ImportLocalState> {
                             ) {
                               await this.props.cloudSyncFunc();
                             }
-                          }}
-                        ></input>
-                      )}
+                          }
+                        }}
+                      >
+                        <span className="more-option-text">
+                          <Trans>Import folder</Trans>
+                        </span>
+                        {!isElectron && (
+                          <input
+                            type="file"
+                            {...({
+                              webkitdirectory: "",
+                              mozdirectory: "",
+                              directory: "",
+                            } as React.InputHTMLAttributes<HTMLInputElement>)}
+                            multiple
+                            style={{
+                              position: "absolute",
+                              width: "100%",
+                              height: "45px",
+                              opacity: 0,
+                              marginLeft: "-20px",
+                              cursor: "pointer",
+                            }}
+                            onChange={async (e) => {
+                              const files = e.target.files;
+                              if (!files || files.length === 0) {
+                                return;
+                              }
+                              for (let item of files) {
+                                if (
+                                  !supportedFormats.find((format) =>
+                                    item.name.toLowerCase().endsWith(format)
+                                  )
+                                ) {
+                                  continue;
+                                }
+                                await this.getMd5WithBrowser(item);
+                              }
+                              this.toggleMoreOptions();
+                              if (
+                                ConfigService.getReaderConfig(
+                                  "isDisableAutoSync"
+                                ) !== "yes" &&
+                                ConfigService.getItem("defaultSyncOption")
+                              ) {
+                                await this.props.cloudSyncFunc();
+                              }
+                            }}
+                          ></input>
+                        )}
+                      </div>
+                      <div
+                        className="more-option-item"
+                        onClick={this.handleOPDSImport}
+                      >
+                        <span className="more-option-text">
+                          <Trans>From OPDS</Trans>
+                        </span>
+                      </div>
+                      <div
+                        className="more-option-item"
+                        onClick={this.handleURLImport}
+                      >
+                        <span className="more-option-text">
+                          <Trans>From URL</Trans>
+                        </span>
+                      </div>
                     </div>
-                    <div
-                      className="more-option-item"
-                      onClick={this.handleOPDSImport}
-                    >
-                      <span className="more-option-text">
-                        <Trans>From OPDS</Trans>
-                      </span>
-                    </div>
-                    <div
-                      className="more-option-item"
-                      onClick={this.handleURLImport}
-                    >
-                      <span className="more-option-text">
-                        <Trans>From URL</Trans>
-                      </span>
-                    </div>
-                  </div>
+                  </>
                 )}
               </div>
-            )}
-            <div className="animation-mask-local"></div>
-            {this.props.isCollapsed && this.state.width < 950 ? (
-              <span
-                className="icon-folder"
-                style={{ fontSize: "15px", fontWeight: 500 }}
-              ></span>
-            ) : (
-              <span>
-                <Trans>Import</Trans>
-              </span>
-            )}
-
-            {!isElectron ? (
-              <input
-                type="file"
-                id="import-book-box"
-                className="import-book-box"
-                name="file"
-                {...getInputProps()}
-              />
-            ) : (
-              <div
-                className="import-book-box"
-                onClick={async () => {
-                  const { ipcRenderer } = window.require("electron");
-                  let filePaths = await ipcRenderer.invoke(
-                    "select-book",
-                    "ping"
-                  );
-                  for (let filePath of filePaths) {
-                    try {
-                      const fs = window.require("fs").promises;
-                      const path = window.require("path");
-                      const buffer = await fs.readFile(filePath);
-
-                      let arraybuffer = new Uint8Array(buffer).buffer;
-                      let blob = new Blob([arraybuffer]);
-                      let fileName = path.basename(filePath);
-                      let file: any = new File([blob], fileName);
-                      file.path = filePath;
-
-                      await this.getMd5WithBrowser(file);
-                    } catch (error) {
-                      const errorMessage =
-                        error instanceof Error ? error.message : String(error);
-                      toast.error(errorMessage);
-                      console.error(
-                        `Error processing file ${filePath}:`,
-                        error
-                      );
-                    }
-                  }
-                  if (
-                    ConfigService.getReaderConfig("isDisableAutoSync") !==
-                      "yes" &&
-                    ConfigService.getItem("defaultSyncOption")
-                  ) {
-                    await this.props.cloudSyncFunc();
-                  }
-                }}
-              ></div>
             )}
           </div>
         )}
