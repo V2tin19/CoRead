@@ -19,9 +19,9 @@
 
 export type TurnDirection = "next" | "prev";
 
-const OUT_MS = 60;
-const IN_MS = 130;
-const OFFSET_PX = 16;
+const OUT_MS = 75;
+const IN_MS = 140;
+const OFFSET_PX = 56;
 
 let activeCleanTimer: any = null;
 
@@ -48,7 +48,7 @@ export function clearTurnStyles(el?: HTMLElement | null) {
 
 /**
  * 包一次翻页动作，给它配上极速平滑位移动效。
- * 任何异常都吞掉 —— 动效永远不该让「翻页」这件事失败。
+ * 纯横向平滑位移，绝不压暗/闪烁（不降 opacity，避免极速闪烁感），跟手自然。
  *
  * @param direction "next" 往左滑（内容向左走），"prev" 往右滑
  * @param doTurn    真正的翻页动作（rendition.next / prev）
@@ -69,10 +69,9 @@ export async function withPageTurnAnimation(
 
   if (el) {
     try {
-      el.style.willChange = "transform, opacity";
-      el.style.transition = `transform ${OUT_MS}ms cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity ${OUT_MS}ms ease-out`;
+      el.style.willChange = "transform";
+      el.style.transition = `transform ${OUT_MS}ms cubic-bezier(0.25, 0.46, 0.45, 0.94)`;
       el.style.transform = `translateX(${sign * OFFSET_PX}px)`;
-      el.style.opacity = "0.6";
     } catch (e) {
       // 忽略：拿不到元素就只做翻页，不做动画
     }
@@ -83,13 +82,12 @@ export async function withPageTurnAnimation(
   } finally {
     if (el) {
       try {
-        // 先无过渡地跳到反方向的起点，再放开过渡滑回 0 —— 这就是「新页进来」
+        // 先无过渡地跳到反方向的起点，再放开过渡平滑滑回 0 —— 纯位移平滑入场
         el.style.transition = "none";
         el.style.transform = `translateX(${-sign * OFFSET_PX}px)`;
-        void el.offsetWidth; // 强制回流，否则下面这次过渡不会触发
-        el.style.transition = `transform ${IN_MS}ms cubic-bezier(0.2, 0.8, 0.3, 1), opacity ${IN_MS}ms ease-out`;
+        void el.offsetWidth; // 强制回流，保证进入过渡生效
+        el.style.transition = `transform ${IN_MS}ms cubic-bezier(0.16, 1, 0.3, 1)`;
         el.style.transform = "translateX(0)";
-        el.style.opacity = "1";
         activeCleanTimer = window.setTimeout(() => {
           clearTurnStyles(el);
           activeCleanTimer = null;

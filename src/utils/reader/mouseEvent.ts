@@ -477,10 +477,12 @@ export const bindHtmlEvent = (
     const mc = new Hammer(doc);
     // 用 swipe(抬手判定、一次手势只触发一次)而非 pan:
     // 手指按住持续拖动时 pan 会连续触发导致连环翻页
-    // velocity 默认 0.3,降到 0.15 让轻扫也能翻页(灵敏度翻倍)
+    // threshold 设为 28px（默认 10px 太敏感，容易把轻触唤出菜单误判为翻页；28px 既防误触又顺手）
+    // velocity 设为 0.2，保证轻扫即可触发
     mc.get("swipe").set({
       direction: Hammer.DIRECTION_HORIZONTAL,
-      velocity: 0.15,
+      threshold: 28,
+      velocity: 0.2,
     });
     mc.on("swipeleft swiperight", async (event: any) => {
       if (readerMode === "scroll") {
