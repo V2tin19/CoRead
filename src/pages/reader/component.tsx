@@ -200,11 +200,29 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
       TOGGLE_DOODLE_DRAWER_EVENT,
       this.handleToggleDoodleDrawer
     );
-    // 共读入房联动:滑动阅读下「页」不稳定,笔迹无法跟随、跨设备同步也会丢页,
-    // 所以共读模式不提供滑动阅读。入房时正在滑动阅读就自动切到单页。
-    this.collabUnsubs = [
-      collabClient.on("room-joined", this.handleCollabModeLock),
-    ];
+    // 注册 Android 系统返回键专用处理器
+    (window as any).readerAndroidBackHandler = () => {
+      // 1. 如果有打开的抽屉 / 菜单面板，按返回键先收起抽屉
+      if (
+        this.state.isOpenBottomPanel ||
+        this.state.isOpenLeftPanel ||
+        this.state.isOpenRightPanel ||
+        this.state.isCollabOpen ||
+        this.state.isDoodleDrawerOpen
+      ) {
+        this.setState({
+          isOpenBottomPanel: false,
+          isOpenLeftPanel: false,
+          isOpenRightPanel: false,
+          isCollabOpen: false,
+          isDoodleDrawerOpen: false,
+        });
+        return true;
+      }
+      // 2. 沉浸阅读状态下按下系统返回键：直接平滑退出阅读器回到书架
+      this.handleExitReading();
+      return true;
+    };
   }
 
   handleToggleDoodleDrawer = () => {
@@ -300,6 +318,7 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
   }
 
   componentWillUnmount() {
+    (window as any).readerAndroidBackHandler = null;
     setMobileStatusBar(true);
     window.removeEventListener(
       READING_PANEL_TOGGLE_EVENT,

@@ -30,6 +30,7 @@ class styleUtil {
     let narrowStyleElement = doc.getElementById("kookit-narrow-style");
     const narrowCss = `@media screen and (max-width: 570px) {
       html body {
+        -webkit-touch-callout: none !important;
         margin-left: 0 !important; margin-right: 0 !important;
         padding-left: 0 !important; padding-right: 0 !important;
         max-width: 100% !important;

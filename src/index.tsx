@@ -21,10 +21,12 @@ import {
   installReactNativeWebViewStub,
   logViewportDiagnostics,
   requestPersistentStorage,
+  setupGlobalAndroidBackHandler,
 } from "./utils/mobileRuntime";
 // 必须最先做:内核在 isMobile="yes" 时会改写 console 并大量调用 RN 桥,
 // Capacitor 壳没有这个桥(详见 mobileRuntime.ts 注释)
 installReactNativeWebViewStub();
+setupGlobalAndroidBackHandler();
 logViewportDiagnostics();
 requestPersistentStorage();
 initTheme();

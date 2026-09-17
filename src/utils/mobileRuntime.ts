@@ -158,3 +158,52 @@ export function setMobileStatusBar(visible: boolean): void {
     // 忽略平台不支持情况
   }
 }
+
+/**
+  * 设置全局 Android 返回键拦截分发器（挂载到 window.handleAndroidBack）。
+  * 返回 boolean：true 表示已由 Web 前端消费（不退出应用），false 表示在书架根页面（交由 Android 原生双击退出）。
+  */
+export function setupGlobalAndroidBackHandler(): void {
+  if (typeof window === "undefined") return;
+  (window as any).handleAndroidBack = () => {
+    // 1. 如果阅读器内注册了当前活跃的处理函数（关闭选区、关闭面板、退出阅读等）
+    const readerHandler = (window as any).readerAndroidBackHandler;
+    if (typeof readerHandler === "function") {
+      const handled = readerHandler();
+      if (handled) return true;
+    }
+
+    // 2. 如果页面上有任何打开的通用模态框或取消按钮，点击取消
+    const cancelBtn = document.querySelector(
+      ".add-dialog-cancel, .edit-dialog-cancel, .delete-dialog-cancel, .action-dialog-cancel, .token-dialog-cancel, .popup-close"
+    ) as HTMLElement | null;
+    if (cancelBtn) {
+      cancelBtn.click();
+      return true;
+    }
+
+    // 3. 如果有下拉菜单遮罩层开启（如导入下拉、排序菜单），关闭它
+    const backdrop = document.querySelector(".more-options-backdrop") as HTMLElement | null;
+    if (backdrop) {
+      backdrop.click();
+      return true;
+    }
+
+    // 4. 如果当前处于书架的子路由（如标签、云端、设置等），回退到书架首页 #/manager/home
+    const hash = window.location.hash || "";
+    if (hash.startsWith("#/manager") && !hash.includes("/manager/home")) {
+      window.location.hash = "#/manager/home";
+      return true;
+    }
+
+    // 5. 如果路由仍在阅读器（例如冷启动或异常未注册 handler），退出沉浸状态并回到书架
+    if (hash.includes("/reader")) {
+      setMobileStatusBar(true);
+      window.location.hash = "#/manager/home";
+      return true;
+    }
+
+    // 6. 已在书架首页且无任何弹窗，返回 false，交由 Android 原生 Toast「再按一次退出应用」
+    return false;
+  };
+}
