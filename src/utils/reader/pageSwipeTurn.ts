@@ -90,6 +90,31 @@ export const TOGGLE_BOOKMARK_BY_GESTURE_EVENT = "coread-toggle-bookmark-by-gestu
 export const TURN_CHAPTER_BY_GESTURE_EVENT = "coread-turn-chapter-by-gesture";
 
 /**
+ * 「一页落定」通知：由书文档（iframe）派发到外层窗口，阅读器据此刷新状态。
+ *
+ * 目前唯一的订阅者是手机端顶栏那个「当前页有书签」的小旗。
+ * 为什么非要自己派：**同章翻页是我们改 `body.scrollLeft` 完成的，内核不会派发
+ * `page-changed`**，顶栏根本不知道页码变了，小旗会一直停在旧状态。
+ *
+ * ⚠️ 必须在 `rendition.record()` **之后**派发 —— 内核的位置账（`getPosition()`
+ * 里的 count / page）是 record() 时按当前可见内容反推出来的，早于它算，
+ * 拿到的还是上一页的指纹，小旗会慢一页。
+ */
+export const READER_VIEW_SETTLED_EVENT = "coread-reader-view-settled";
+
+/** 从书文档里把「一页落定」通知到外层窗口（跨窗口派发失败不影响翻页本身） */
+export function notifyViewSettled(doc?: any) {
+  try {
+    const win: any = doc && doc.defaultView ? doc.defaultView : window;
+    (win.parent || win).dispatchEvent(
+      new CustomEvent(READER_VIEW_SETTLED_EVENT)
+    );
+  } catch (err) {
+    /* 跨窗口派发失败就算了，只是顶栏小旗晚一步更新 */
+  }
+}
+
+/**
  * 页步长：**刻意与内核 `yt()` 用同一个口径**（`clientWidth + 偶数化的 clientWidth/12`）。
  *
  * 实测 390×844 视口下 clientWidth=348、间距=28、步长=376，内核落点也正好是
@@ -164,28 +189,62 @@ function getPageShell(win: any): HTMLElement | null {
   }
 }
 
-/** 把「页面壳」纵向平移（下拉回弹用），同样是 rAF 缓动 */
+/**
+ * 准备「跟手层」：把它提成一个独立的合成层。
+ *
+ * 为什么必须做：`#page-area` 里装着 `iframe#kookit-iframe`，改它父层的 `transform`
+ * 要把整页 iframe 重新光栅化。没有合成层提示时这活全压在主线程上，而触摸事件的
+ * 采样率（安卓常见 120~240Hz）远高于屏幕刷新率 ⇒ 一帧里被写多次、每次都重排重绘，
+ * 观感就是持续抖动（果冻报的「书页抖动很严重」）。
+ *
+ * 跟手开始前开、回弹结束后关 —— **不要常驻**：`will-change` 会一直占一层显存，
+ * 而这个壳在阅读器里是常驻节点，没必要一直挂着。
+ */
+function preparePullLayer(el: HTMLElement) {
+  el.style.willChange = "transform";
+  // 跟手阶段必须关掉过渡，否则手指走一格、页面要追 200ms，变成「拖影子」
+  el.style.transition = "none";
+}
+
+/**
+ * 回弹动画：**交给 CSS transition，不再用 rAF 逐帧写**。
+ *
+ * 为什么改：越过阈值那一瞬间会同步派发事件，外层随即跑 `rendition.record()`
+ * （扫 DOM 取文本）+ 落库 + 弹 toast + `handleFetchBookmarks()` 全量刷新 redux
+ * —— 全在主线程上，rAF 回弹会被这几件事拖成掉帧，手感上就是「抬手卡一下」。
+ * CSS transition 由合成器推进，主线程再忙也能把这一段走完。
+ *
+ * `seq` 令牌解决「抢写」：前后两次下拉间隔小于动画时长时，
+ * 旧动画的收尾不得把新动画刚写上的样式清掉。
+ */
+let snapSeq = 0;
 function animateTranslateY(
   el: HTMLElement,
-  from: number,
   to: number,
   ms: number
 ): Promise<void> {
+  const seq = ++snapSeq;
   return new Promise<void>((resolve) => {
-    const t0 = performance.now();
-    const ease = (p: number) => 1 - Math.pow(1 - p, 3);
-    const tick = (now: number) => {
-      const p = Math.max(0, Math.min(1, (now - t0) / Math.max(1, ms)));
-      el.style.transform = `translateY(${from + (to - from) * ease(p)}px)`;
-      if (p < 1) {
-        requestAnimationFrame(tick);
-      } else {
-        el.style.transform = "";
-        el.style.transition = "";
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      el.removeEventListener("transitionend", finish);
+      // 已经被下一次下拉接管 ⇒ 什么都不碰
+      if (seq !== snapSeq) {
         resolve();
+        return;
       }
+      el.style.transform = "";
+      el.style.transition = "";
+      el.style.willChange = "";
+      resolve();
     };
-    requestAnimationFrame(tick);
+    el.addEventListener("transitionend", finish);
+    el.style.transition = `transform ${ms}ms cubic-bezier(0.16, 1, 0.3, 1)`;
+    el.style.transform = `translateY(${to}px)`;
+    // 兜底：值没变化 / 元素被隐藏 / 被打断时 transitionend 可能永远不来
+    setTimeout(finish, ms + 80);
   });
 }
 
@@ -221,6 +280,8 @@ export async function smoothPageTurn(
   // 注意 record() 自带 100ms 重入闸（源码里的 ft），所以动画时长(200ms)天然错开，
   // 连续翻页不会互相吞掉。
   await rendition.record();
+  // 记账之后再通知外层：顶栏那个「当前页有书签」的小旗要按新位置重算。
+  notifyViewSettled(doc);
   return true;
 }
 
@@ -386,6 +447,7 @@ export function bindPageSwipeTurn(
         // 位移基准重设在「贴边那一刻」（理由见 pullBaseY 的声明）
         pullBaseY = t.clientY;
         pullKind = kind;
+        if (pullEl) preparePullLayer(pullEl);
         mode = "pull";
       } else if (verticalIntent) {
         if (dy <= 0) {
@@ -407,6 +469,13 @@ export function bindPageSwipeTurn(
         }
         pullKind = "bookmark";
         pullEl = shell;
+        // 位移基准重设在「刚认清这是下拉」这一刻。
+        // 竖向手势要先走满 V_ABORT_PX(12px) 才被认出来，若沿用 touchstart 的基准，
+        // 第一帧 rawPdy 直接就是 12~20px ⇒ 页面像被弹了一下才开始跟手
+        // （这是「抖动」里最显眼的那一下）。重设后位移从 0 起算，才是真 1:1。
+        // 与滑动模式「贴边那一刻重设」是同一个道理。
+        pullBaseY = t.clientY;
+        preparePullLayer(shell);
         mode = "pull";
       } else if (Math.abs(dx) <= H_INTENT_PX || Math.abs(dx) <= Math.abs(dy)) {
         return;
@@ -447,7 +516,6 @@ export function bindPageSwipeTurn(
       // 「换下一章」是手指上滑 ⇒ 整页跟着往上走（负）；加标签 / 换上一章都是向下为正
       pullY = pullKind === "next" ? -y : y;
       if (pullEl) {
-        pullEl.style.transition = "none";
         pullEl.style.transform = `translateY(${pullY}px)`;
       }
       if (!pullTriggered && dist >= PULL_THRESHOLD) {
@@ -466,7 +534,7 @@ export function bindPageSwipeTurn(
         }
         // 越过阈值即刻生效 + 回弹，手感像「拉到头，咔哒一下」
         if (pullEl) {
-          animateTranslateY(pullEl, pullY, 0, PULL_SNAP_MS);
+          animateTranslateY(pullEl, 0, PULL_SNAP_MS);
         }
         mode = "done";
       }
@@ -502,7 +570,7 @@ export function bindPageSwipeTurn(
       pullEl = null;
       pullY = 0;
       if (el && y !== 0) {
-        animateTranslateY(el, y, 0, PULL_SNAP_MS);
+        animateTranslateY(el, 0, PULL_SNAP_MS);
       }
       return;
     }
@@ -578,7 +646,7 @@ export function bindPageSwipeTurn(
     // 拉拽被打断（来电、多指）时也要把壳弹回去，别让它卡在偏移位置。
     // （"done" 不用管：那一步的回弹动画已经在 onMove 里起来了，再起一次会往回跳）
     if (mode === "pull" && pullEl && pullY !== 0) {
-      animateTranslateY(pullEl, pullY, 0, PULL_SNAP_MS);
+      animateTranslateY(pullEl, 0, PULL_SNAP_MS);
     }
     pullEl = null;
     pullY = 0;

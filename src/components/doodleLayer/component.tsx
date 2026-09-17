@@ -72,6 +72,14 @@ interface DoodleLayerProps {
   /** 工具条右边界（px）：要让开右上角那排常驻图标，否则两条会叠在一起。
    *  由阅读器实测 #reader-top-dock 的宽度后下发，拿不到就退回默认值。 */
   headerRight?: number;
+  /** 是否处于「滑动阅读」模式（readerMode === "scroll"）。
+   *  为真说明正文滚动是原生的（容器是外层 `#page-area`），画布不能吃掉触摸，
+   *  否则书就翻不动了 —— 所以这种情况下默认进「浏览态」，并且要在滚动时
+   *  按屏刷新笔迹归属。 */
+  scrollMode?: boolean;
+  /** 初始是否「浏览态」。滑动阅读下传 true：一进来就吃掉触摸的话，
+   *  用户第一下滚动会发现书页拖不动。 */
+  defaultView?: boolean;
   /** 深色纸张下换成深色底衬，跟阅读器页眉保持一致 */
   dark?: boolean;
   /** 手机端：工具条收进左侧抽屉，展开状态由阅读器（顶栏的「随心笔记」按钮）持有 */
@@ -160,6 +168,10 @@ class DoodleLayer extends React.Component<DoodleLayerProps, DoodleLayerState> {
   private saveTimer: any = null;
   private pollTimer: any = null;
   private anchorTimer: any = null;
+  // 滑动阅读专用：正文滚动容器（外层 #page-area）的 scroll 监听与节流定时器
+  private scrollTarget: HTMLElement | null = null;
+  private scrollHandler: (() => void) | null = null;
+  private scrollThrottleTimer: any = null;
   private resizeObserver: ResizeObserver | null = null;
   // 翻页切换的并发闸门（见 switchPageIfNeeded）
   private switching = false;
@@ -211,7 +223,8 @@ class DoodleLayer extends React.Component<DoodleLayerProps, DoodleLayerState> {
   constructor(props: DoodleLayerProps) {
     super(props);
     this.state = {
-      mode: "draw",
+      // 滑动阅读下默认「浏览态」：画布不吃触摸，页面照常能滚（详见 props 的说明）。
+      mode: props.defaultView ? "view" : "draw",
       color: COLORS[0],
       size: SIZES[1],
       strokes: [],
@@ -1028,6 +1041,30 @@ class DoodleLayer extends React.Component<DoodleLayerProps, DoodleLayerState> {
     await this.switchPageIfNeeded(true);
     this.pollTimer = setInterval(() => this.switchPageIfNeeded(), PAGE_POLL_MS);
     this.anchorTimer = setInterval(() => this.syncAnchor(), ANCHOR_POLL_MS);
+
+    // 滑动阅读：正文的滚动是原生的（滚动容器是外层 `#page-area`，iframe 内部不滚），
+    // 滚动时画布的视口矩形**不变** ⇒ ResizeObserver 不会响、`syncAnchor` 也不动，
+    // 笔迹就会「粘」在屏幕上（正文从底下滚过去）。
+    // 这里监听滚动并节流刷新：`switchPageIfNeeded` 会按「屏」重新归属笔迹
+    // （滑动模式下 `pageKey` 的页号就是屏号，见 doodleUtil.getDoodlePageIndex），
+    // 滚回原来的屏时笔迹会原样回来。
+    if (this.props.scrollMode) {
+      const scroller = document.getElementById("page-area");
+      if (scroller) {
+        this.scrollTarget = scroller;
+        this.scrollHandler = () => {
+          if (this.scrollThrottleTimer) return;
+          this.scrollThrottleTimer = setTimeout(() => {
+            this.scrollThrottleTimer = null;
+            this.syncAnchor();
+            void this.switchPageIfNeeded();
+          }, 240);
+        };
+        scroller.addEventListener("scroll", this.scrollHandler, {
+          passive: true,
+        });
+      }
+    }
   }
 
   async componentWillUnmount() {
@@ -1040,6 +1077,12 @@ class DoodleLayer extends React.Component<DoodleLayerProps, DoodleLayerState> {
     if (this.pollTimer) clearInterval(this.pollTimer);
     if (this.anchorTimer) clearInterval(this.anchorTimer);
     if (this.saveTimer) clearTimeout(this.saveTimer);
+    if (this.scrollThrottleTimer) clearTimeout(this.scrollThrottleTimer);
+    if (this.scrollHandler && this.scrollTarget) {
+      this.scrollTarget.removeEventListener("scroll", this.scrollHandler);
+      this.scrollHandler = null;
+      this.scrollTarget = null;
+    }
     if (this.resizeObserver) {
       try {
         this.resizeObserver.disconnect();
@@ -1439,6 +1482,23 @@ class DoodleLayer extends React.Component<DoodleLayerProps, DoodleLayerState> {
              收起后画布照旧可写，所以再给一个左边缘的小把手负责唤出，
              否则收起抽屉之后就再也找不回控件了。 */
           <>
+            {/* 状态胶囊：贴在阅读区左上角，很小一个，点一下唤出这块面板。
+                绿点 = 绘画态（笔迹会吃掉触摸），黑点 = 浏览态（点字/选中正常）。
+                关闭随心笔记时整个组件卸载，胶囊随之消失 —— 不用另外维护可见性。 */}
+            <div
+              className={
+                "doodle-status-pill" +
+                (this.state.mode === "draw" ? " doodle-status-pill-draw" : "")
+              }
+              title={
+                this.state.mode === "draw"
+                  ? "随心笔记：绘画中 · 点一下打开面板"
+                  : "随心笔记：浏览中 · 点一下打开面板"
+              }
+              onClick={this.props.onDrawerToggle}
+            >
+              <span className="doodle-status-dot" />
+            </div>
             {!drawerOpen && (
               <div
                 className="doodle-drawer-handle"

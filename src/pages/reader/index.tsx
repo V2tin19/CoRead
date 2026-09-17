@@ -25,6 +25,8 @@ const mapStateToProps = (state: stateType) => {
     currentBook: state.book.currentBook,
     percentage: state.progressPanel.percentage,
     htmlBook: state.reader.htmlBook,
+    // 手机端顶栏那个「当前页有书签」的小旗要按这个列表比对当前页指纹
+    bookmarks: state.reader.bookmarks,
     readerMode: state.reader.readerMode,
     isNavLocked: state.reader.isNavLocked,
     isConvertOpen: state.reader.isConvertOpen,

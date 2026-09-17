@@ -52,6 +52,12 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
   // 上一次广播的位置指纹(不含 timestamp),防止 rendered+page-changed 双发
   private lastBroadcastLocationKey = "";
   private lastResizeWidth = 0;
+  // 手机端「长按选段」：`selectionchange` 的 debounce 定时器
+  private selectionTimer: NodeJS.Timeout | null = null;
+  // 选段菜单最近一次弹出的时间戳（毫秒）。`pointerup` 与 `selectionchange`
+  // 常常在同一次手势里前后脚触发，而 PopupMenu.openMenu() 是 toggle 语义，
+  // 重复调用会把刚弹出来的菜单又关掉 ⇒ 用它做去重窗口。
+  private lastSelectionMenuAt = 0;
   lock: boolean;
   constructor(props: ViewerProps) {
     super(props);
@@ -140,6 +146,10 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
     if (this.resizeHandler) {
       window.removeEventListener("resize", this.resizeHandler);
       this.resizeHandler = null;
+    }
+    if (this.selectionTimer) {
+      clearTimeout(this.selectionTimer);
+      this.selectionTimer = null;
     }
     this.collabUnsubs.forEach((unsubscribe) => unsubscribe());
     this.collabUnsubs = [];
@@ -792,6 +802,14 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
     for (let i = 0; i < docs.length; i++) {
       let doc = docs[i];
       if (!doc) continue;
+      // 滑动阅读的「章交界」装饰（章末留白 + 浅色分割线）；换章后会重新注入
+      this.applyChapterStitch(doc);
+      // handleBindGesture 每次 rendered 都会被调一次（跨章 N 次就是 N 份监听器），
+      // 同一份文档只绑一次 —— 否则一次 pointerup 会连跑 N 次 setState，
+      // 叠加 openMenu 的 toggle 语义就是「菜单一闪一闪」。
+      // 与 mouseEvent.ts 里 `boundDocs` WeakSet 是同一套做法。
+      if ((doc as any).__coreadSelectionBound) continue;
+      (doc as any).__coreadSelectionBound = true;
       doc.addEventListener("pointerup", (event) => {
         if (
           this.props.currentBook.format === "PDF" &&
@@ -810,15 +828,9 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
         // 是自相矛盾的死代码：它要求「已禁用弹窗」且「选区为空」时才去取 range(0)，
         // 而空选区调 getRangeAt(0) 必抛 IndexOutOfRangeError；紧接着那行
         // `if (isDisablePopup) return;` 又把整段结果作废。已删除。
-        if (this.state.isDisablePopup) return;
-        let selection = doc!.getSelection();
-        if (!selection || selection.rangeCount === 0) return;
-
-        var rect = selection.getRangeAt(0).getBoundingClientRect();
-        // 记一份选区快照：手机上点 CoRead 那个菜单时这一下会把选区清掉，
-        // 靠快照才能让「复制/翻译/划线」在点下去的时候还读得到内容（见 mouseEvent.ts）
-        rememberSelection(docs);
-        this.setState({ rect });
+        // 选区判定 + rect 计算收进 applySelectionMenu，与 selectionchange 那条路共用
+        // （里面有 isDisablePopup / 空选区 / 250ms 去重三道具）
+        this.applySelectionMenu(docs, doc!);
       });
       doc.addEventListener("contextmenu", (event) => {
         if (
@@ -838,22 +850,95 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
         }
 
         if (!this.state.isDisablePopup && !this.state.isTouch) return;
-
-        if (
-          !doc!.getSelection() ||
-          doc!.getSelection()!.toString().trim().length === 0
-        ) {
-          return;
-        }
-        let selection = doc!.getSelection();
-
-        if (!selection || selection.rangeCount === 0) return;
-        var rect = selection.getRangeAt(0).getBoundingClientRect();
-        rememberSelection(docs);
-        this.setState({ rect });
+        this.applySelectionMenu(docs, doc!);
       });
+      // 手机端再补一条 `selectionchange` 驱动 —— 这是「长按后菜单不出现」的正解：
+      // 长按选中时浏览器派发的是 `pointercancel` 而**不是** `pointerup`
+      // （Pointer Events 规范：触发原生选区会隐式释放指针捕获），所以上面那条
+      // pointerup 路在手机上根本不跑 ⇒ 菜单非得等用户下一次点按才冒出来，
+      // 而那一按又把选区点掉了 = 整个选段菜单没法用。
+      // 这里在「选区稳定 140ms」后主动弹一次；再短会在拖选区手柄时跟着手指抖。
+      if (isMobileShell) {
+        doc.addEventListener("selectionchange", () => {
+          if (this.selectionTimer) clearTimeout(this.selectionTimer);
+          this.selectionTimer = setTimeout(() => {
+            this.selectionTimer = null;
+            this.applySelectionMenu(docs, doc!);
+          }, 140);
+        });
+      }
     }
   };
+
+  /**
+   * 弹出自带的选段菜单（选区快照 + rect）。
+   *
+   * `pointerup`（桌面、或手机上没触发原生选区的点选）与 `selectionchange`
+   * （手机长按）两条路都收敛到这里，并用 `lastSelectionMenuAt` 做 250ms 去重：
+   * 两者经常在同一次手势里前后脚到，而 `PopupMenu.openMenu()` 是 **toggle 语义**
+   * （已开着就先关），重复调用会把刚弹出来的菜单又关掉。
+   */
+  applySelectionMenu = (docs: any[], doc: Document) => {
+    if (this.state.isDisablePopup) return;
+    const now = Date.now();
+    if (now - this.lastSelectionMenuAt < 250) return;
+    const selection = doc.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+    // 空选区 / 光标塌陷都不该弹：点一下空白、长按空白都会走到这里
+    if (selection.isCollapsed || !selection.toString().trim()) return;
+    let rect: any;
+    try {
+      rect = selection.getRangeAt(0).getBoundingClientRect();
+    } catch (err) {
+      return; // 选区恰好在读取的这一刻被清掉，会抛 IndexOutOfRangeError
+    }
+    if (!rect || (rect.width === 0 && rect.height === 0)) return;
+    this.lastSelectionMenuAt = now;
+    // 记一份选区快照：手机上点 CoRead 那个菜单时这一下会把选区清掉，
+    // 靠快照才能让「复制/翻译/划线」在点下去的时候还读得到内容（见 mouseEvent.ts）
+    rememberSelection(docs);
+    this.setState({ rect });
+  };
+
+  /**
+   * 滑动阅读下给正文注入「章交界」的装饰：章末留 2~3 行空白 + 一条浅色分割线。
+   *
+   * 果冻的原话是「跨章滑动体感不太好，要不直接缝合起来，在章的交界处用浅色淡线
+   * 分割，并且章之间保留两三个换行」。**真正的「缝成一章」要改阅读内核**
+   * （内核按章渲染：`renderChapter` 会先把 `body.innerHTML` 清空、把 iframe 高度
+   * 写成 0，再异步 fetch 下一章），改动会同时牵动「阅读进度 / 共读广播 /
+   * 涂鸦归属」三套账本，风险太高，不在这轮做。
+   *
+   * 退一步看：滚动时用户能感知到的「章交界」就是**上一章底部的空白 + 一条线**，
+   * 所以只补这两样，观感上就等于缝上了 —— 而且完全不碰内核。
+   *
+   * ⚠️ 只在手机端的滑动阅读模式注入：分页模式下多出来的 padding 会凭空多一页；
+   * 桌面端按约定一步不动。
+   */
+  private applyChapterStitch(doc: Document) {
+    if (!isMobileRuntime()) return;
+    const STYLE_ID = "coread-chapter-stitch";
+    const head = doc.head || doc.getElementsByTagName("head")[0];
+    if (!head) return;
+    const existing = doc.getElementById(STYLE_ID);
+    const isScroll = (this.props.readerMode || "double") === "scroll";
+    if (!isScroll) {
+      // 切回分页模式：把装饰撤掉，否则正文尾巴会多出一页
+      if (existing) existing.remove();
+      return;
+    }
+    if (existing) return;
+    const style = doc.createElement("style");
+    style.id = STYLE_ID;
+    // `border-bottom` 普通声明就够；`padding-bottom` 必须 `!important` ——
+    // 内核自己也给 body 设了 padding，而且它那份样式表是随 renderChapter
+    // 重建的，同特异性下我们后插入的会被压回去（实测：线出来了、留白是 0px）。
+    style.textContent =
+      "body{padding-bottom:3em !important;" +
+      "border-bottom:1px solid rgba(128,128,128,0.28);}";
+    head.appendChild(style);
+  }
+
   render() {
     return (
       <>

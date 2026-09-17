@@ -3,6 +3,7 @@ import {
   resolveCollabServerToken,
   saveCollabServerTokenSetting,
 } from "./collabServerConfig";
+import { isMobileRuntime } from "../mobileRuntime";
 
 type CollabEventHandler = (payload: any) => void;
 
@@ -19,6 +20,21 @@ export interface CollabMember {
   clientId: string;
   name: string;
   joinedAt: number;
+  /** 设备形态（手机 / 电脑）。由客户端入房时上报，服务端原样透传；
+   *  老客户端不带这个字段时服务端会兜底成 "desktop"。 */
+  device?: "mobile" | "desktop";
+}
+
+/** 上报给服务端的设备形态：手机 / 电脑。
+ *  判定沿用全局的 isMobileRuntime()（安卓壳、或触屏且窄屏 ⇒ mobile）。
+ *  ⚠️ 断线重连的 rejoin 也必须带上，否则息屏 / 切后台回来后
+ *  成员列表里的设备标注会凭空消失（服务端是按最新一次 join 覆盖 member 的）。 */
+function deviceKind(): "mobile" | "desktop" {
+  try {
+    return isMobileRuntime() ? "mobile" : "desktop";
+  } catch (error) {
+    return "desktop";
+  }
 }
 
 export interface CollabRoomBrief {
@@ -379,6 +395,7 @@ class CollabClient {
         clientId: this.clientId,
         bookKey: this.bookKey,
         name: this.name,
+        device: deviceKind(),
       });
       this.roomId = room.roomId;
       // 领读可能在断线期间被换过人:必须用入房快照刷新,否则跟随逻辑
@@ -455,6 +472,7 @@ class CollabClient {
         clientId: this.clientId,
         bookKey,
         name,
+        device: deviceKind(),
       });
       this.roomId = room.roomId;
       this.applyLeader(room);
@@ -480,6 +498,7 @@ class CollabClient {
         clientId: this.clientId,
         bookKey,
         name,
+        device: deviceKind(),
       });
       this.roomId = room.roomId;
       this.applyLeader(room);

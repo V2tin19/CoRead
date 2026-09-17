@@ -767,6 +767,24 @@ class CollabPanel extends React.Component<CollabPanelProps, CollabPanelState> {
                           {member.clientId === this.state.leaderId && (
                             <em className="collab-member-badge">领读</em>
                           )}
+                          {/* 设备形态标注：由成员自己入房时上报（collabClient 的
+                              deviceKind()），服务端在 roomSnapshot 里原样透传。
+                              老客户端不带这个字段 ⇒ 服务端兜底成 desktop。 */}
+                          <em
+                            className={
+                              "collab-member-badge collab-member-device" +
+                              (member.device === "mobile"
+                                ? " collab-member-device-mobile"
+                                : "")
+                            }
+                            title={
+                              member.device === "mobile"
+                                ? "手机端加入"
+                                : "电脑端加入"
+                            }
+                          >
+                            {member.device === "mobile" ? "手机" : "电脑"}
+                          </em>
                         </span>
                         <span
                           className={

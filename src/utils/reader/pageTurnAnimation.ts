@@ -1,3 +1,5 @@
+import { isMobileRuntime } from "../mobileRuntime";
+
 /**
  * 翻页动效
  * ============
@@ -32,11 +34,17 @@ let activeCleanTimer: any = null;
  * （`containers/viewer` 渲染出来的是 `div.html-viewer-page#page-area`，
  * iframe 是 `iframe#kookit-iframe`），所以下面两个 query 全部落空、
  * `el` 恒为 null ⇒ 本模块的位移动画其实**一次都没播过**，只剩 `await doTurn()`。
- * 手机端已改走 `pageSwipeTurn.ts`（真正的跟手 + 平滑）；桌面端的翻页观感是既定
- * 基线（键盘/滚轮瞬间换页），按约定不动，因此这里**只留说明、不改选择器**。
+ *
+ * 于是手机端跨章就只剩内核那次「`body.innerHTML=""` + iframe 高度写 0 +
+ * `await fetch(blob)` 取下一章」的白帧 —— 果冻报的「跨章翻页没有滑动效果，
+ * 只有闪烁」就是它。这里**只给手机端**补上 `#page-area`；桌面端保持原样
+ * （`el` 仍为 null，观感与改动前逐字节一致，这是既定基线）。
  */
 function getTurnTarget(): HTMLElement | null {
   if (typeof document === "undefined") return null;
+  if (isMobileRuntime()) {
+    return document.getElementById("page-area");
+  }
   const iframe = document.querySelector(
     ".view-area-page iframe"
   ) as HTMLElement | null;
@@ -75,12 +83,18 @@ export async function withPageTurnAnimation(
   const el = getTurnTarget();
   // next = 向前翻 = 新页从右边进来、旧页往左走
   const sign = direction === "next" ? -1 : 1;
+  // 位移量：桌面端沿用固定 56px；手机端按正文宽度的 45% 算（上限 220px）——
+  // 手机端「普通翻页」是整页横向滚动（实测步长 376px），跨章只挪 56px 的话
+  // 观感上还是「点一下、顿一下」，和普通翻页对不上（果冻的第 5 条）。
+  const offset = isMobileRuntime()
+    ? Math.min(Math.round((el?.clientWidth || 380) * 0.45), 220)
+    : OFFSET_PX;
 
   if (el) {
     try {
       el.style.willChange = "transform";
       el.style.transition = `transform ${OUT_MS}ms cubic-bezier(0.25, 0.46, 0.45, 0.94)`;
-      el.style.transform = `translateX(${sign * OFFSET_PX}px)`;
+      el.style.transform = `translateX(${sign * offset}px)`;
     } catch (e) {
       // 忽略：拿不到元素就只做翻页，不做动画
     }
@@ -93,7 +107,7 @@ export async function withPageTurnAnimation(
       try {
         // 先无过渡地跳到反方向的起点，再放开过渡平滑滑回 0 —— 纯位移平滑入场
         el.style.transition = "none";
-        el.style.transform = `translateX(${-sign * OFFSET_PX}px)`;
+        el.style.transform = `translateX(${-sign * offset}px)`;
         void el.offsetWidth; // 强制回流，保证进入过渡生效
         el.style.transition = `transform ${IN_MS}ms cubic-bezier(0.16, 1, 0.3, 1)`;
         el.style.transform = "translateX(0)";

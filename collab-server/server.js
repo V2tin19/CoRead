@@ -691,6 +691,9 @@ function roomSnapshot(room) {
       clientId: member.clientId,
       name: member.name,
       joinedAt: member.joinedAt,
+      // 设备形态（手机 / 电脑）：由客户端在 join / 建房时上报。
+      // 老版本客户端不带这个字段 ⇒ 兜底成 desktop，前端照常显示。
+      device: member.device === "mobile" ? "mobile" : "desktop",
     })),
     messages: room.messages.slice(-50),
     notes: room.notes.slice(-200),
@@ -763,7 +766,7 @@ function readBodyRaw(req, limit = 1024 * 1024) {
   });
 }
 
-function joinRoom(room, clientId, name) {
+function joinRoom(room, clientId, name, device) {
   if (room.emptyTimer) {
     clearTimeout(room.emptyTimer);
     room.emptyTimer = null;
@@ -773,6 +776,9 @@ function joinRoom(room, clientId, name) {
     clientId,
     name: String(name || "Reader").slice(0, 40),
     joinedAt: Date.now(),
+    // 设备形态：只认 "mobile" / "desktop" 两个值。
+    // 缺省或非法值一律当 desktop —— 收到「电脑」标注总比标错成「手机」好。
+    device: device === "mobile" ? "mobile" : "desktop",
   };
   room.members.set(clientId, member);
   // 领读没指定、或指定的那个人已经不在房里 → 默认让房主当；房主也不在就第一个进的人当
@@ -1083,7 +1089,7 @@ const server = http.createServer(async (req, res) => {
         sendJson(res, 201, { roomId, name: room.roomName });
         return;
       }
-      joinRoom(room, clientId, body.name);
+      joinRoom(room, clientId, body.name, body.device);
       sendJson(res, 201, roomSnapshot(room));
       return;
     }
@@ -1449,7 +1455,7 @@ const server = http.createServer(async (req, res) => {
         }
         // 先加入的书写进房间，后来者按同一本比对
         if (!room.bookKey && incomingBook) room.bookKey = incomingBook;
-        joinRoom(room, clientId, body.name);
+        joinRoom(room, clientId, body.name, body.device);
         sendJson(res, 200, roomSnapshot(room));
         return;
       }

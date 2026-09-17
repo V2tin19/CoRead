@@ -1,7 +1,7 @@
 {
   "name": "coread-web",
   "productName": "CoRead",
-  "version": "2.3.9",
+  "version": "0.13.0",
   "description": "CoRead 网页端（自建阅读内核路线；Koodo Reader 定制分支的后续重构）",
   "main": "main.js",
   "author": {

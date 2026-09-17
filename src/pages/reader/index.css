@@ -721,6 +721,18 @@
   -webkit-backdrop-filter: blur(14px);
 }
 
+/* 顶栏的「这一页有标签」小旗。
+   形状照搬全局那个 .bookmark 红旗（红底 + 底部三角口），但缩到 12×16
+   塞进按钮行里；用 clip-path 画比原版那套 border 拼法好控尺寸。 */
+.mobile-reader-bookmark-flag {
+  width: 12px;
+  height: 16px;
+  background: #e5484d;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 72%, 0 100%);
+  flex-shrink: 0;
+  margin-right: 2px;
+}
+
 .mobile-reader-back-btn,
 .mobile-reader-top-action {
   width: 44px;

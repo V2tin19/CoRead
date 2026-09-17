@@ -35,10 +35,14 @@ import collabClient, {
 } from "../../utils/collab/collabClient";
 import { isMobileRuntime, setMobileStatusBar } from "../../utils/mobileRuntime";
 import {
+  READER_VIEW_SETTLED_EVENT,
   TOGGLE_BOOKMARK_BY_GESTURE_EVENT,
   TURN_CHAPTER_BY_GESTURE_EVENT,
 } from "../../utils/reader/pageSwipeTurn";
-import { toggleBookmarkByGesture } from "../../utils/reader/bookmarkUtil";
+import {
+  placeSignature,
+  toggleBookmarkByGesture,
+} from "../../utils/reader/bookmarkUtil";
 
 let lock = false; //prevent from clicking too fasts
 let throttleTime = 200;
@@ -99,6 +103,9 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
   private dockObserver: ResizeObserver | null = null;
   // 共读事件订阅（入房时按共读规则调整阅读模式）
   private collabUnsubs: Array<() => void> = [];
+  // 已经挂过「rendered / page-changed」监听的 rendition —— 换书会换一个新对象，
+  // 靠它做「同一份只挂一次」的判断（内核的 on 没有去重）
+  private boundRendition: any = null;
   private readingTimeUtil = new ReadingTimeUtil(
     configStore,
     isElectron
@@ -153,6 +160,12 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
       // 这个开关由阅读器持有、下发给 DoodleLayer，因为唤出它的入口在顶栏上 ——
       // 和「目录」共用同一套「左抽屉 + 随时唤出/隐藏」的心智模型。
       isDoodleDrawerOpen: false,
+      // 手机端顶栏的小旗：当前这一页在书签库里已经有了。
+      // 刻意不复用全局的 viewArea.isShowBookmark —— 那个状态由 operationPanel
+      // 的 page-changed 监听管着，比对口径是老的 `JSON.stringify(progress)`
+      // （漏 await，恒为 "{}"），手势路径写进去的 `c2|n7|p3` 指纹永远匹配不上，
+      // 一翻页就被它关掉。这里自己算，桌面端不受影响。
+      isViewBookmarked: false,
       dockWidth: 0,
     };
   }
@@ -208,6 +221,10 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
       TOGGLE_DOODLE_DRAWER_EVENT,
       this.handleToggleDoodleDrawer
     );
+    // 手机端「一页落定」（同章跟手翻页 / tap 分区翻页）之后，刷新顶栏那个
+    // 「当前页有书签」的小旗。同章翻页是我们直接改 scrollLeft 做的，
+    // 内核不会派发 page-changed，不自己通知的话小旗会停在旧状态。
+    window.addEventListener(READER_VIEW_SETTLED_EVENT, this.refreshBookmarkFlag);
     // 手机端「下拉页面加 / 撤标签」：动作在 iframe 里识别（pageSwipeTurn.ts），
     // 事件派发到外层窗口，由这里落到书签库。
     window.addEventListener(
@@ -256,6 +273,63 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
       }));
     }
   };
+
+  /**
+   * 手机端顶栏的小旗：当前这一页在书签库里已经有了吗。
+   *
+   * 指纹沿用 `bookmarkUtil.placeSignature()`（`c<章>|n<序>|p<页>`）—— 必须和
+   * 「下拉加标签」写进库里的 `cfi` 是同一套口径，否则就是「明明加上了、
+   * 小旗就是不亮」的鬼打墙。全局那套 `viewArea.isShowBookmark` 走的是老口径
+   * （`JSON.stringify(progress)`，还漏了 await，恒为 `"{}"`），这里刻意不复用它。
+   */
+  refreshBookmarkFlag = () => {
+    if (!isMobileRuntime()) return;
+    const rendition = (this.props as any).htmlBook?.rendition;
+    const list: any[] = (this.props as any).bookmarks || [];
+    let next = false;
+    try {
+      if (rendition?.getPosition) {
+        const signature = placeSignature(rendition.getPosition() || {});
+        next = list.some((item) => item && item.cfi === signature);
+      }
+    } catch (err) {
+      next = false;
+    }
+    if (next !== this.state.isViewBookmarked) {
+      this.setState({ isViewBookmarked: next });
+    }
+  };
+
+  /**
+   * 加 / 撤之后**直接定音**，不等 redux 刷新再算：
+   * `handleFetchBookmarks()` 是 dispatch，props 要下一轮才更新，
+   * 而这次操作针对的就是当前页，结果本来就知道。
+   */
+  markViewBookmarked = (bookmarked: boolean) => {
+    if (!isMobileRuntime()) return;
+    if (bookmarked !== this.state.isViewBookmarked) {
+      this.setState({ isViewBookmarked: bookmarked });
+    }
+  };
+
+  componentDidUpdate(prevProps: ReaderProps) {
+    // 书签库换了引用（加 / 撤之后 handleFetchBookmarks 会重新拉一份）⇒ 重算
+    if (prevProps.bookmarks !== (this.props as any).bookmarks) {
+      this.refreshBookmarkFlag();
+    }
+    // 首次拿到 rendition / 换书之后补挂监听（同一个 rendition 只挂一次）
+    const rendition = (this.props as any).htmlBook?.rendition;
+    if (rendition && rendition !== this.boundRendition) {
+      this.boundRendition = rendition;
+      try {
+        rendition.on("rendered", this.refreshBookmarkFlag);
+        rendition.on("page-changed", this.refreshBookmarkFlag);
+      } catch (err) {
+        /* 内核不给这两个事件也就算了：手势路径与 READER_VIEW_SETTLED 仍会驱动 */
+      }
+      this.refreshBookmarkFlag();
+    }
+  }
 
   handleAIAssistant = async () => {
     if (!this.props.htmlBook?.rendition) return;
@@ -346,6 +420,10 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
     window.removeEventListener(
       TOGGLE_DOODLE_DRAWER_EVENT,
       this.handleToggleDoodleDrawer
+    );
+    window.removeEventListener(
+      READER_VIEW_SETTLED_EVENT,
+      this.refreshBookmarkFlag
     );
     window.removeEventListener(
       TOGGLE_BOOKMARK_BY_GESTURE_EVENT,
@@ -695,6 +773,12 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
       rendition: this.props.htmlBook?.rendition,
       t: this.props.t,
     });
+    // 顶栏小旗立刻跟着变 —— 不等 redux 那一轮，用户下拉完马上要看到结果
+    if (result === "added") {
+      this.markViewBookmarked(true);
+    } else if (result === "removed") {
+      this.markViewBookmarked(false);
+    }
     // 书签列表挂在 redux 上：不重新拉一次，「目录面板 → 书签」里看不到刚加的这条
     if (result !== "failed") {
       this.props.handleFetchBookmarks();
@@ -742,6 +826,8 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
         )
       );
     }
+    // 章一换，「当前页有没有书签」的答案就完全不同了 ⇒ 顶栏小旗重算
+    this.refreshBookmarkFlag();
   };
   render() {
     const isMobile = isMobileRuntime() || document.body.clientWidth < 570;
@@ -792,6 +878,17 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
             </button>
             <div className="mobile-reader-top-spacer" />
             <div className="mobile-reader-top-actions">
+              {/* 当前页有标签时亮起的小旗（下拉加标签后立刻可见）。
+                  放在按钮行最左侧：全局那个 `.bookmark` 红旗是
+                  `position:fixed; top:5px; right:70px; z-index:15`，
+                  会被顶栏（`z-index:35`、高 48px + 安全区）整个压在底下，
+                  手机上永远看不见 —— 这就是「加了标签却看不到记号」的一半原因。 */}
+              {this.state.isViewBookmarked && (
+                <span
+                  className="mobile-reader-bookmark-flag"
+                  title="这一页有标签"
+                />
+              )}
               {/* 随心笔记（自由涂鸦）：手机端的入口在顶栏这里。
                   底栏那个「笔记」是「笔记/高光汇总」，两者刻意分开 ——
                   果冻的要求：汇总归底栏、随手画归顶栏。 */}
@@ -1127,9 +1224,14 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
             } as any)}
           />
         )}
-        {this.state.isDoodleOpen &&
-          !this.isScrollReaderMode() &&
-          this.props.htmlBook?.rendition && (
+        {/* 随心笔记：滑动阅读下**也**要能开。
+            果冻 2026-09-17 反馈「现在看不到涂鸦面板了」—— 他正在用滑动模式，
+            而这里原来有一道 `!this.isScrollReaderMode()` 守卫，点顶栏按钮只会把
+            `isDoodleOpen` 置 true、组件却不渲染，表现为「点了没反应」。
+            放开之后必须解决「画布吃掉触摸」：滑动模式下默认进浏览态
+            （`defaultView` ⇒ `.doodle-canvas-wrap-view` 的 `pointer-events:none`），
+            正文照常能滚；要画就点面板里的「绘画」。 */}
+        {this.state.isDoodleOpen && this.props.htmlBook?.rendition && (
             <DoodleLayer
               // 用内容 MD5 而不是本地导入时间戳做身份:换设备打开同一本书也能对上
               {...({
@@ -1147,6 +1249,10 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
                   this.setState((prev) => ({
                     isDoodleDrawerOpen: !prev.isDoodleDrawerOpen,
                   })),
+                // 滑动阅读：默认浏览态（画布不吃触摸），并让画布跟着原生滚动
+                // 按「屏」刷新笔迹归属，否则笔迹会粘在屏幕上不跟正文走。
+                scrollMode: this.isScrollReaderMode(),
+                defaultView: this.isScrollReaderMode(),
                 // 顶部条要让开右上角页眉：让位宽度 = 页眉自身宽度 + 右外边距 + 间隙。
                 // dockWidth 还没量到时给个保守值，宁可短一点也别压住图标。
                 headerRight:

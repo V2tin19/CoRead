@@ -429,6 +429,36 @@
      2) 手机上本来就没有横排空间，条内要横向滚动才够用。
    于是手机端整块搬进左抽屉，和「目录」用同一套交互（左侧滑出、遮罩收起、
    随时再唤出）。配色一律取主题令牌，别再写死浅色 —— 夜间模式会露馅。 */
+/* 涂鸦状态胶囊：贴在阅读区左上角（顶栏下沿之下），很小一个、底色很淡，
+   不抢正文注意力。绿点 = 绘画态，黑点 = 浏览态；点它唤出左侧面板。 */
+.doodle-status-pill {
+  position: fixed;
+  left: 10px;
+  top: calc(48px + var(--coread-safe-top, 0px) + 8px);
+  z-index: 36;
+  width: 22px;
+  height: 14px;
+  box-sizing: border-box;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(120, 120, 128, 0.16);
+  border: 1px solid rgba(120, 120, 128, 0.24);
+  cursor: pointer;
+}
+
+.doodle-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #1c1c1e;
+}
+
+.doodle-status-pill-draw .doodle-status-dot {
+  background: #34c759;
+}
+
 .doodle-drawer-handle {
   position: fixed;
   left: 0;

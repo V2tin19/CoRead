@@ -385,6 +385,20 @@
   flex-shrink: 0;
 }
 
+/* 设备形态标注（手机 / 电脑）。
+   刻意不用蓝色 —— 蓝色是「领读」徽章的语义，两者抢眼会让成员行变吵。
+   底色走半透明，深浅两种主题下都能读。 */
+.collab-member-device {
+  background: rgba(120, 120, 128, 0.18);
+  color: inherit;
+  opacity: 0.9;
+}
+
+/* 手机端成员给一点绿色的可辨认度（与阅读页那个状态胶囊的绿点同语义） */
+.collab-member-device-mobile {
+  background: rgba(52, 199, 89, 0.2);
+}
+
 .collab-member-action {
   font-size: 11px;
   padding: 1px 8px;
