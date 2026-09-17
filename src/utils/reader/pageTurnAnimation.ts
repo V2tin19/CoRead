@@ -25,7 +25,16 @@ const OFFSET_PX = 56;
 
 let activeCleanTimer: any = null;
 
-/** 找到要动画的目标：优先正文 iframe，退化为正文容器 */
+/**
+ * 找到要动画的目标：优先正文 iframe，退化为正文容器。
+ *
+ * ⚠️ 2026-09-17 实测：`.view-area-page` 这个类**在真实 DOM 里不存在**
+ * （`containers/viewer` 渲染出来的是 `div.html-viewer-page#page-area`，
+ * iframe 是 `iframe#kookit-iframe`），所以下面两个 query 全部落空、
+ * `el` 恒为 null ⇒ 本模块的位移动画其实**一次都没播过**，只剩 `await doTurn()`。
+ * 手机端已改走 `pageSwipeTurn.ts`（真正的跟手 + 平滑）；桌面端的翻页观感是既定
+ * 基线（键盘/滚轮瞬间换页），按约定不动，因此这里**只留说明、不改选择器**。
+ */
 function getTurnTarget(): HTMLElement | null {
   if (typeof document === "undefined") return null;
   const iframe = document.querySelector(

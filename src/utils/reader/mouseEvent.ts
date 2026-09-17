@@ -13,6 +13,7 @@ import {
   ShortcutAction,
 } from "./shortcutUtil";
 import { withPageTurnAnimation } from "./pageTurnAnimation";
+import { bindPageSwipeTurn, smoothPageTurn } from "./pageSwipeTurn";
 declare var window: any;
 
 let throttleTime = isMobileRuntime()
@@ -537,7 +538,11 @@ export const bindHtmlEvent = (
   const isTouchEnabled =
     ConfigService.getReaderConfig("isTouch") === "yes" ||
     (typeof window !== "undefined" && "ontouchstart" in window);
-  if (isTouchEnabled) {
+  // 手机端(态)的滑动翻页已经由 pageSwipeTurn 的跟手实现接管：它在 touchmove 里
+  // 实时拖内容、抬手再平滑吸附。这里若同时挂 Hammer 的 swipe，一次滑动会被两边
+  // 各消费一次 —— 表现就是「划一下翻两页」。所以手机端不挂 Hammer。
+  const useHammerSwipe = isTouchEnabled && !isMobileRuntime();
+  if (useHammerSwipe) {
     const mc = new Hammer(doc);
     // 用 swipe(抬手判定、一次手势只触发一次)而非 pan:
     // 手指按住持续拖动时 pan 会连续触发导致连环翻页
@@ -629,10 +634,20 @@ export const bindHtmlEvent = (
         if (isScrollMode) return;
         if (now - lastTapFlipAt < throttleTime) return;
         lastTapFlipAt = now;
-        if (x < viewWidth * 0.35) {
-          await withPageTurnAnimation("prev", () => rendition.prev());
-        } else {
-          await withPageTurnAnimation("next", () => rendition.next());
+        const dir = x < viewWidth * 0.35 ? "prev" : "next";
+        // 手机端点按也走「平滑滑动 + record() 记账」，与滑动翻页同一套观感；
+        // 只有到本章首/尾（同篇文档内滑不动了）才交回内核做跨章硬切。
+        // 桌面端一行不动。
+        let handled = false;
+        if (isMobileRuntime()) {
+          handled = await smoothPageTurn(rendition, doc, dir);
+        }
+        if (!handled) {
+          if (dir === "prev") {
+            await withPageTurnAnimation("prev", () => rendition.prev());
+          } else {
+            await withPageTurnAnimation("next", () => rendition.next());
+          }
         }
         handleLocation(key, rendition);
       } catch (e) {
@@ -655,6 +670,10 @@ export const bindHtmlEvent = (
     },
     { passive: false }
   );
+
+  // 手机端：跟手拖动（实时拖内容）+ 抬手平滑吸附 + record() 让内核记账。
+  // 内部自带 isMobileRuntime() 与 readerMode==="scroll" 守卫，桌面端不受影响。
+  bindPageSwipeTurn(rendition, doc, readerMode);
 };
 export const htmlMouseEvent = (
   rendition: any,
