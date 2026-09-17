@@ -19,6 +19,7 @@ import {
 import { migrateConfig } from "./utils/common";
 import {
   installReactNativeWebViewStub,
+  installEditableFocusReporter,
   logViewportDiagnostics,
   requestPersistentStorage,
   setupGlobalAndroidBackHandler,
@@ -26,6 +27,9 @@ import {
 // 必须最先做:内核在 isMobile="yes" 时会改写 console 并大量调用 RN 桥,
 // Capacitor 壳没有这个桥(详见 mobileRuntime.ts 注释)
 installReactNativeWebViewStub();
+// 上报"焦点是否在输入框上"给安卓壳:正文选词要压掉原生菜单,
+// 输入框里则必须保留(手机上没有别的粘贴入口)
+installEditableFocusReporter();
 setupGlobalAndroidBackHandler();
 logViewportDiagnostics();
 requestPersistentStorage();

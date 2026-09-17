@@ -21,13 +21,77 @@ let throttleTime = isMobileRuntime()
   ? 240
   : 100;
 
+/**
+ * 选区快照 —— 用来救「菜单弹出来了、点任何一个按钮都没反应」。
+ *
+ * 场景：手机上点 CoRead 自己那个选区菜单时，**这一下点击本身会先把选区清掉**
+ * （系统认为你点在了选区外面），等 onClick 跑到时 `getSelection()` 已经空了。
+ * 桌面端不存在这个问题（鼠标点击不会清掉选区），所以这是纯手机向的补丁。
+ *
+ * 做法：在菜单弹出的那一刻（viewer 的 pointerup / contextmenu 拿到选区时）
+ * 存一份 Range 的克隆。Range 克隆之后即使选区被清空也依然有效（只要那段 DOM 还在）。
+ * 之后任何动作读选区前，若发现实时选区没了就把快照塞回去。
+ */
+let savedSelection: { doc: Document; range: Range } | null = null;
+
+/** 记录当前选区（只在实时选区非空时覆盖快照）。 */
+export const rememberSelection = (docs: any[]) => {
+  for (let i = 0; i < docs.length; i++) {
+    let doc = docs[i];
+    if (!doc) continue;
+    let sel = doc.getSelection && doc.getSelection();
+    if (sel && sel.rangeCount > 0 && !sel.isCollapsed && String(sel).trim()) {
+      try {
+        savedSelection = { doc, range: sel.getRangeAt(0).cloneRange() };
+      } catch (err) {
+        savedSelection = null;
+      }
+      return;
+    }
+  }
+};
+
+/** 选区被用户主动取消 / 笔记落库后调用，避免下次误恢复。 */
+export const clearSavedSelection = () => {
+  savedSelection = null;
+};
+
+/**
+ * 把快照恢复回实时选区（仅在实时选区已经空掉时动手），返回可用的 Selection。
+ * 桌面端实时选区一直在，这个函数等于什么都不做。
+ */
+export const ensureSelectionAlive = (doc: any): Selection | null => {
+  if (!doc || !doc.getSelection) return null;
+  let live = doc.getSelection();
+  if (live && live.rangeCount > 0 && !live.isCollapsed && String(live).trim()) {
+    return live;
+  }
+  if (!savedSelection || savedSelection.doc !== doc) return live;
+  let range = savedSelection.range;
+  try {
+    // 翻页 / 重排之后 range 可能已经脱离文档了，这种情况直接放弃，别硬塞进去
+    if (!doc.contains(range.startContainer) || !doc.contains(range.endContainer)) {
+      savedSelection = null;
+      return live;
+    }
+    if (!live) return null;
+    live.removeAllRanges();
+    live.addRange(range);
+    return live;
+  } catch (err) {
+    savedSelection = null;
+    return live;
+  }
+};
+
 export const getSelection = (format: string, bookKey?: string) => {
   let docs = getIframeDoc(format, bookKey);
   let text = "";
   for (let i = 0; i < docs.length; i++) {
     let doc = docs[i];
     if (!doc) continue;
-    let sel = doc.getSelection();
+    // 手机上点菜单那一下会把选区清掉，先试恢复快照，再读
+    let sel = ensureSelectionAlive(doc) || doc.getSelection();
     if (!sel || sel.rangeCount === 0) continue;
     // In Electron/Chromium, Selection.toString() includes text inside
     // user-select:none elements (e.g. <rt>/<rp> ruby annotations), even though

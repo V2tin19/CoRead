@@ -115,3 +115,17 @@
 .bing-icon {
   color: rgb(252, 204, 136);
 }
+
+/* ── 触屏：把图标按钮从 36px 提到 44px（手指友好），面板相应加宽 ──
+   ⚠️ 宽度必须和 popupMenu/component.tsx 里的 MENU_WIDTH_TOUCH 保持一致，
+   定位和出界夹取用的是那个常量，改一边不改另一边菜单会顶出屏幕右边。
+   用 .popup-menu-container.mobile-popup 多带一级，避免和上面的 .xxx-option 规则打架。 */
+.popup-menu-container.mobile-popup .menu-list {
+  width: 300px;
+  padding: 8px 10px 10px;
+  gap: 2px;
+}
+.popup-menu-container.mobile-popup .menu-list > div {
+  height: 44px;
+  width: 44px;
+}

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  这份布局是「应用模块同名资源覆盖库资源」—— 覆盖 Capacitor 库里的
+  node_modules/@capacitor/android/.../res/layout/capacitor_bridge_layout_main.xml。
+  BridgeActivity.onCreate 里 setContentView 的就是这个名字，应用模块的优先级更高，
+  所以实际生效的是这一份，全程不需要改 node_modules。
+
+  与库版本的唯一区别：<com.getcapacitor.CapacitorWebView> 换成本项目的子类，
+  用来关掉 Android 原生的文本选择菜单（见 CoreadWebView.java 的注释）。
+
+  ⚠️ 两处不能动：
+    1. 根节点必须是 CoordinatorLayout（Capacitor 的状态栏/键盘 inset 逻辑依赖它）；
+    2. id 必须是 @+id/webview —— Capacitor 的 Bridge.Builder 就是拿这个 id 去找
+       WebView 的，id 变了会直接 NPE 崩在启动。
+-->
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context="com.getcapacitor.BridgeActivity"
+    >
+
+    <com.coread.app.CoreadWebView
+        android:id="@+id/webview"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent" />
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

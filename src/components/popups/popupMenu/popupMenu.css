@@ -15,6 +15,10 @@
   width: 252px;
   box-sizing: border-box;
 }
+/* 触屏面板加宽，跟 .menu-list 和 MENU_WIDTH_TOUCH 对齐（见 popupOption.css 那段注释） */
+.popup-menu-container.mobile-popup .popup-color-box {
+  width: 300px;
+}
 .popup-menu-triangle-down {
   float: left;
   margin-left: 59px;

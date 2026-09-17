@@ -7,6 +7,7 @@ import NoteTag from "../../noteTag";
 import { Trans } from "react-i18next";
 import toast from "react-hot-toast";
 import { getIframeDoc } from "../../../utils/reader/docUtil";
+import { ensureSelectionAlive } from "../../../utils/reader/mouseEvent";
 import {
   HighlightUtil,
 } from '../../../services';
@@ -70,6 +71,8 @@ class PopupNote extends React.Component<PopupNoteProps, PopupNoteState> {
       for (let i = 0; i < docs.length; i++) {
         let doc = docs[i];
         if (!doc) continue;
+        // 手机上点菜单那一下会清掉选区，先把快照恢复回来，否则摘录是空的
+        ensureSelectionAlive(doc);
         text = doc.getSelection()?.toString() || "";
         if (text) {
           break;

@@ -6,7 +6,7 @@ import PopupMenu from "../../components/popups/popupMenu";
 import Background from "../../components/background";
 import StyleUtil from "../../utils/reader/styleUtil";
 import "./index.css";
-import { htmlMouseEvent } from "../../utils/reader/mouseEvent";
+import { htmlMouseEvent, rememberSelection } from "../../utils/reader/mouseEvent";
 import ImageViewer from "../../components/imageViewer";
 import { getIframeDoc } from "../../utils/reader/docUtil";
 import PopupBox from "../../components/popups/popupBox";
@@ -806,20 +806,18 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
           this.setState({ chapterDocIndex });
         }
 
-        if (this.state.isDisablePopup) {
-          if (doc!.getSelection()!.toString().trim().length === 0) {
-            let rect = doc!
-              .getSelection()!
-              .getRangeAt(0)
-              .getBoundingClientRect();
-            this.setState({ rect });
-          }
-        }
+        // ⚠️ 这里原本还有一段 `if (this.state.isDisablePopup) { if (选区为空) getRangeAt(0) }`，
+        // 是自相矛盾的死代码：它要求「已禁用弹窗」且「选区为空」时才去取 range(0)，
+        // 而空选区调 getRangeAt(0) 必抛 IndexOutOfRangeError；紧接着那行
+        // `if (isDisablePopup) return;` 又把整段结果作废。已删除。
         if (this.state.isDisablePopup) return;
         let selection = doc!.getSelection();
         if (!selection || selection.rangeCount === 0) return;
 
         var rect = selection.getRangeAt(0).getBoundingClientRect();
+        // 记一份选区快照：手机上点 CoRead 那个菜单时这一下会把选区清掉，
+        // 靠快照才能让「复制/翻译/划线」在点下去的时候还读得到内容（见 mouseEvent.ts）
+        rememberSelection(docs);
         this.setState({ rect });
       });
       doc.addEventListener("contextmenu", (event) => {
@@ -851,6 +849,7 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
 
         if (!selection || selection.rangeCount === 0) return;
         var rect = selection.getRangeAt(0).getBoundingClientRect();
+        rememberSelection(docs);
         this.setState({ rect });
       });
     }

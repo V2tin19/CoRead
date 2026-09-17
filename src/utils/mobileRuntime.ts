@@ -90,6 +90,62 @@ export function installReactNativeWebViewStub(): void {
 }
 
 /**
+ * 上报「当前焦点是不是在输入框上」给安卓壳（对象名 `AndroidTextSelection`）。
+ *
+ * 背景：安卓原生那条长按菜单（复制 / 全选 / 翻译）已经被原生层压掉了
+ * （见 `android/.../CoreadWebView.java`），因为正文选词后我们要的是 CoRead
+ * 自己的 PopupMenu。但**手机上网页输入框唯一的粘贴入口就是那条原生菜单** ——
+ * 无脑压掉的话，写笔记的 textarea、AI 助手的输入框、搜索框就彻底没法粘贴了。
+ *
+ * 所以这里把焦点状态报给原生：焦点在输入框上时原生层放行系统默认行为，
+ * 在正文里长按选词时才压掉系统菜单。
+ *
+ * 几个刻意的写法：
+ * - **每次事件都重新取一次桥对象**，不在安装时缓存。原生那边是靠
+ *   `addJavascriptInterface` 注入的，缓存了就可能永久拿不到。
+ * - 多挂一个 `pointerdown`（捕获阶段）：万一 focusin 漏了，长按之前那一下
+ *   按下也会把当前状态刷新一遍，保证长按时原生看到的是最新值。
+ * - 只监听**顶层文档**：阅读正文在 iframe 里，而 epub 正文里没有输入框，
+ *   需要粘贴的输入框全在顶层文档。iframe 内的输入框覆盖不到，已知取舍。
+ * - 桌面上没有这个桥（也不会走原生分支），函数直接返回，零开销。
+ */
+export function installEditableFocusReporter(): void {
+  if (typeof window === "undefined" || typeof document === "undefined") {
+    return;
+  }
+  const isEditable = (el: any): boolean => {
+    if (!el || !el.tagName) {
+      return false;
+    }
+    const tag = String(el.tagName).toUpperCase();
+    return tag === "INPUT" || tag === "TEXTAREA" || el.isContentEditable === true;
+  };
+  const report = (focused: boolean) => {
+    const bridge = (window as any).AndroidTextSelection;
+    if (!bridge || typeof bridge.setEditableFocused !== "function") {
+      return;
+    }
+    try {
+      bridge.setEditableFocused(!!focused);
+    } catch (err) {
+      // 桥调用失败不该影响界面，静默忽略
+    }
+  };
+  document.addEventListener(
+    "focusin",
+    (e) => report(isEditable(e.target)),
+    true
+  );
+  document.addEventListener("focusout", () => report(false), true);
+  document.addEventListener(
+    "pointerdown",
+    () => report(isEditable(document.activeElement)),
+    true
+  );
+  report(isEditable(document.activeElement));
+}
+
+/**
  * 诊断测量：输出布局视口、物理屏幕、断点匹配与 Capacitor 环境数据。
  * 用于验证移动端视口设置与断点生效情况。
  */

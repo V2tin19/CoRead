@@ -13,11 +13,23 @@ import {
   getSelectionSentence,
 } from "../../../utils/reader/mouseEvent";
 import { createHighlight } from "../../../utils/reader/noteUtil";
+import { isMobileRuntime } from "../../../utils/mobileRuntime";
 
 declare var window: any;
 
-const MENU_WIDTH = 252;
-const MENU_HEIGHT = 141;
+const MENU_WIDTH_DESKTOP = 252;
+const MENU_HEIGHT_DESKTOP = 141;
+// 触屏下把面板放宽、算得更高一些：图标按钮从 36px 提到 44px（手指友好），
+// 6 列排不下 252px。宽度必须同步喂给下面的夹取逻辑，否则菜单会顶出屏幕右边。
+// 对应的 CSS 在 popupMenu.css / popupOption.css 的 `.mobile-popup` 段。
+const MENU_WIDTH_TOUCH = 300;
+const MENU_HEIGHT_TOUCH = 168;
+
+/** 当前形态下面板的实际宽 / 高（用于定位与出界夹取）。 */
+const currentMenuWidth = () =>
+  isMobileRuntime() ? MENU_WIDTH_TOUCH : MENU_WIDTH_DESKTOP;
+const currentMenuHeight = () =>
+  isMobileRuntime() ? MENU_HEIGHT_TOUCH : MENU_HEIGHT_DESKTOP;
 
 class PopupMenu extends React.Component<PopupMenuProps, PopupMenuStates> {
   highlighter: any;
@@ -68,6 +80,9 @@ class PopupMenu extends React.Component<PopupMenuProps, PopupMenuStates> {
     });
   };
   getHtmlPosition(rect: any) {
+    // 触屏面板更宽更高，取当前形态的实际值（下面沿用 MENU_WIDTH / MENU_HEIGHT 这个名字）
+    const MENU_WIDTH = currentMenuWidth();
+    const MENU_HEIGHT = currentMenuHeight();
     let pageSize = this.props.rendition.getPageSize();
     let posY = rect.bottom - pageSize.scrollTop;
     let posX = rect.left + rect.width / 2;
@@ -305,8 +320,16 @@ class PopupMenu extends React.Component<PopupMenuProps, PopupMenuStates> {
     return (
       <div>
         <div
-          className="popup-menu-container"
+          className={
+            "popup-menu-container" + (isMobileRuntime() ? " mobile-popup" : "")
+          }
           style={this.props.isOpenMenu ? {} : { display: "none" }}
+          // 手机上点这个菜单的那一下，系统会认为「点在了选区外面」从而先清掉选区，
+          // 等 onClick 跑到时已经读不到选中内容了（表现为菜单点了没反应）。
+          // 拦掉 mousedown 的默认行为即可保住选区。
+          // ⚠️ 只拦 mousedown，**不要**连 touchstart 一起拦 —— 拦了 touchstart
+          // 会连带取消合成出来的 click，按钮就真的点不动了。
+          onMouseDown={(event) => event.preventDefault()}
         >
           <div
             className="popup-menu-box"

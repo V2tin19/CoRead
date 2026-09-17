@@ -2,6 +2,7 @@ import toast from "react-hot-toast";
 import Note from "../../models/Note";
 import { configStore, readingProgressStore, noteStore } from "../../core/ports/stores";
 import { getIframeDoc } from "./docUtil";
+import { ensureSelectionAlive } from "./mouseEvent";
 import collabClient, { getCollabBookKey } from "../collab/collabClient";
 import { getOrCreateDisplayName } from "../collab/roomBook";
 
@@ -52,6 +53,9 @@ export async function createHighlight(params: DigestParams): Promise<void> {
   for (let i = 0; i < docs.length; i++) {
     let doc = docs[i];
     if (!doc) continue;
+    // 手机上点菜单那一下会把选区清掉：先把快照恢复回实时选区，否则
+    // text 为空 → 下面 `if (!text) return;` 直接中止，表现为"划不了线"。
+    ensureSelectionAlive(doc);
     text = doc.getSelection()?.toString() || "";
     if (text) break;
   }
