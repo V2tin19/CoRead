@@ -24,7 +24,7 @@ class ProgressPanel extends React.Component<
       targetPage: 0,
       currentPercentage: 0,
       isEntered: false,
-      showProgressCard: true,
+      showProgressCard: false,
       showQuickTheme: false,
     };
   }

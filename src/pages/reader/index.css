@@ -428,10 +428,7 @@
     left: calc(50vw - 15px);
   }
   .panel-close-button-bottom {
-    top: auto;
-    bottom: 66px;
-    right: auto;
-    left: calc(50vw - 15px);
+    display: none !important;
   }
 }
 
@@ -502,6 +499,7 @@
    视口够宽但仍是移动形态的情况（阅读器给根节点挂了 .mobile-reader-mode）。
    这里用这个类兜住，保证只要阅读器认定自己在移动端，翻页圆钮与桌面 hover 条就一定收起。 */
 .mobile-reader-mode .reader-page-nav-button,
+.mobile-reader-mode .panel-close-button-bottom,
 .mobile-reader-mode .left-panel,
 .mobile-reader-mode .right-panel,
 .mobile-reader-mode .top-panel,
@@ -706,4 +704,19 @@
   animation: fade-in 0.2s ease-out;
   backdrop-filter: blur(2px);
   -webkit-backdrop-filter: blur(2px);
+}
+
+/* 唤出菜单时的全屏透明点击捕获层（点击屏幕中间阅读部分立即返回沉浸阅读） */
+.mobile-reader-menu-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100dvh;
+  height: 100vh;
+  z-index: 22;
+  background: transparent;
+  -webkit-tap-highlight-color: transparent;
 }

@@ -1120,6 +1120,20 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
             onClick={this.handleCloseAllPanels}
           />
         )}
+        {/* 唤出菜单时的全屏透明点击捕获层：用户点击屏幕中间阅读的部分即可返回沉浸阅读 */}
+        {isMobile &&
+          this.state.isOpenBottomPanel &&
+          !this.state.isOpenLeftPanel &&
+          !this.state.isOpenRightPanel && (
+            <div
+              className="mobile-reader-menu-backdrop"
+              onClick={() => this.setState({ isOpenBottomPanel: false })}
+              onTouchEnd={(e) => {
+                e.preventDefault();
+                this.setState({ isOpenBottomPanel: false });
+              }}
+            />
+          )}
         <div
           className="progress-panel-container"
           /* 展开状态暴露到 DOM：iframe 里的点按处理(mouseEvent.ts)要据此判断
@@ -1144,12 +1158,14 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
                 }
           }
         >
-          <span
-            className="panel-close-button panel-close-button-bottom"
-            onClick={() => this.setState({ isOpenBottomPanel: false })}
-          >
-            ×
-          </span>
+          {!isMobile && (
+            <span
+              className="panel-close-button panel-close-button-bottom"
+              onClick={() => this.setState({ isOpenBottomPanel: false })}
+            >
+              ×
+            </span>
+          )}
           <ProgressPanel />
         </div>
 
