@@ -176,21 +176,18 @@
    会和容器的居中叠加，导致整块偏到左下角。 */
 .progress-panel {
   width: 100% !important;
-  min-height: 100px;
   opacity: 1;
-  position: absolute;
-  bottom: 0px;
-  left: 0;
-  right: 0;
-  z-index: 10;
+  position: relative;
   box-sizing: border-box;
-  padding: 12px 16px 14px;
+  padding: 12px 16px calc(14px + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
   gap: 8px;
-  border-radius: 14px 14px 0 0;
+  border-radius: 16px 16px 0 0;
   animation: fade-up 0.1s ease-in-out 0s 1;
   color: var(--second-text-color, rgba(40, 40, 40, 0.92));
+  background: var(--background-color, #ffffff);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.12);
 }
 
 /* ── 三行通用 ── */
@@ -321,8 +318,8 @@
 @media (max-width: 570px) {
   .progress-panel {
     width: 100% !important;
-    border-radius: 14px 14px 0 0;
-    padding: 10px 12px 12px;
+    border-radius: 16px 16px 0 0;
+    padding: 10px 12px calc(12px + env(safe-area-inset-bottom, 0px));
     gap: 6px;
   }
   .progress-row-info {
@@ -331,24 +328,27 @@
   }
   .progress-row-actions {
     gap: 6px;
+    display: flex;
+    width: 100%;
   }
   .progress-option-btn,
   .progress-action-btn {
-    /* 32 → 40:手指点击目标放大;窄屏一行四个按钮(目录/阅读选项/AI/听书)
-       仍放得下,只在 320px 级别的屏上会挤,所以同时允许文字收缩省略。 */
+    flex: 1 1 0;
+    min-width: 0;
     height: 40px;
     font-size: 12px;
-    padding: 0 6px;
+    padding: 0 4px;
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
   }
-  /* 进度条拖拽手柄放大:桌面 14px 在手机屏上很难拖准 */
+  /* 进度条拖拽手柄放大:桌面 14px 在手机屏上很难拖准，设为 24px 大触点 */
   .input-progress::-webkit-slider-thumb {
-    width: 22px;
-    height: 22px;
+    width: 24px;
+    height: 24px;
   }
   .input-progress::-moz-range-thumb {
-    width: 22px;
-    height: 22px;
+    width: 24px;
+    height: 24px;
   }
 }

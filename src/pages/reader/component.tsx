@@ -27,6 +27,7 @@ import DoodleLayer from "../../components/doodleLayer";
 import collabClient, {
   getCollabBookKey,
 } from "../../utils/collab/collabClient";
+import { isMobileRuntime } from "../../utils/mobileRuntime";
 
 let lock = false; //prevent from clicking too fasts
 let throttleTime = 200;
@@ -364,6 +365,24 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
       isOpenBottomPanel: false,
     });
   };
+  handleExitReading = () => {
+    configStore.setReaderConfig("isFullscreen", "no");
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    if (isElectron) {
+      if (configStore.getReaderConfig("isOpenInMain") === "yes") {
+        (window as any).require("electron").ipcRenderer.invoke("exit-tab", "ping");
+      } else {
+        window.close();
+      }
+    } else {
+      configStore.setReaderConfig("isFinishWebReading", "yes");
+      if (window.opener) {
+        window.close();
+      } else {
+        window.location.hash = "#/manager/home";
+      }
+    }
+  };
   // 当前书是否处于「滑动阅读」模式(随手笔记的滚轮转发要用)
   isScrollReaderMode = () => {
     // currentBook / format 在阅读器挂载早期可能尚未就绪,
@@ -392,6 +411,13 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
   // 面板 299px + 间距),居中的是剩下的正文区,视觉上才是「在正文里居中」
   // 而不是「在屏幕里居中」。不常驻时边界归零 → 屏幕正中。
   getProgressPanelOffset = () => {
+    const isMobile = isMobileRuntime() || document.body.clientWidth < 570;
+    if (isMobile) {
+      return {
+        left: "0",
+        right: "0",
+      };
+    }
     const navLocked = !!this.props.isNavLocked;
     const settingLocked = !!this.props.isSettingLocked;
     return {
@@ -450,6 +476,7 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
     );
   };
   render() {
+    const isMobile = isMobileRuntime() || document.body.clientWidth < 570;
     const renditionProps = {
       handleLeaveReader: this.handleLeaveReader,
       handleEnterReader: this.handleEnterReader,
@@ -460,8 +487,39 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
         this.state.isOpenRightPanel,
     };
     return (
-      <div className="viewer">
+      <div className={`viewer ${isMobile ? "mobile-reader-mode" : ""}`}>
         <Tooltip id="my-tooltip" style={{ zIndex: 25 }} />
+
+        {isMobile && (
+          <div
+            className="mobile-reader-top-bar"
+            style={{
+              transform: this.state.isOpenBottomPanel
+                ? "translateY(0%)"
+                : "translateY(-120%)",
+            }}
+          >
+            <button
+              type="button"
+              className="mobile-reader-back-btn"
+              onClick={this.handleExitReading}
+              title="返回书架"
+            >
+              <span className="icon-arrow-left" style={{ fontSize: "20px" }} />
+            </button>
+            <div className="mobile-reader-book-title">
+              {this.props.currentBook?.name || ""}
+            </div>
+            <button
+              type="button"
+              className="mobile-reader-top-action"
+              onClick={() => this.handleEnterReader("left")}
+              title="目录"
+            >
+              <span className="icon-grid" style={{ fontSize: "18px" }} />
+            </button>
+          </div>
+        )}
 
         {!this.props.isHidePageButton && (
           <div
@@ -474,7 +532,7 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
               setTimeout(() => (lock = false), throttleTime);
             }}
             style={{
-              left: this.props.isNavLocked ? 315 : 15,
+              left: !isMobile && this.props.isNavLocked ? 315 : 15,
             }}
           >
             <span className="icon-dropdown previous-chapter-single"></span>
@@ -484,7 +542,7 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
           style={{
             position: "absolute",
             bottom: 10,
-            right: this.props.isSettingLocked ? 315 : 15,
+            right: !isMobile && this.props.isSettingLocked ? 315 : 15,
             display: "flex",
             flexDirection: "column-reverse",
             alignItems: "center",
@@ -526,10 +584,7 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
           )}
         </div>
 
-        {/* 右上角「页眉」：阅读选项 / 共读 / 更多 三个入口常驻在这里。
-            以前这排图标是「裸奔」在正文上的（无底色），而正文首行只从 20px 开始，
-            于是图标直接压在文字上。现在给了实底 + 圆角 + 投影的页眉底衬，
-            同时把 .html-viewer-page 的 top 提到 56px，正文彻底从页眉下方开始。 */}
+        {/* 右上角「页眉」：阅读选项 / 共读 / 更多 三个入口常驻在这里。 */}
         <div
           ref={(ref) => {
             this.dockRef = ref;
@@ -539,7 +594,7 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
             (isDarkReaderTheme() ? " reader-top-dock-dark" : "")
           }
           style={{
-            right: this.props.isSettingLocked ? 300 : 8,
+            right: !isMobile && this.props.isSettingLocked ? 300 : 8,
           }}
         >
           {(this.props.readerMode === "scroll" ||
@@ -881,6 +936,12 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
             } as any)}
           />
         </div>
+        {isMobile && (this.state.isOpenLeftPanel || this.state.isOpenRightPanel) && (
+          <div
+            className="mobile-drawer-overlay"
+            onClick={this.handleCloseAllPanels}
+          />
+        )}
         <div
           className="progress-panel-container"
           /* 展开状态暴露到 DOM：iframe 里的点按处理(mouseEvent.ts)要据此判断
@@ -895,9 +956,12 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
           }}
           style={
             this.state.isOpenBottomPanel
-              ? this.getProgressPanelOffset()
+              ? {
+                  transform: "translateY(0%)",
+                  ...this.getProgressPanelOffset(),
+                }
               : {
-                  transform: "translateY(110px)",
+                  transform: "translateY(120%)",
                   ...this.getProgressPanelOffset(),
                 }
           }
