@@ -711,7 +711,10 @@ class CollabClient {
 
   isInRoom(bookKey?: string) {
     if (!this.roomId) return false;
-    return bookKey ? this.bookKey === bookKey : true;
+    if (bookKey !== undefined) {
+      return Boolean(bookKey) && this.bookKey === bookKey;
+    }
+    return true;
   }
 }
 

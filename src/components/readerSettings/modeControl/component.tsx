@@ -3,26 +3,43 @@ import "./modeControl.css";
 import { ModeControlProps, ModeControlState } from "./interface";
 import { ConfigService } from '../../../services';
 import { Trans } from "react-i18next";
-import collabClient from "../../../utils/collab/collabClient";
+import collabClient, { getCollabBookKey } from "../../../utils/collab/collabClient";
 import toast from "react-hot-toast";
 
 class ModeControl extends React.Component<ModeControlProps, ModeControlState> {
   private unsubs: Array<() => void> = [];
+
+  private isCurrentBookInRoom = (): boolean => {
+    const bookKey = getCollabBookKey(this.props.currentBook);
+    return Boolean(bookKey) && collabClient.isInRoom(bookKey);
+  };
+
   constructor(props: ModeControlProps) {
     super(props);
     // 共读时不提供滑动阅读:页在滚动模式下不稳定,笔迹无法跟随,
-    // 跨设备位置同步也会丢页。记进 state,入房/退房时刷新按钮可用性。
-    // (checkModeLock 是不落 state 的重复确认,防事件时序遗漏)
-    this.state = { inRoom: collabClient.isInRoom() };
+    // 跨设备位置同步也会丢页。只有当前正在阅读的书处于活跃共读房间时才锁定，
+    // 个人书架本地书籍绝不误锁。
+    this.state = { inRoom: this.isCurrentBookInRoom() };
   }
 
   componentDidMount() {
     this.unsubs = [
-      collabClient.on("room-joined", () => this.setState({ inRoom: true })),
+      collabClient.on("room-joined", () =>
+        this.setState({ inRoom: this.isCurrentBookInRoom() })
+      ),
       collabClient.on("room-left", () => this.setState({ inRoom: false })),
       collabClient.on("room-lost", () => this.setState({ inRoom: false })),
       collabClient.on("room-deleted", () => this.setState({ inRoom: false })),
     ];
+  }
+
+  componentDidUpdate(prevProps: ModeControlProps) {
+    if (
+      getCollabBookKey(prevProps.currentBook) !==
+      getCollabBookKey(this.props.currentBook)
+    ) {
+      this.setState({ inRoom: this.isCurrentBookInRoom() });
+    }
   }
 
   componentWillUnmount() {
@@ -30,7 +47,7 @@ class ModeControl extends React.Component<ModeControlProps, ModeControlState> {
   }
 
   handleChangeMode = (mode: string) => {
-    if (mode === "scroll" && collabClient.isInRoom()) {
+    if (mode === "scroll" && this.isCurrentBookInRoom()) {
       toast("共读模式下不支持滑动阅读，请退出房间后再切换", { icon: "🚫" });
       return;
     }
@@ -50,7 +67,7 @@ class ModeControl extends React.Component<ModeControlProps, ModeControlState> {
     this.props.renderBookFunc();
   };
   render() {
-    const scrollLocked = collabClient.isInRoom();
+    const scrollLocked = this.isCurrentBookInRoom();
     return (
       <div className="background-color-setting">
         <div

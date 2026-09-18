@@ -172,6 +172,13 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
   }
   componentDidMount() {
     setMobileStatusBar(false);
+    // 若不是从云书库「共同阅读」带参数进入房间，且内存中有残留旧房间会话，
+    // 则主动离开旧房间，保证从个人书架直接打开图书时为纯净本地模式
+    try {
+      if (!localStorage.getItem("koodo-collab-pending-join") && collabClient.roomId) {
+        collabClient.leaveRoom().catch(() => {});
+      }
+    } catch (e) {}
     if (configStore.getReaderConfig("isMergeWord") === "yes") {
       document
         .querySelector("body")
@@ -438,6 +445,12 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
     );
     this.collabUnsubs.forEach((unsubscribe) => unsubscribe());
     this.collabUnsubs = [];
+    try {
+      localStorage.removeItem("koodo-collab-pending-join");
+      if (collabClient.roomId) {
+        collabClient.leaveRoom().catch(() => {});
+      }
+    } catch (err) {}
     if (isElectron) {
       clearDiscordPresence();
     }
@@ -558,6 +571,12 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
     } catch (err) {}
     try {
       handleExitFullScreen();
+    } catch (err) {}
+    try {
+      localStorage.removeItem("koodo-collab-pending-join");
+      if (collabClient.roomId) {
+        collabClient.leaveRoom().catch(() => {});
+      }
     } catch (err) {}
 
     if (isElectron) {

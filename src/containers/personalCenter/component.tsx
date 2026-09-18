@@ -230,6 +230,46 @@ class PersonalCenter extends React.Component<
     this.setState({ serverToken: saved });
   };
 
+  handlePasteServerUrl = async () => {
+    try {
+      if (!navigator.clipboard?.readText) {
+        toast.error("当前环境不支持直接读取剪贴板，请长按输入框手动粘贴");
+        return;
+      }
+      const text = await navigator.clipboard.readText();
+      const trimmed = text.trim();
+      if (!trimmed) {
+        toast("剪贴板内容为空", { icon: "📋" });
+        return;
+      }
+      const saved = saveCollabServerUrlSetting(trimmed);
+      this.setState({ serverUrl: saved });
+      toast.success("已粘贴并保存服务器地址");
+    } catch (err) {
+      toast.error("读取剪贴板失败，请长按输入框手动粘贴");
+    }
+  };
+
+  handlePasteServerToken = async () => {
+    try {
+      if (!navigator.clipboard?.readText) {
+        toast.error("当前环境不支持直接读取剪贴板，请长按输入框手动粘贴");
+        return;
+      }
+      const text = await navigator.clipboard.readText();
+      const trimmed = text.trim();
+      if (!trimmed) {
+        toast("剪贴板内容为空", { icon: "📋" });
+        return;
+      }
+      const saved = saveCollabServerTokenSetting(trimmed);
+      this.setState({ serverToken: saved });
+      toast.success("已粘贴并保存 Token");
+    } catch (err) {
+      toast.error("读取剪贴板失败，请长按输入框手动粘贴");
+    }
+  };
+
   handleTestConnection = async () => {
     if (this.state.isTestingConnection) return;
     this.setState({ isTestingConnection: true, testResult: null });
@@ -315,13 +355,25 @@ class PersonalCenter extends React.Component<
                 <br />
                 留空则只作为本地阅读器使用,不显示共读房间。
               </div>
-              <input
-                className="personal-center-input"
-                value={this.state.serverUrl}
-                placeholder="https://your-server.example.com"
-                onChange={(event) => this.handleServerUrlChange(event.target.value)}
-                onBlur={this.handleServerUrlBlur}
-              />
+              <div className="personal-center-input-row">
+                <input
+                  className="personal-center-input"
+                  style={{ flex: 1 }}
+                  value={this.state.serverUrl}
+                  placeholder="https://your-server.example.com"
+                  onChange={(event) => this.handleServerUrlChange(event.target.value)}
+                  onBlur={this.handleServerUrlBlur}
+                />
+                <button
+                  type="button"
+                  className="personal-center-action-btn"
+                  onClick={this.handlePasteServerUrl}
+                  title="从剪贴板粘贴"
+                >
+                  <span className="icon-copy" style={{ marginRight: "4px", fontSize: "12px" }}></span>
+                  粘贴
+                </button>
+              </div>
               <div className="personal-center-hint">
                 {this.state.serverUrl
                   ? "已启用共读:「共同阅读」页可以创建 / 加入房间。"
@@ -356,6 +408,15 @@ class PersonalCenter extends React.Component<
                   }
                 >
                   {this.state.showServerToken ? "隐藏" : "显示"}
+                </button>
+                <button
+                  type="button"
+                  className="personal-center-action-btn"
+                  onClick={this.handlePasteServerToken}
+                  title="从剪贴板粘贴"
+                >
+                  <span className="icon-copy" style={{ marginRight: "4px", fontSize: "12px" }}></span>
+                  粘贴
                 </button>
               </div>
               {/[^\x00-\x7F]/.test(this.state.serverToken) && (

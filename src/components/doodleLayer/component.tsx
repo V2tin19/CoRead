@@ -360,7 +360,7 @@ class DoodleLayer extends React.Component<DoodleLayerProps, DoodleLayerState> {
       let merged = strokes;
       let needsSave = false;
       // 共读开着的话，再把房间里这一页的笔迹并进来（按 id 去重）
-      if (isDoodleSyncEnabled() && collabClient.isInRoom()) {
+      if (isDoodleSyncEnabled() && collabClient.isInRoom(this.props.bookKey)) {
         try {
           const roomDoodles = await collabClient.fetchRoomDoodles();
           this.peerPageSet = collectPeerPages(
@@ -492,7 +492,7 @@ class DoodleLayer extends React.Component<DoodleLayerProps, DoodleLayerState> {
   };
 
   syncEnabled = (): boolean => {
-    return isDoodleSyncEnabled() && collabClient.isInRoom();
+    return isDoodleSyncEnabled() && collabClient.isInRoom(this.props.bookKey);
   };
 
   // stroke 带上时表示「撤销的就是这一笔」——服务端据此精确删除，
