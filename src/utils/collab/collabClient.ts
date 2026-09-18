@@ -2,6 +2,7 @@ import {
   resolveCollabServerUrl,
   resolveCollabServerToken,
   saveCollabServerTokenSetting,
+  toSafeHeaderValue,
 } from "./collabServerConfig";
 import { isMobileRuntime } from "../mobileRuntime";
 
@@ -110,7 +111,8 @@ class CollabClient {
 
   // 统一的鉴权请求头。GET/文件直链不需要，POST/PUT/DELETE 带上。
   private authHeaders(extra: Record<string, string> = {}) {
-    return this.token ? { ...extra, "x-collab-token": this.token } : extra;
+    const safeToken = toSafeHeaderValue(this.token);
+    return safeToken ? { ...extra, "x-collab-token": safeToken } : extra;
   }
 
   clientId = "";

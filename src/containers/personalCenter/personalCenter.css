@@ -79,6 +79,38 @@
   border-color: #4b89ff;
 }
 
+.personal-center-token-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 280px;
+  max-width: 100%;
+}
+
+.personal-center-token-toggle-btn {
+  height: 36px;
+  padding: 0 12px;
+  font-size: 13px;
+  border-radius: 6px;
+  border: 1px solid rgba(128, 128, 128, 0.35);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.personal-center-token-toggle-btn:hover {
+  background: rgba(128, 128, 128, 0.1);
+}
+
+.personal-center-warning-badge {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #eb5757;
+  max-width: 540px;
+}
+
 /* 内嵌笔记/高亮列表:给 absolute 定位的 NoteList 提供定位上下文 */
 .personal-center-note-wrapper {
   position: relative;

@@ -1,5 +1,6 @@
 import collabClient from "./collabClient";
 import toast from "react-hot-toast";
+import { toSafeHeaderValue } from "./collabServerConfig";
 
 // ── 当前所在的共读房间(「共同阅读」页面进入房间后记录) ──────────────────
 // 供右上角「导入图书到房间」按钮、整页拖拽导入等跨组件场景使用
@@ -159,7 +160,7 @@ export function getRoomBaseUrl(): string {
 export function collabAuthHeaders(
   extra: Record<string, string> = {}
 ): Record<string, string> {
-  const token = collabClient.token;
+  const token = toSafeHeaderValue(collabClient.token);
   return token ? { ...extra, "x-collab-token": token } : extra;
 }
 

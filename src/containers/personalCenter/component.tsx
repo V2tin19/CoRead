@@ -33,6 +33,7 @@ interface PersonalCenterState {
   serverUrl: string;
   /** 共读鉴权 Token;空串 = 无鉴权 */
   serverToken: string;
+  showServerToken: boolean;
   totalSeconds: number;
   weekSeconds: number;
   streakDays: number;
@@ -65,6 +66,7 @@ class PersonalCenter extends React.Component<
       displayName: getOrCreateDisplayName(),
       serverUrl: getCollabServerUrlSetting(),
       serverToken: getCollabServerTokenSetting(),
+      showServerToken: false,
       totalSeconds: 0,
       weekSeconds: 0,
       streakDays: 0,
@@ -258,14 +260,33 @@ class PersonalCenter extends React.Component<
               <div className="personal-center-hint">
                 若你的共读服务器配置了 COLLAB_TOKEN，请在此填写；未配置请留空。
               </div>
-              <input
-                className="personal-center-input"
-                type="password"
-                value={this.state.serverToken}
-                placeholder="共读服务 Token (可选)"
-                onChange={(event) => this.handleServerTokenChange(event.target.value)}
-                onBlur={this.handleServerTokenBlur}
-              />
+              <div className="personal-center-token-row">
+                <input
+                  className="personal-center-input"
+                  style={{ flex: 1 }}
+                  type={this.state.showServerToken ? "text" : "password"}
+                  value={this.state.serverToken}
+                  placeholder="共读服务 Token (可选)"
+                  onChange={(event) => this.handleServerTokenChange(event.target.value)}
+                  onBlur={this.handleServerTokenBlur}
+                />
+                <button
+                  type="button"
+                  className="personal-center-token-toggle-btn"
+                  onClick={() =>
+                    this.setState((prev) => ({
+                      showServerToken: !prev.showServerToken,
+                    }))
+                  }
+                >
+                  {this.state.showServerToken ? "隐藏" : "显示"}
+                </button>
+              </div>
+              {/[^\x00-\x7F]/.test(this.state.serverToken) && (
+                <div className="personal-center-warning-badge">
+                  ⚠️ 检测到中文字符或非英文内容。Token 应为纯英文字符串密钥（请勿填入房间名、昵称或误复制的中文字符）。
+                </div>
+              )}
 
               <div className="personal-center-test-row">
                 <button

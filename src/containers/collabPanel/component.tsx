@@ -93,6 +93,7 @@ class CollabPanel extends React.Component<CollabPanelProps, CollabPanelState> {
       followLeader: collabClient.followLeader,
       dragOffset: loadPanelPos(),
       isDragging: false,
+      showServerToken: false,
     };
   }
 
@@ -959,16 +960,45 @@ class CollabPanel extends React.Component<CollabPanelProps, CollabPanelState> {
                   </label>
                   <label className="collab-field" style={{ marginTop: "8px" }}>
                     鉴权 Token（可选）
-                    <input
-                      type="password"
-                      value={this.state.serverToken}
-                      disabled={isInRoom}
-                      placeholder="共读服务 Token (如服务端开启)"
-                      onChange={(event) =>
-                        this.setState({ serverToken: event.target.value })
-                      }
-                      onBlur={this.handleServerTokenBlur}
-                    />
+                    <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                      <input
+                        style={{ flex: 1 }}
+                        type={this.state.showServerToken ? "text" : "password"}
+                        value={this.state.serverToken}
+                        disabled={isInRoom}
+                        placeholder="共读服务 Token (如服务端开启)"
+                        onChange={(event) =>
+                          this.setState({ serverToken: event.target.value })
+                        }
+                        onBlur={this.handleServerTokenBlur}
+                      />
+                      <button
+                        type="button"
+                        style={{
+                          height: "30px",
+                          padding: "0 8px",
+                          fontSize: "12px",
+                          borderRadius: "6px",
+                          border: "1px solid rgba(120, 120, 120, 0.35)",
+                          background: "transparent",
+                          color: "inherit",
+                          cursor: "pointer",
+                          whiteSpace: "nowrap",
+                        }}
+                        onClick={() =>
+                          this.setState((prev) => ({
+                            showServerToken: !prev.showServerToken,
+                          }))
+                        }
+                      >
+                        {this.state.showServerToken ? "隐藏" : "显示"}
+                      </button>
+                    </div>
+                    {/[^\x00-\x7F]/.test(this.state.serverToken) && (
+                      <span style={{ color: "#eb5757", fontSize: "11px", marginTop: "2px" }}>
+                        ⚠️ 检测到中文字符，Token 必须为纯英文字钥。
+                      </span>
+                    )}
                     <span className="collab-field-note">
                       服务端配置 COLLAB_TOKEN 时必填；留空表示服务端未开启鉴权
                     </span>

@@ -42,4 +42,5 @@ export interface CollabPanelState {
   isDragging: boolean;
   isTestingConnection?: boolean;
   testResult?: import("../../utils/collab/collabServerConfig").CollabServerTestResult | null;
+  showServerToken?: boolean;
 }

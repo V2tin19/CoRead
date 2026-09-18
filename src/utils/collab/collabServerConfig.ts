@@ -49,10 +49,43 @@ export function saveCollabServerUrlSetting(url: string): string {
   return normalized;
 }
 
+/** 清洗 Token：剔除不可见 Unicode 字符、首尾引号/反引号、markdown 符号及误复制的前缀标签 */
+export function cleanCollabToken(raw: string): string {
+  let val = (raw || "")
+    .replace(/[\u200B-\u200D\uFEFF\u00A0\u2060]/g, "")
+    .trim();
+  // 剥除两端的单双引号或反引号：如 `token`、"token"、'token'
+  val = val.replace(/^[`"']+|[`"']+$/g, "").trim();
+  // 剥除 markdown 表格两端的竖线如 | token |
+  val = val.replace(/^\|+|\|+$/g, "").trim();
+  // 剥除常见的键名前缀，如 "COLLAB_TOKEN="、"共读 token:"、"token:"、"密钥:" 等
+  val = val.replace(
+    /^(?:COLLAB_TOKEN|共读\s*token|服务\s*token|密钥|token)\s*[:=：|]\s*/i,
+    ""
+  ).trim();
+  val = val.replace(/^token\s*[:=：|]\s*/i, "").trim();
+  return val;
+}
+
+/** 保证 HTTP Header 值的安全（必须是 ISO-8859-1，杜绝 fetch 报 non ISO-8859-1 code point） */
+export function toSafeHeaderValue(val: string): string {
+  if (!val) return "";
+  const cleaned = cleanCollabToken(val);
+  // 如果依然含有非 ISO-8859-1 字符，尝试 encodeURIComponent，防止 fetch 崩溃
+  if (/[^\x00-\xFF]/.test(cleaned)) {
+    try {
+      return encodeURIComponent(cleaned);
+    } catch {
+      return cleaned.replace(/[^\x00-\xFF]/g, "");
+    }
+  }
+  return cleaned;
+}
+
 /** 读取用户设置里的鉴权 Token；没设置过返回空串 */
 export function getCollabServerTokenSetting(): string {
   try {
-    return localStorage.getItem(SERVER_TOKEN_KEY) || "";
+    return cleanCollabToken(localStorage.getItem(SERVER_TOKEN_KEY) || "");
   } catch (e) {
     return "";
   }
@@ -60,7 +93,7 @@ export function getCollabServerTokenSetting(): string {
 
 /** 保存鉴权 Token；传空串表示清除设置 */
 export function saveCollabServerTokenSetting(token: string): string {
-  const value = (token || "").trim();
+  const value = cleanCollabToken(token);
   try {
     if (value) {
       localStorage.setItem(SERVER_TOKEN_KEY, value);
@@ -68,7 +101,7 @@ export function saveCollabServerTokenSetting(token: string): string {
       localStorage.removeItem(SERVER_TOKEN_KEY);
     }
   } catch (e) {
-    // 忽略异常
+    // 存不进去只影响持久化,本次会话由调用方的内存态兜底
   }
   return value;
 }
@@ -79,8 +112,8 @@ export function saveCollabServerTokenSetting(token: string): string {
  */
 export function resolveCollabServerToken(): string {
   const configured = getCollabServerTokenSetting();
-  if (configured) return configured;
-  return (process.env.REACT_APP_COLLAB_TOKEN || "").trim();
+  if (configured) return toSafeHeaderValue(configured);
+  return toSafeHeaderValue((process.env.REACT_APP_COLLAB_TOKEN || "").trim());
 }
 
 /**
@@ -251,60 +284,35 @@ export async function testCollabServerConnection(
   }
 
   // 2. Token 校验阶段
-  try {
-    const authHeaders: Record<string, string> = token
-      ? { "x-collab-token": token }
-      : {};
+  const cleanedToken = cleanCollabToken(token);
+  if (cleanedToken && /[^\x00-\x7F]/.test(cleanedToken)) {
+    return {
+      ok: false,
+      message: "Token 格式无效（包含中文字符）",
+      hint: "Token 必须是由英文、数字或英文字符组成的密钥。请勿填入房间名、昵称或误复制的中文字符。",
+      tokenStatus: "invalid",
+      rooms: healthData?.rooms,
+      clients: healthData?.clients,
+      uptime: healthData?.uptime,
+    };
+  }
 
-    const verifyRes = await fetch(`${url}/auth/verify`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        ...authHeaders,
-      },
-      body: JSON.stringify({ ping: true }),
-    });
-
-    if (verifyRes.status === 401) {
-      return {
-        ok: false,
-        message: `连接通畅（${latencyMs}ms），但 Token 错误或未授权 (401)`,
-        hint: "请核对服务端 COLLAB_TOKEN 配置，或在输入框中填写正确的鉴权 Token。",
-        tokenStatus: "invalid",
-        rooms: healthData?.rooms,
-        clients: healthData?.clients,
-        uptime: healthData?.uptime,
+  if (cleanedToken) {
+    try {
+      const authHeaders: Record<string, string> = {
+        "x-collab-token": toSafeHeaderValue(cleanedToken),
       };
-    }
 
-    if (verifyRes.ok) {
-      return {
-        ok: true,
-        message: `连接成功（延迟 ${latencyMs}ms）`,
-        hint: `服务运行正常${
-          token ? "，Token 校验通过" : "（无需鉴权）"
-        }。当前在线房间: ${healthData?.rooms ?? 0}，客户端: ${
-          healthData?.clients ?? 0
-        }`,
-        tokenStatus: token ? "valid" : "not_required",
-        rooms: healthData?.rooms,
-        clients: healthData?.clients,
-        uptime: healthData?.uptime,
-      };
-    }
-
-    // 若服务端是旧版本（404 没有 /auth/verify），退回使用幂等的 leave 接口探活（避免多建空房间）
-    if (verifyRes.status === 404) {
-      const probeRooms = await fetch(`${url}/rooms/__PING_PROBE__/leave`, {
+      const verifyRes = await fetch(`${url}/auth/verify`, {
         method: "POST",
         headers: {
           "content-type": "application/json",
           ...authHeaders,
         },
-        body: JSON.stringify({ clientId: "__ping_probe__" }),
+        body: JSON.stringify({ ping: true }),
       });
 
-      if (probeRooms.status === 401) {
+      if (verifyRes.status === 401) {
         return {
           ok: false,
           message: `连接通畅（${latencyMs}ms），但 Token 错误或未授权 (401)`,
@@ -315,18 +323,66 @@ export async function testCollabServerConnection(
           uptime: healthData?.uptime,
         };
       }
+
+      if (verifyRes.ok) {
+        return {
+          ok: true,
+          message: `连接成功（延迟 ${latencyMs}ms）`,
+          hint: `服务运行正常，Token 校验通过。当前在线房间: ${
+            healthData?.rooms ?? 0
+          }，客户端: ${healthData?.clients ?? 0}`,
+          tokenStatus: "valid",
+          rooms: healthData?.rooms,
+          clients: healthData?.clients,
+          uptime: healthData?.uptime,
+        };
+      }
+
+      // 若服务端是旧版本（404 没有 /auth/verify），退回使用幂等的 leave 接口探活（避免多建空房间）
+      if (verifyRes.status === 404) {
+        const probeRooms = await fetch(`${url}/rooms/__PING_PROBE__/leave`, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            ...authHeaders,
+          },
+          body: JSON.stringify({ clientId: "__ping_probe__" }),
+        });
+
+        if (probeRooms.status === 401) {
+          return {
+            ok: false,
+            message: `连接通畅（${latencyMs}ms），但 Token 错误或未授权 (401)`,
+            hint: "请核对服务端 COLLAB_TOKEN 配置，或在输入框中填写正确的鉴权 Token。",
+            tokenStatus: "invalid",
+            rooms: healthData?.rooms,
+            clients: healthData?.clients,
+            uptime: healthData?.uptime,
+          };
+        }
+      }
+    } catch (tokenErr: any) {
+      return {
+        ok: false,
+        message: `Token 校验请求异常（${latencyMs}ms）`,
+        hint: `服务器可达，但鉴权请求出错: ${
+          tokenErr?.message || String(tokenErr)
+        }`,
+        tokenStatus: "invalid",
+        rooms: healthData?.rooms,
+        clients: healthData?.clients,
+        uptime: healthData?.uptime,
+      };
     }
-  } catch {
-    // 即使 Token 探测异常，健康检查也是通过的
   }
 
   return {
     ok: true,
     message: `连接成功（延迟 ${latencyMs}ms）`,
-    hint: `服务正常响应。当前在线房间: ${healthData?.rooms ?? 0}，客户端: ${
-      healthData?.clients ?? 0
-    }`,
-    tokenStatus: token ? "valid" : "none",
+    hint: `服务运行正常（未配置 Token，处于无鉴权模式）。当前在线房间: ${
+      healthData?.rooms ?? 0
+    }，客户端: ${healthData?.clients ?? 0}`,
+    tokenStatus: "not_required",
     rooms: healthData?.rooms,
     clients: healthData?.clients,
     uptime: healthData?.uptime,
