@@ -26,10 +26,20 @@ export interface PopupMenuProps {
   handleOriginalText: (originalText: string) => void;
   handleOriginalSentence: (originalSentence: string) => void;
   handleFetchNotes: () => void;
+  handleQuoteText?: (quoteText: string) => void;
+  handleSpeechDialog?: (isOpen: boolean) => void;
+  handleSpeechStartText?: (text: string) => void;
+  handleSpeechAutoStart?: (auto: boolean) => void;
+  handleHighlight?: (highlight: any) => void;
 }
 export interface PopupMenuStates {
   deleteKey: string;
   isRightEdge: boolean;
-  // cfiRange: string;
   rect: DOMRect | null;
+  showColorPicker: boolean;
+  activeHighlightKey: string;
+  currentStyle: string;
+  currentColor: string;
+  arrowLeft: number;
+  isArrowTop: boolean;
 }

@@ -8,6 +8,11 @@ import {
   handleOriginalText,
   handleOriginalSentence,
   handleFetchNotes,
+  handleQuoteText,
+  handleSpeechDialog,
+  handleSpeechStartText,
+  handleSpeechAutoStart,
+  handleHighlight,
 } from "../../../store/actions";
 import { connect } from "react-redux";
 import { stateType } from "../../../store";
@@ -36,6 +41,11 @@ const actionCreator = {
   handleOriginalText,
   handleOriginalSentence,
   handleFetchNotes,
+  handleQuoteText,
+  handleSpeechDialog,
+  handleSpeechStartText,
+  handleSpeechAutoStart,
+  handleHighlight,
 };
 export default connect(
   mapStateToProps,

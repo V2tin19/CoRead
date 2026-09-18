@@ -17,7 +17,7 @@ export interface DigestParams {
   onSuccess?: () => void;
 }
 
-export async function createHighlight(params: DigestParams): Promise<void> {
+export async function createHighlight(params: DigestParams): Promise<Note | null> {
   const {
     currentBook,
     htmlBook,
@@ -28,7 +28,7 @@ export async function createHighlight(params: DigestParams): Promise<void> {
   } = params;
   let color = params.color;
 
-  if (!htmlBook) return;
+  if (!htmlBook) return null;
 
   // 契约 14: 高亮颜色必须严格编码为 styleType-#RRGGBB 格式，默认 background-#RRGGBB
   if (color && !color.includes("-") && color.startsWith("#")) {
@@ -59,7 +59,7 @@ export async function createHighlight(params: DigestParams): Promise<void> {
     text = doc.getSelection()?.toString() || "";
     if (text) break;
   }
-  if (!text) return;
+  if (!text) return null;
 
   text = text.replace(/\s\s/g, "");
   text = text.replace(/\r/g, "");
@@ -86,7 +86,7 @@ export async function createHighlight(params: DigestParams): Promise<void> {
   ) {
     console.warn("[note] empty selection range, skip creating note");
     toast.error("没有取到选中的文字，请重新选中后再试");
-    return;
+    return null;
   }
   let range = JSON.stringify(rawCoords);
 
@@ -112,4 +112,5 @@ export async function createHighlight(params: DigestParams): Promise<void> {
     .broadcastNote(getCollabBookKey(currentBook), highlight)
     .catch((error) => console.warn("Failed to broadcast note", error));
   onSuccess?.();
+  return highlight;
 }

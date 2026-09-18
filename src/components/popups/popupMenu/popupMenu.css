@@ -1,56 +1,273 @@
-.popup-menu-container {
+/* 微信读书风格深色磨砂胶囊气泡菜单 */
+.wx-bubble-container {
+  position: absolute;
+  z-index: 1000;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-}
-.popup-menu-box,
-.popup-color-box {
-  opacity: 1;
-  border-radius: 10px;
-  position: relative;
-  z-index: -1;
-}
-.popup-color-box {
-  padding: 10px 6px;
-  width: 252px;
-  box-sizing: border-box;
-}
-/* 触屏面板加宽，跟 .menu-list 和 MENU_WIDTH_TOUCH 对齐（见 popupOption.css 那段注释） */
-.popup-menu-container.mobile-popup .popup-color-box {
-  width: 300px;
-}
-.popup-menu-triangle-down {
-  float: left;
-  margin-left: 59px;
-  font-size: 16px;
-  text-shadow: 0px 8px 8px rgba(0, 0, 0, 0.16);
-  z-index: 0;
-}
-.popup-menu-triangle-up {
-  transform: rotate(180deg);
-  position: absolute;
-  bottom: 172px;
-  margin-left: 60px;
-  font-size: 16px;
-  text-shadow: 0px 8px 8px rgba(0, 0, 0, 0.16);
-  z-index: 0;
-}
-.delete-highlighter-container {
-  position: relative;
+  align-items: flex-start;
+  pointer-events: auto;
+  user-select: none;
+  -webkit-user-select: none;
+  filter: drop-shadow(0 6px 20px rgba(0, 0, 0, 0.45));
+  transition: top 0.15s ease, left 0.15s ease;
 }
 
-.popup-close {
-  position: absolute;
-  top: -30px;
-  right: 70px;
+.wx-bubble-card {
+  width: 100%;
+  background: rgba(36, 37, 40, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 4px 6px;
+  box-sizing: border-box;
+}
+
+/* 第一排动作按钮组 */
+.wx-main-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  height: 48px;
+}
+
+.wx-action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  height: 44px;
+  padding: 2px 0;
+  background: transparent;
+  border: none;
+  outline: none;
   cursor: pointer;
-  display: inline-block;
-  width: 20px;
+  color: #ffffff;
+  transition: transform 0.1s ease, opacity 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.wx-action-btn:active {
+  transform: scale(0.92);
+  opacity: 0.8;
+}
+
+.wx-btn-icon {
   height: 20px;
-  border-radius: 50%;
-  font-size: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
+  color: #ffffff;
 }
+
+.wx-btn-label {
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.2;
+  margin-top: 2px;
+  color: rgba(255, 255, 255, 0.9);
+  white-space: nowrap;
+}
+
+/* 划线图标细节：A 带下划线 */
+.wx-icon-a-line {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.wx-letter-a {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+  color: #ffffff;
+}
+
+.wx-under-line {
+  width: 13px;
+  height: 2px;
+  background: #ffffff;
+  border-radius: 1px;
+  margin-top: 1px;
+}
+
+/* 删除划线图标细节：A 带删除斜杠 */
+.wx-icon-a-del {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.wx-slash-line {
+  position: absolute;
+  width: 16px;
+  height: 1.5px;
+  background: #ff5252;
+  transform: rotate(-45deg);
+  border-radius: 1px;
+}
+
+/* 第二排：标注线与颜色选择栏（动态展开） */
+.wx-color-palette-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 4px 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  animation: wxFadeSlideDown 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes wxFadeSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 标注线样式选项卡组 */
+.wx-styles-bar {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.wx-style-tab {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.8);
+  transition: all 0.15s ease;
+  padding: 0;
+}
+
+.wx-style-tab:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.wx-style-tab.active {
+  background: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+}
+
+.wx-style-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.wx-style-bg-box {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+}
+
+.wx-style-underline-box .wx-solid-line {
+  width: 12px;
+  height: 2px;
+  background: currentColor;
+  border-radius: 1px;
+  margin-top: 1px;
+}
+
+.wx-style-wave-box .wx-wavy-svg {
+  width: 14px;
+  height: 4px;
+  margin-top: 1px;
+}
+
+/* 分隔微细竖线 */
+.wx-palette-divider {
+  width: 1px;
+  height: 18px;
+  background: rgba(255, 255, 255, 0.15);
+  margin: 0 4px;
+}
+
+/* 颜色选择组 */
+.wx-colors-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wx-color-circle {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.15);
+  outline: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.wx-color-circle:active {
+  transform: scale(0.9);
+}
+
+.wx-color-circle.selected {
+  border-color: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.4);
+  transform: scale(1.06);
+}
+
+.wx-check-icon {
+  font-size: 12px;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* 微信读书气泡小三角箭头 */
+.wx-bubble-arrow {
+  position: relative;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+/* 下三角（菜单位于选区上方时，箭头在底部指向下方选区） */
+.wx-arrow-down {
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-top: 7px solid rgba(36, 37, 40, 0.95);
+  margin-left: -7px;
+  margin-top: -1px;
+}
+
+/* 上三角（菜单位于选区下方时，箭头在顶部指向上方选区） */
+.wx-arrow-up {
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-bottom: 7px solid rgba(36, 37, 40, 0.95);
+  margin-left: -7px;
+  margin-bottom: -1px;
+}
+

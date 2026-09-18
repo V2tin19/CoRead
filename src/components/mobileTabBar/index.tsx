@@ -38,7 +38,11 @@ class MobileTabBar extends React.Component<MobileTabBarProps> {
     // 详情后，pathMode 会变成 "home/shelf" 这样的两段值，四项全都匹配不上 →
     // 底栏没有任何一项高亮，看起来像「选中了但没变亮」（用户反馈的那条）。
     const currentPath = this.props.location?.pathname || "";
-    const pathMode = currentPath.split("/")[2] || "";
+    let pathMode = currentPath.split("/")[2] || "";
+    // 当处于空页面（/manager/empty，如收藏夹无图书重定向）时，回退到当前的实际模式（如 favorite）
+    if (pathMode === "empty") {
+      pathMode = "";
+    }
     const currentMode = pathMode || this.props.mode || "home";
 
     return (

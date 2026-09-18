@@ -3,7 +3,6 @@ import "./noteList.css";
 import { NoteListProps, NoteListState } from "./interface";
 import CardList from "../cardList";
 import NoteTag from "../../../components/noteTag";
-import Empty from "../../emptyPage";
 import { Trans } from "react-i18next";
 import ConfigUtil from "../../../utils/file/configUtil";
 import BookUtil from "../../../utils/file/bookUtil";
@@ -157,17 +156,19 @@ class NoteList extends React.Component<NoteListProps, NoteListState> {
         </div>
 
         {noteProps.cards.length === 0 ? (
-          <div
-            style={{
-              position: "fixed",
-              left: 0,
-              top: 0,
-              width: "100%",
-              height: "100%",
-              zIndex: -1,
-            }}
-          >
-            {this.state.tag.length === 0 && <Empty />}
+          <div className="note-list-empty">
+            <span
+              className={
+                this.props.tabMode === "note"
+                  ? "icon-idea note-list-empty-icon"
+                  : "icon-highlight note-list-empty-icon"
+              }
+            />
+            <p className="note-list-empty-text">
+              {this.props.tabMode === "note"
+                ? "暂无笔记。阅读时选中文本点击「写想法」即可添加笔记。"
+                : "暂无划线高亮。阅读时选中文本点击「划线」即可高亮标记。"}
+            </p>
           </div>
         ) : (
           <CardList {...(noteProps as any)} />
