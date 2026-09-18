@@ -598,15 +598,16 @@ const rooms = new Map();
 // 都能借访客的浏览器读到房间列表。
 //
 // 什么时候需要配：打包成桌面端 / 安卓端之后，页面不再是我们的域名 ——
-//   · Electron 用 file:// 加载，发出去的 Origin 是字面量 `null`；
+//   · Electron 用 file:// 加载，发出去的 Origin 是字面量 `null` 或 `app://coread`；
 //   · Capacitor(安卓)的页面跑在 https://localhost。
 // 这时客户端与服务端是跨域的，必须把客户端来源写进白名单（**逗号分隔，支持多值**）：
-//   COLLAB_ALLOWED_ORIGIN=null,https://localhost,http://localhost
+//   COLLAB_ALLOWED_ORIGIN=null,https://localhost,http://localhost,app://coread
 // 也可以填 "*" 放行所有来源（只在你还想保留"任意网页跨域访问"时才这么做）。
 const ALLOWED_ORIGINS = String(process.env.COLLAB_ALLOWED_ORIGIN || "")
   .split(",")
   .map((item) => item.trim())
   .filter(Boolean);
+
 
 function buildCorsHeaders(allowOrigin) {
   return {
@@ -961,6 +962,15 @@ const server = http.createServer(async (req, res) => {
         rooms: rooms.size,
         clients: clients.size,
         uptime: Math.round(process.uptime()),
+      });
+      return;
+    }
+
+    if ((req.method === "POST" || req.method === "GET") && url.pathname === "/auth/verify") {
+      sendJson(res, 200, {
+        ok: true,
+        authenticated: true,
+        version: "0.13.0",
       });
       return;
     }

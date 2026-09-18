@@ -46,13 +46,14 @@ npm run collab:server     # 监听 127.0.0.1:17390
 
 | 用户形态 | 页面 origin | 服务端必配 | 客户端要不要填地址 |
 | --- | --- | --- | --- |
-| 网页部署（nginx + 域名） | `https://read.example.com` | 把 `/collab/` 反代过去，**不用配 CORS** | 不用（自动同源） |
-| 桌面端（Electron） | `app://coread` | `COLLAB_ALLOWED_ORIGIN=app://coread` | 要 |
-| 安卓端（Capacitor） | `https://localhost` | `COLLAB_ALLOWED_ORIGIN=https://localhost,http://localhost` | 要 |
-| 本机开发（`npm start`） | `http://localhost:3000` | 什么都不用配 | 不用 |
+| 仅纯网页端同源访问 | `https://read.example.com` | 把 `/collab/` 反代过去，可不配 CORS | 不用（自动同源） |
+| 安卓端（Capacitor） | `https://localhost` | `COLLAB_ALLOWED_ORIGIN=https://localhost,http://localhost,app://coread,null` | 要 |
+| 桌面端（Electron） | `app://coread` 或 `null` | `COLLAB_ALLOWED_ORIGIN=https://localhost,http://localhost,app://coread,null` | 要 |
+| 本机跨端 / 开发调试 | `http://localhost:3000` | `COLLAB_ALLOWED_ORIGIN=*` 或包含客户端 origin | 要 |
 
-> 🔴 判据：服务端**默认一条 CORS 头都不发**。只要客户端不是从同一个域名来的
-> （打包客户端一律算跨域），不配白名单的表现就是「控制台报 CORS，请求一个都发不出去」。
+> 🔴 **关键判据（非常重要）**：
+> 服务端**默认一条 CORS 头都不发**。只要有用户使用 **安卓客户端** 或 **桌面客户端** 访问该服务（打包客户端一律属于跨域），服务端就**必须配置 `COLLAB_ALLOWED_ORIGIN`**！
+> 若未配置，客户端发起请求就会在底层被 WebView / 浏览器拦截，**直接报错 `fetch failed`（或 `Failed to fetch`），请求一个都发不出去**。推荐直接配置包含常见打包端来源的白名单。
 
 ### 步骤 1：服务器侧按顺序做这五件事
 
@@ -60,7 +61,7 @@ npm run collab:server     # 监听 127.0.0.1:17390
 2. **建四个数据目录并给权限**（默认落在仓库里，升级会被覆盖 ⇒ 必须换到持久卷）：
    `BOOKS_DIR`（共享书库）、`ROOMS_DIR`（房间元数据，含聊天与笔记）、
    `DOODLES_DIR`（个人云涂鸦）、`ROOM_DOODLES_DIR`（房间共享涂鸦）。
-3. **常驻**：用 systemd（模板见下面第 2 节），`Restart=always`。
+3. **常驻**：用 systemd（模板见下面第 2 节），`Restart=always`（务必带上 `COLLAB_ALLOWED_ORIGIN`）。
 4. **反代**：nginx 把 `/collab/` 转到 `127.0.0.1:17390`。这几条不能省 ——
    `proxy_buffering off`（SSE 不缓冲）、`proxy_read_timeout 24h`、`Connection ""`，
    以及静态站的 `try_files $uri $uri/ /index.html` 和 `client_max_body_size`。
@@ -72,7 +73,7 @@ npm run collab:server     # 监听 127.0.0.1:17390
 | 变量 | 什么时候必须改 | 说明 |
 | --- | --- | --- |
 | `COLLAB_TOKEN` | **只要公网开放** | 写了它，写操作与 `/events` 才要求带 token；不写 = 一律放行（本地开发） |
-| `COLLAB_ALLOWED_ORIGIN` | **只要用户用桌面端 / 安卓端** | 逗号分隔多值，取值见步骤 0；网页部署不用配 |
+| `COLLAB_ALLOWED_ORIGIN` | **只要有安卓端 / 桌面端访问** | 逗号分隔多值，取值见步骤 0；**不配会导致移动端报 fetch failed** |
 | `BOOKS_DIR` / `ROOMS_DIR` / `DOODLES_DIR` / `ROOM_DOODLES_DIR` | 部署时就要改 | 换到持久卷（默认在仓库目录下） |
 | `MAX_BOOK_SIZE` | 上传大书失败时 | 默认 512MB，**必须和 nginx 的 `client_max_body_size` 一致** |
 | `COLLAB_HOST` | 想让客户端**直连内网 IP**（不经 nginx）时才改成 `0.0.0.0` | ⚠️ 改了就是裸奔，仅限内网；公网一律保持 `127.0.0.1` + 反代 |
@@ -86,18 +87,20 @@ npm run collab:server     # 监听 127.0.0.1:17390
 （个人中心 → 个人信息 → 共读服务器）。解析优先级：
 **用户填的地址 > 构建期 `REACT_APP_COLLAB_URL` > 同源 `<域名>/collab`**。
 服务端配了 `COLLAB_TOKEN` 的话，同一个串也要填进客户端的 token 框。
+填完后可直接点击输入框下方的 **「测试连接」** 按钮进行自动诊断与探活。
 没填地址又不是网页部署 ⇒ 应用退化成**纯本地阅读器** —— 这是设计如此，不是坏了。
 
 ### 步骤 4：验收三步（缺一不可）
 
 1. `/health` 与 `/rooms` 都通；
-2. 应用里能**建房间**；
+2. 应用内点击「测试连接」显示通过，并能成功**建房间**；
 3. **两个客户端进同一房间，翻页能实时同步** —— 这一条才是在验 SSE 没被缓冲。
 
 ### 步骤 5：排障速查
 
-| 症状 | 最可能的原因 | 怎么确认 |
+| 症状 | 最可能的原因 | 怎么确认与排查 |
 | --- | --- | --- |
+| 客户端提示 `fetch failed` 或无法使用 | ① CORS 未配被拦截<br>② 端口/防火墙不通<br>③ 直连与反代路径混淆 | 1. **在应用内点击「测试连接」按钮**，查看具体诊断建议；<br>2. 安卓客户端必配 `COLLAB_ALLOWED_ORIGIN=https://localhost,http://localhost,app://coread,null`；<br>3. 检查地址后缀：Nginx 反代要带 `/collab`，直连 Node 端口不要带 `/collab`；<br>4. 直连 Node 时确认 `COLLAB_HOST=0.0.0.0` 且安全组放行 17390。 |
 | 房间能开，但翻页不同步 | SSE 被反代缓冲 | `curl -N 'https://域名/collab/events?clientId=test'`，应持续吐数据，而不是攒一会儿才蹦 |
 | 浏览器能连，桌面 / 安卓连不上 | `COLLAB_ALLOWED_ORIGIN` 没写客户端 origin | 看响应里有没有 `access-control-allow-origin`；默认一条都不发 |
 | 建房间 / 发消息失败，但读列表正常 | token 不对或没带 | 写操作走 `x-collab-token` 请求头；SSE 走 `?token=`（EventSource 带不了自定义头） |
@@ -165,6 +168,8 @@ WorkingDirectory=/opt/coread
 Environment=COLLAB_HOST=127.0.0.1
 Environment=COLLAB_PORT=17390
 Environment=COLLAB_TOKEN=换成你自己的随机串
+# ⚠️ 只要有安卓 App 或桌面客户端使用，就必须配置允许跨域：
+Environment=COLLAB_ALLOWED_ORIGIN=https://localhost,http://localhost,app://coread,null
 Environment=BOOKS_DIR=/var/lib/coread/books
 Environment=ROOMS_DIR=/var/lib/coread/rooms
 Environment=DOODLES_DIR=/var/lib/coread/doodles

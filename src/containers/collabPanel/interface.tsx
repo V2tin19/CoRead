@@ -40,4 +40,6 @@ export interface CollabPanelState {
   dragOffset: { x: number; y: number } | null;
   /** 是否正在拖动（拖动中禁用过渡与文本选择） */
   isDragging: boolean;
+  isTestingConnection?: boolean;
+  testResult?: import("../../utils/collab/collabServerConfig").CollabServerTestResult | null;
 }

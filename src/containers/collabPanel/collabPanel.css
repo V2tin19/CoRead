@@ -476,3 +476,82 @@
   opacity: 0.72;
   margin-top: 8px;
 }
+
+/* ── 房间高级设置：连通性测试 ── */
+.collab-test-connection-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.collab-test-btn {
+  height: 30px;
+  padding: 0 14px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 6px;
+  border: 1px solid rgba(75, 137, 255, 0.4);
+  background: rgba(75, 137, 255, 0.08);
+  color: #4b89ff;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.collab-test-btn:hover:not(:disabled) {
+  background: rgba(75, 137, 255, 0.16);
+  border-color: #4b89ff;
+}
+
+.collab-test-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.collab-test-badge {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 3px 8px;
+  border-radius: 4px;
+  line-height: 1.4;
+}
+
+.collab-test-badge.success {
+  background: rgba(46, 174, 96, 0.12);
+  color: #2eae60;
+  border: 1px solid rgba(46, 174, 96, 0.25);
+}
+
+.collab-test-badge.error {
+  background: rgba(235, 87, 87, 0.12);
+  color: #eb5757;
+  border: 1px solid rgba(235, 87, 87, 0.25);
+}
+
+.collab-test-hint {
+  margin-top: 8px;
+  font-size: 11px;
+  line-height: 1.5;
+  padding: 6px 10px;
+  border-radius: 6px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.collab-test-hint.success {
+  background: rgba(46, 174, 96, 0.06);
+  color: #27ae60;
+  border-left: 3px solid #27ae60;
+}
+
+.collab-test-hint.error {
+  background: rgba(235, 87, 87, 0.06);
+  color: #c0392b;
+  border-left: 3px solid #eb5757;
+}
+

@@ -15,6 +15,7 @@ import {
   saveCollabServerUrlSetting,
   getCollabServerTokenSetting,
   saveCollabServerTokenSetting,
+  testCollabServerConnection,
 } from "../../utils/collab/collabServerConfig";
 import { sanitizeRemoteNote } from "../../utils/collab/remoteNote";
 import {
@@ -418,6 +419,28 @@ class CollabPanel extends React.Component<CollabPanelProps, CollabPanelState> {
   handleServerTokenBlur = () => {
     const saved = saveCollabServerTokenSetting(this.state.serverToken);
     this.setState({ serverToken: saved });
+  };
+
+  handleTestConnection = async () => {
+    if (this.state.isTestingConnection) return;
+    this.setState({ isTestingConnection: true, testResult: null });
+    try {
+      const result = await testCollabServerConnection(
+        this.state.serverUrl,
+        this.state.serverToken
+      );
+      this.setState({ testResult: result });
+    } catch (e: any) {
+      this.setState({
+        testResult: {
+          ok: false,
+          message: "测试过程发生未知错误",
+          hint: e?.message || String(e),
+        },
+      });
+    } finally {
+      this.setState({ isTestingConnection: false });
+    }
   };
 
   describeError(error: unknown) {
@@ -950,6 +973,39 @@ class CollabPanel extends React.Component<CollabPanelProps, CollabPanelState> {
                       服务端配置 COLLAB_TOKEN 时必填；留空表示服务端未开启鉴权
                     </span>
                   </label>
+                  <div className="collab-test-connection-row">
+                    <button
+                      type="button"
+                      className={`collab-test-btn ${
+                        this.state.isTestingConnection ? "loading" : ""
+                      }`}
+                      disabled={this.state.isTestingConnection}
+                      onClick={this.handleTestConnection}
+                    >
+                      {this.state.isTestingConnection
+                        ? "正在测试连通性..."
+                        : "测试服务器连接"}
+                    </button>
+                    {this.state.testResult && (
+                      <span
+                        className={`collab-test-badge ${
+                          this.state.testResult.ok ? "success" : "error"
+                        }`}
+                      >
+                        {this.state.testResult.ok ? "✓ " : "✕ "}
+                        {this.state.testResult.message}
+                      </span>
+                    )}
+                  </div>
+                  {this.state.testResult?.hint && (
+                    <div
+                      className={`collab-test-hint ${
+                        this.state.testResult.ok ? "success" : "error"
+                      }`}
+                    >
+                      {this.state.testResult.hint}
+                    </div>
+                  )}
                 </>
               )}
             </>

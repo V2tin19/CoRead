@@ -122,3 +122,87 @@
 .personal-center-link:hover {
   text-decoration: underline;
 }
+
+/* ── 连通性测试按钮与反馈 ── */
+.personal-center-test-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.personal-center-test-btn {
+  height: 34px;
+  padding: 0 16px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 6px;
+  border: 1px solid rgba(75, 137, 255, 0.4);
+  background: rgba(75, 137, 255, 0.08);
+  color: #4b89ff;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.personal-center-test-btn:hover:not(:disabled) {
+  background: rgba(75, 137, 255, 0.16);
+  border-color: #4b89ff;
+}
+
+.personal-center-test-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.personal-center-test-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.personal-center-test-badge {
+  font-size: 13px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 6px;
+  line-height: 1.4;
+}
+
+.personal-center-test-badge.success {
+  background: rgba(46, 174, 96, 0.12);
+  color: #2eae60;
+  border: 1px solid rgba(46, 174, 96, 0.25);
+}
+
+.personal-center-test-badge.error {
+  background: rgba(235, 87, 87, 0.12);
+  color: #eb5757;
+  border: 1px solid rgba(235, 87, 87, 0.25);
+}
+
+.personal-center-test-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.6;
+  padding: 8px 12px;
+  border-radius: 6px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-width: 540px;
+}
+
+.personal-center-test-hint.success {
+  background: rgba(46, 174, 96, 0.06);
+  color: #27ae60;
+  border-left: 3px solid #27ae60;
+}
+
+.personal-center-test-hint.error {
+  background: rgba(235, 87, 87, 0.06);
+  color: #c0392b;
+  border-left: 3px solid #eb5757;
+}
+

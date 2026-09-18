@@ -14,6 +14,8 @@ import {
   saveCollabServerUrlSetting,
   getCollabServerTokenSetting,
   saveCollabServerTokenSetting,
+  testCollabServerConnection,
+  CollabServerTestResult,
 } from "../../utils/collab/collabServerConfig";
 
 // 「个人中心」页:共读昵称 + 共读服务器 + 我的笔记 / 高亮 + 阅读数据
@@ -35,6 +37,8 @@ interface PersonalCenterState {
   weekSeconds: number;
   streakDays: number;
   isStatsLoading: boolean;
+  isTestingConnection: boolean;
+  testResult: CollabServerTestResult | null;
 }
 
 const TABS = [
@@ -65,6 +69,8 @@ class PersonalCenter extends React.Component<
       weekSeconds: 0,
       streakDays: 0,
       isStatsLoading: true,
+      isTestingConnection: false,
+      testResult: null,
     };
   }
 
@@ -144,6 +150,28 @@ class PersonalCenter extends React.Component<
   handleServerTokenBlur = () => {
     const saved = saveCollabServerTokenSetting(this.state.serverToken);
     this.setState({ serverToken: saved });
+  };
+
+  handleTestConnection = async () => {
+    if (this.state.isTestingConnection) return;
+    this.setState({ isTestingConnection: true, testResult: null });
+    try {
+      const result = await testCollabServerConnection(
+        this.state.serverUrl,
+        this.state.serverToken
+      );
+      this.setState({ testResult: result });
+    } catch (e: any) {
+      this.setState({
+        testResult: {
+          ok: false,
+          message: "测试过程发生未知错误",
+          hint: e?.message || String(e),
+        },
+      });
+    } finally {
+      this.setState({ isTestingConnection: false });
+    }
   };
 
   dateToKey(d: Date) {
@@ -238,6 +266,36 @@ class PersonalCenter extends React.Component<
                 onChange={(event) => this.handleServerTokenChange(event.target.value)}
                 onBlur={this.handleServerTokenBlur}
               />
+
+              <div className="personal-center-test-row">
+                <button
+                  type="button"
+                  className={`personal-center-test-btn ${this.state.isTestingConnection ? "loading" : ""}`}
+                  disabled={this.state.isTestingConnection}
+                  onClick={this.handleTestConnection}
+                >
+                  {this.state.isTestingConnection ? "正在测试连通性..." : "测试连接"}
+                </button>
+                {this.state.testResult && (
+                  <span
+                    className={`personal-center-test-badge ${
+                      this.state.testResult.ok ? "success" : "error"
+                    }`}
+                  >
+                    {this.state.testResult.ok ? "✓ " : "✕ "}
+                    {this.state.testResult.message}
+                  </span>
+                )}
+              </div>
+              {this.state.testResult?.hint && (
+                <div
+                  className={`personal-center-test-hint ${
+                    this.state.testResult.ok ? "success" : "error"
+                  }`}
+                >
+                  {this.state.testResult.hint}
+                </div>
+              )}
             </div>
           </>
         )}
