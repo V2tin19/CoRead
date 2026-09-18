@@ -44,13 +44,36 @@ function normalizeText(input: string): string {
     .replace(/\f/g, "");
 }
 
-/** 把「当前页」压成一个稳定的短字符串（存进 cfi 字段） */
+/** 把「当前页」压成一个稳定的短字符串（用于高可靠快速比对） */
 export function placeSignature(location: any): string {
   if (!location) return "";
   const chapter = location.chapterDocIndex ?? location.chapterIndex ?? "";
   const count = location.count ?? "";
   const page = location.page ?? "";
   return "c" + chapter + "|n" + count + "|p" + page;
+}
+
+/** 从书签对象或 CFI 字符串中安全提取指纹字符串 */
+export function getBookmarkSignature(bookmarkOrLocation: any): string {
+  if (!bookmarkOrLocation) return "";
+  if (typeof bookmarkOrLocation === "string") {
+    if (bookmarkOrLocation.startsWith("c") && bookmarkOrLocation.includes("|")) {
+      return bookmarkOrLocation;
+    }
+    try {
+      const parsed = JSON.parse(bookmarkOrLocation);
+      return getBookmarkSignature(parsed);
+    } catch {
+      return bookmarkOrLocation;
+    }
+  }
+  if (bookmarkOrLocation.signature) {
+    return bookmarkOrLocation.signature;
+  }
+  if (bookmarkOrLocation.cfi) {
+    return getBookmarkSignature(bookmarkOrLocation.cfi);
+  }
+  return placeSignature(bookmarkOrLocation);
 }
 
 /**
@@ -90,7 +113,9 @@ export async function toggleBookmarkByGesture(params: {
       "bookmarks"
     );
     const existed = (records || []).filter(
-      (item: any) => item && item.cfi === signature
+      (item: any) =>
+        item &&
+        (getBookmarkSignature(item) === signature || item.cfi === signature)
     );
 
     if (existed.length > 0) {
@@ -107,9 +132,22 @@ export async function toggleBookmarkByGesture(params: {
       text = normalizeText((await rendition.visibleText()).join(" "));
     }
 
+    // 保存完整的可跳转 location 对象（包含 signature 指纹），保证目录列表点击能精准跳转
+    const locationData = {
+      ...location,
+      signature,
+      chapterDocIndex: String(location.chapterDocIndex ?? 0),
+      chapterTitle: location.chapterTitle || "",
+      chapterHref: location.chapterHref || "",
+      count: location.count || "ignore",
+      page: location.page || "",
+      percentage: location.percentage || "",
+      text: text.substr(0, 200),
+    };
+
     const bookmark = new Bookmark(
       bookKey,
-      signature,
+      JSON.stringify(locationData),
       text.substr(0, 200),
       location.percentage ?? "",
       location.chapterTitle ?? ""

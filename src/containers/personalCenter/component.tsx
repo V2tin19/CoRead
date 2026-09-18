@@ -17,8 +17,11 @@ import {
   testCollabServerConnection,
   CollabServerTestResult,
 } from "../../utils/collab/collabServerConfig";
+import DatabaseService from "../../utils/storage/databaseService";
+import BookUtil from "../../utils/file/bookUtil";
+import toast from "react-hot-toast";
 
-// 「个人中心」页:共读昵称 + 共读服务器 + 我的笔记 / 高亮 + 阅读数据
+// 「个人中心」页:共读昵称 + 共读服务器 + 我的笔记 / 高亮 + 我的书签 + 阅读数据
 // 从左侧边栏「我的」进入,与「个人设置」里的昵称是同一个存储
 
 interface PersonalCenterProps {
@@ -27,7 +30,7 @@ interface PersonalCenterProps {
 }
 
 interface PersonalCenterState {
-  tab: "profile" | "note" | "highlight" | "stats";
+  tab: "profile" | "note" | "highlight" | "bookmark" | "stats";
   displayName: string;
   /** 共读服务器地址;空串 = 未配置 = 本地阅读器模式 */
   serverUrl: string;
@@ -40,12 +43,16 @@ interface PersonalCenterState {
   isStatsLoading: boolean;
   isTestingConnection: boolean;
   testResult: CollabServerTestResult | null;
+  bookmarksList: any[];
+  bookmarkBookNamesMap: Record<string, string>;
+  isBookmarksLoading: boolean;
 }
 
 const TABS = [
   { key: "profile", label: "个人信息" },
   { key: "note", label: "我的笔记" },
   { key: "highlight", label: "我的高亮" },
+  { key: "bookmark", label: "我的书签" },
   { key: "stats", label: "我的阅读数据" },
 ] as const;
 
@@ -73,18 +80,87 @@ class PersonalCenter extends React.Component<
       isStatsLoading: true,
       isTestingConnection: false,
       testResult: null,
+      bookmarksList: [],
+      bookmarkBookNamesMap: {},
+      isBookmarksLoading: false,
     };
   }
 
   componentDidMount() {
     if (this.state.tab === "stats") this.loadStats();
+    if (this.state.tab === "bookmark") this.loadBookmarks();
   }
 
   componentDidUpdate(_prevProps: PersonalCenterProps, prevState: PersonalCenterState) {
     if (prevState.tab !== "stats" && this.state.tab === "stats") {
       this.loadStats();
     }
+    if (prevState.tab !== "bookmark" && this.state.tab === "bookmark") {
+      this.loadBookmarks();
+    }
   }
+
+  loadBookmarks = async () => {
+    this.setState({ isBookmarksLoading: true });
+    try {
+      const records = (await DatabaseService.getAllRecords("bookmarks")) || [];
+      const uniqueBookKeys: string[] = Array.from(
+        new Set<string>(records.map((item: any) => String(item.bookKey || "")))
+      ).filter(Boolean);
+      const namesMap = await BookUtil.getBookNamesMapByKeys(uniqueBookKeys);
+      this.setState({
+        bookmarksList: records,
+        bookmarkBookNamesMap: namesMap,
+        isBookmarksLoading: false,
+      });
+    } catch (e) {
+      console.warn("Failed to load bookmarks", e);
+      this.setState({ isBookmarksLoading: false });
+    }
+  };
+
+  handleJumpBookmark = (bookmark: any) => {
+    if (!bookmark || !bookmark.bookKey) return;
+    try {
+      let bookLocation: any = {};
+      const cfi = bookmark.cfi;
+      if (cfi && cfi.startsWith("c") && cfi.includes("|")) {
+        const match = cfi.match(/^c(\d+)\|n([^|]*)\|p([^|]*)/);
+        if (match) {
+          bookLocation = {
+            chapterDocIndex: match[1],
+            count: match[2] || "ignore",
+            page: match[3] || "",
+          };
+        }
+      } else if (cfi) {
+        try {
+          bookLocation = JSON.parse(cfi) || {};
+        } catch {
+          bookLocation = { cfi };
+        }
+      }
+      ConfigService.setObjectConfig(
+        bookmark.bookKey,
+        bookLocation,
+        "recordLocation"
+      );
+      this.props.history.push("/reader/" + bookmark.bookKey);
+    } catch (e) {
+      toast.error("跳转书签失败");
+    }
+  };
+
+  handleDeleteBookmark = async (key: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await DatabaseService.deleteRecord(key, "bookmarks");
+      toast.success("书签已删除");
+      this.loadBookmarks();
+    } catch (err) {
+      toast.error("删除失败");
+    }
+  };
 
   loadStats = () => {
     this.setState({ isStatsLoading: true });
@@ -330,6 +406,61 @@ class PersonalCenter extends React.Component<
         {this.state.tab === "highlight" && (
           <div className="personal-center-note-wrapper">
             <NoteList {...({ tabMode: "highlight" } as any)} />
+          </div>
+        )}
+
+        {this.state.tab === "bookmark" && (
+          <div className="personal-center-section">
+            <div className="personal-center-section-title">我的书签</div>
+            {this.state.isBookmarksLoading ? (
+              <div className="personal-center-hint">加载中...</div>
+            ) : this.state.bookmarksList.length === 0 ? (
+              <div className="personal-center-empty">
+                <span className="icon-bookmark personal-center-empty-icon" />
+                <p>暂无书签。在阅读界面向下拉动页面即可添加书签。</p>
+              </div>
+            ) : (
+              <div className="personal-bookmark-grid">
+                {this.state.bookmarksList.map((bm: any) => {
+                  const bookTitle =
+                    this.state.bookmarkBookNamesMap[bm.bookKey] || "未命名书籍";
+                  return (
+                    <div
+                      key={bm.key}
+                      className="personal-bookmark-card"
+                      onClick={() => this.handleJumpBookmark(bm)}
+                    >
+                      <div className="personal-bookmark-header">
+                        <span className="personal-bookmark-book-badge">
+                          {bookTitle}
+                        </span>
+                        <span className="personal-bookmark-chapter">
+                          {bm.chapter || "正文"}
+                        </span>
+                        <button
+                          type="button"
+                          className="personal-bookmark-delete-btn"
+                          title="删除书签"
+                          onClick={(e) => this.handleDeleteBookmark(bm.key, e)}
+                        >
+                          <span className="icon-trash" />
+                        </button>
+                      </div>
+                      <div className="personal-bookmark-body">
+                        <p className="personal-bookmark-text">
+                          {bm.text || "书签位置"}
+                        </p>
+                      </div>
+                      <div className="personal-bookmark-footer">
+                        <span className="personal-bookmark-tip">
+                          点击直接跳转阅读 →
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 

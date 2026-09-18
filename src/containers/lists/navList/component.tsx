@@ -160,13 +160,24 @@ class NavList extends React.Component<NavListProps, NavListState> {
       toast(this.props.t("Wrong bookmark"));
       return;
     }
-    let bookLocation;
-    try {
-      bookLocation = JSON.parse(cfi) || {};
-    } catch (error) {
-      bookLocation = {
-        cfi: cfi,
-      };
+    let bookLocation: any = {};
+    if (cfi.startsWith("c") && cfi.includes("|")) {
+      const match = cfi.match(/^c(\d+)\|n([^|]*)\|p([^|]*)/);
+      if (match) {
+        bookLocation = {
+          chapterDocIndex: match[1],
+          count: match[2] || "ignore",
+          page: match[3] || "",
+        };
+      }
+    } else {
+      try {
+        bookLocation = JSON.parse(cfi) || {};
+      } catch (error) {
+        bookLocation = {
+          cfi: cfi,
+        };
+      }
     }
     const prevPosition = ConfigService.getObjectConfig(
       this.props.currentBook.key,

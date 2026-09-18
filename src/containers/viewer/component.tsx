@@ -41,6 +41,7 @@ import {
   isMobileConfigValue,
   isMobileRuntime,
 } from "../../utils/mobileRuntime";
+import { seamlessScrollManager } from "../../utils/reader/seamlessScroll";
 declare var window: any;
 let lock = false; //prevent from clicking too fasts
 
@@ -143,6 +144,7 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
     window.addEventListener("resize", this.resizeHandler);
   }
   componentWillUnmount() {
+    seamlessScrollManager.detach();
     if (this.resizeHandler) {
       window.removeEventListener("resize", this.resizeHandler);
       this.resizeHandler = null;
@@ -155,6 +157,12 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
     this.collabUnsubs = [];
   }
   async UNSAFE_componentWillReceiveProps(nextProps: ViewerProps) {
+    if (
+      nextProps.readerMode !== this.props.readerMode &&
+      nextProps.readerMode !== "scroll"
+    ) {
+      seamlessScrollManager.detach();
+    }
     if (
       nextProps.margin !== this.props.margin ||
       nextProps.scale !== this.props.scale ||
@@ -527,6 +535,41 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
       // rendition.tranformText();
       this.handleBindGesture();
       await this.handleHighlight(rendition);
+      if (this.props.readerMode === "scroll") {
+        const pageArea = document.getElementById("page-area");
+        if (pageArea) {
+          seamlessScrollManager.attach({
+            pageArea,
+            rendition,
+            format: this.props.currentBook.format,
+            bookKey: this.props.currentBook.key,
+            initialChapterIndex: chapterDocIndex,
+            onChapterChange: (index: number, title: string) => {
+              this.props.handleCurrentChapter(title);
+              this.props.handleCurrentChapterIndex(index);
+              this.setState({
+                chapter: title,
+                chapterDocIndex: index,
+              });
+              ConfigService.setObjectConfig(
+                this.props.currentBook.key,
+                {
+                  ...ConfigService.getObjectConfig(
+                    this.props.currentBook.key,
+                    "recordLocation",
+                    {}
+                  ),
+                  chapterTitle: title,
+                  chapterDocIndex: String(index),
+                },
+                "recordLocation"
+              );
+            },
+          });
+        }
+      } else {
+        seamlessScrollManager.detach();
+      }
       lock = true;
       setTimeout(() => {
         lock = false;

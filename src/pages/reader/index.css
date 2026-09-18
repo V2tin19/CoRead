@@ -733,6 +733,43 @@
   margin-right: 2px;
 }
 
+/* 常驻右上角的折角缎带书签标（沉浸阅读状态下始终醒目可见） */
+.reader-corner-bookmark {
+  position: fixed;
+  top: 0;
+  right: 24px;
+  z-index: 24;
+  cursor: pointer;
+  pointer-events: auto;
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.22));
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+  animation: bookmarkRibbonDrop 0.26s cubic-bezier(0.16, 1, 0.3, 1);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.reader-corner-bookmark:active {
+  transform: scale(0.92);
+}
+
+.reader-corner-bookmark-ribbon {
+  width: 18px;
+  height: 38px;
+  background: linear-gradient(180deg, #e53935 0%, #c62828 100%);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% calc(100% - 8px), 0 100%);
+  border-radius: 0 0 2px 2px;
+}
+
+@keyframes bookmarkRibbonDrop {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
 .mobile-reader-back-btn,
 .mobile-reader-top-action {
   width: 44px;

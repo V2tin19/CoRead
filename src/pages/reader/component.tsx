@@ -40,6 +40,7 @@ import {
   TURN_CHAPTER_BY_GESTURE_EVENT,
 } from "../../utils/reader/pageSwipeTurn";
 import {
+  getBookmarkSignature,
   placeSignature,
   toggleBookmarkByGesture,
 } from "../../utils/reader/bookmarkUtil";
@@ -283,14 +284,17 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
    * （`JSON.stringify(progress)`，还漏了 await，恒为 `"{}"`），这里刻意不复用它。
    */
   refreshBookmarkFlag = () => {
-    if (!isMobileRuntime()) return;
     const rendition = (this.props as any).htmlBook?.rendition;
     const list: any[] = (this.props as any).bookmarks || [];
     let next = false;
     try {
       if (rendition?.getPosition) {
         const signature = placeSignature(rendition.getPosition() || {});
-        next = list.some((item) => item && item.cfi === signature);
+        next = list.some(
+          (item) =>
+            item &&
+            (item.cfi === signature || getBookmarkSignature(item) === signature)
+        );
       }
     } catch (err) {
       next = false;
@@ -306,7 +310,6 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
    * 而这次操作针对的就是当前页，结果本来就知道。
    */
   markViewBookmarked = (bookmarked: boolean) => {
-    if (!isMobileRuntime()) return;
     if (bookmarked !== this.state.isViewBookmarked) {
       this.setState({ isViewBookmarked: bookmarked });
     }
@@ -767,7 +770,10 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
    * 判定细节（位置指纹、为什么不复用操作面板那套）见 `utils/reader/bookmarkUtil.ts`。
    */
   handleToggleBookmarkByGesture = async () => {
-    if (!isMobileRuntime()) return;
+    const isMobile =
+      isMobileRuntime() ||
+      (typeof document !== "undefined" && document.body.clientWidth < 570);
+    if (!isMobile) return;
     const result = await toggleBookmarkByGesture({
       bookKey: this.props.currentBook?.key || "",
       rendition: this.props.htmlBook?.rendition,
@@ -843,6 +849,29 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
     return (
       <div className={`viewer ${isMobile ? "mobile-reader-mode" : ""}`}>
         <Tooltip id="my-tooltip" style={{ zIndex: 25 }} />
+
+        {/* 常驻右上角优雅书签标：当前页有书签时常驻展示，点击可快速撤销书签 */}
+        {this.state.isViewBookmarked && (
+          <div
+            className="reader-corner-bookmark"
+            title="当前页已添加书签，点击撤销"
+            onClick={async (e) => {
+              e.stopPropagation();
+              const rendition = this.props.htmlBook?.rendition;
+              if (rendition) {
+                await toggleBookmarkByGesture({
+                  bookKey: this.props.currentBook?.key || "",
+                  rendition,
+                  t: this.props.t,
+                });
+                this.props.handleFetchBookmarks();
+                this.refreshBookmarkFlag();
+              }
+            }}
+          >
+            <div className="reader-corner-bookmark-ribbon" />
+          </div>
+        )}
 
         {isMobile && (
           <div

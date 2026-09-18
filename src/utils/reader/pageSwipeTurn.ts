@@ -44,6 +44,8 @@
  */
 
 import { isMobileRuntime } from "../mobileRuntime";
+import { withPageTurnAnimation } from "./pageTurnAnimation";
+import { seamlessScrollManager } from "./seamlessScroll";
 
 /** 判定为横向手势所需的最小位移（px） */
 const H_INTENT_PX = 8;
@@ -372,7 +374,17 @@ export function bindPageSwipeTurn(
     const maxTop = Math.max(0, shell.scrollHeight - shell.clientHeight);
     const top = shell.scrollTop;
     if (dy < 0) {
-      // 手指上滑 = 内容往上走 = 往本章后面读；贴到最底才接管
+      // 手指上滑 = 内容往上走 = 往本章后面读；无缝滚动模式下自动追加下一章
+      seamlessScrollManager.appendNextChapter();
+      const chapterList = rendition?.chapterDocList || [];
+      const isAtVeryEndOfBook =
+        chapterList.length > 0 &&
+        seamlessScrollManager.getLastAppendedIndex() >= chapterList.length - 1;
+
+      // 如果全书还没完，放行原生纵向连续向下滚动，绝不触发整页换章硬切
+      if (!isAtVeryEndOfBook) {
+        return "";
+      }
       if (maxTop <= 0 || maxTop - top > 2) {
         return "";
       }
@@ -617,12 +629,21 @@ export function bindPageSwipeTurn(
         await animateScrollLeft(body, from, target, SNAP_MS);
         await rendition.record();
       } else if (pages !== 0) {
-        // 已在本文档首/尾，位移翻不动了 => 交给内核跨章（内容整体替换，硬切）
-        if (pages > 0) {
-          await rendition.next();
-        } else {
-          await rendition.prev();
-        }
+        // 已在本文档首/尾，位移翻不动了 => 跨章平滑滑动翻页
+        // 绝不要在启动动画前突然把 body.scrollLeft 重设回 originPage（会造成瞬间的反向抖动/抽搐）
+        const dir = pages > 0 ? "next" : "prev";
+        await withPageTurnAnimation(dir, async () => {
+          if (dir === "next") {
+            await rendition.next();
+          } else {
+            await rendition.prev();
+          }
+        });
+        try {
+          body.scrollLeft = dir === "next" ? 0 : maxScrollOffset(body);
+        } catch {}
+        await rendition.record();
+        notifyViewSettled(doc);
       } else {
         // 没到阈值：平滑回弹
         await animateScrollLeft(body, from, originPage, SNAP_MS);

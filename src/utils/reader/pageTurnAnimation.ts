@@ -42,7 +42,10 @@ let activeCleanTimer: any = null;
  */
 function getTurnTarget(): HTMLElement | null {
   if (typeof document === "undefined") return null;
-  if (isMobileRuntime()) {
+  const isMobile =
+    isMobileRuntime() ||
+    (typeof document !== "undefined" && document.body.clientWidth < 570);
+  if (isMobile) {
     return document.getElementById("page-area");
   }
   const iframe = document.querySelector(
@@ -81,20 +84,26 @@ export async function withPageTurnAnimation(
   }
 
   const el = getTurnTarget();
+  const isMobile =
+    isMobileRuntime() ||
+    (typeof document !== "undefined" && document.body.clientWidth < 570);
   // next = 向前翻 = 新页从右边进来、旧页往左走
   const sign = direction === "next" ? -1 : 1;
-  // 位移量：桌面端沿用固定 56px；手机端按正文宽度的 45% 算（上限 220px）——
-  // 手机端「普通翻页」是整页横向滚动（实测步长 376px），跨章只挪 56px 的话
-  // 观感上还是「点一下、顿一下」，和普通翻页对不上（果冻的第 5 条）。
-  const offset = isMobileRuntime()
-    ? Math.min(Math.round((el?.clientWidth || 380) * 0.45), 220)
-    : OFFSET_PX;
+  // 位移量：桌面端沿用固定 56px；手机端按正文整宽算，保证内容完全滑出视口，避免换章重绘白屏闪烁
+  const width =
+    el?.clientWidth || (typeof window !== "undefined" ? window.innerWidth : 380);
+  const offset = isMobile ? width : OFFSET_PX;
+  const outMs = isMobile ? 120 : OUT_MS;
+  const inMs = isMobile ? 180 : IN_MS;
 
   if (el) {
     try {
       el.style.willChange = "transform";
-      el.style.transition = `transform ${OUT_MS}ms cubic-bezier(0.25, 0.46, 0.45, 0.94)`;
+      el.style.transition = `transform ${outMs}ms cubic-bezier(0.25, 0.46, 0.45, 0.94)`;
       el.style.transform = `translateX(${sign * offset}px)`;
+      if (isMobile) {
+        await new Promise((r) => setTimeout(r, outMs));
+      }
     } catch (e) {
       // 忽略：拿不到元素就只做翻页，不做动画
     }
@@ -105,16 +114,23 @@ export async function withPageTurnAnimation(
   } finally {
     if (el) {
       try {
-        // 先无过渡地跳到反方向的起点，再放开过渡平滑滑回 0 —— 纯位移平滑入场
+        // 先无过渡地跳到反方向的起点，使用 double rAF 确保浏览器渲染引擎已提交起点变换，
+        // 彻底消除由于 Blink/WebView 内部状态未提交导致的「全屏扫射/反向跳跃」与闪动
         el.style.transition = "none";
         el.style.transform = `translateX(${-sign * offset}px)`;
-        void el.offsetWidth; // 强制回流，保证进入过渡生效
-        el.style.transition = `transform ${IN_MS}ms cubic-bezier(0.16, 1, 0.3, 1)`;
-        el.style.transform = "translateX(0)";
-        activeCleanTimer = window.setTimeout(() => {
-          clearTurnStyles(el);
-          activeCleanTimer = null;
-        }, IN_MS + 40);
+        await new Promise<void>((resolve) => {
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              el.style.transition = `transform ${inMs}ms cubic-bezier(0.16, 1, 0.3, 1)`;
+              el.style.transform = "translateX(0)";
+              activeCleanTimer = window.setTimeout(() => {
+                clearTurnStyles(el);
+                activeCleanTimer = null;
+                resolve();
+              }, inMs + 30);
+            });
+          });
+        });
       } catch (e) {
         clearTurnStyles(el);
       }

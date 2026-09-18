@@ -238,3 +238,121 @@
   border-left: 3px solid #eb5757;
 }
 
+.personal-center-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  opacity: 0.5;
+  text-align: center;
+}
+
+.personal-center-empty-icon {
+  font-size: 36px;
+  margin-bottom: 12px;
+}
+
+.personal-bookmark-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.personal-bookmark-card {
+  border: 1px solid rgba(128, 128, 128, 0.18);
+  border-radius: 10px;
+  padding: 14px 16px;
+  background: var(--coread-card-bg, rgba(255, 255, 255, 0.03));
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.personal-bookmark-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(75, 137, 255, 0.45);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.personal-bookmark-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.personal-bookmark-book-badge {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(75, 137, 255, 0.12);
+  color: #4b89ff;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.personal-bookmark-chapter {
+  font-size: 12px;
+  opacity: 0.6;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.personal-bookmark-delete-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.4;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.15s ease, color 0.15s ease;
+}
+
+.personal-bookmark-delete-btn:hover {
+  opacity: 1;
+  color: #e53935;
+}
+
+.personal-bookmark-body {
+  margin-bottom: 12px;
+}
+
+.personal-bookmark-text {
+  font-size: 13px;
+  line-height: 1.6;
+  opacity: 0.85;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin: 0;
+}
+
+.personal-bookmark-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.personal-bookmark-tip {
+  font-size: 12px;
+  color: #4b89ff;
+  opacity: 0.85;
+}
+
