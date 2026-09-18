@@ -223,19 +223,24 @@ export async function testCollabServerConnection(
     // fetch failed (CORS / 网络不通 / 证书不信任 / 协议限制)
     let hint =
       "请检查服务器地址是否正确、Node 服务是否已启动并监听对应网卡。";
-    if (
+    if (isMobile) {
+      hint =
+        "⚠️ 手机端连接失败核心排查：\n" +
+        "1. Nginx 开启了网页密码（Basic Auth）会拦截跨域预检（OPTIONS），请在 Nginx 的 location /collab/ 块中配置 auth_basic off;\n" +
+        "2. 地址是否缺少 /collab 后缀？（若走 Nginx 反代，应填写为 " +
+        (url.endsWith("/collab") ? url : url + "/collab") +
+        "）\n" +
+        "3. 服务端环境变量需配置 COLLAB_ALLOWED_ORIGIN=https://localhost,http://localhost";
+    } else if (
       typeof window !== "undefined" &&
       window.location?.protocol === "https:" &&
       url.startsWith("http://")
     ) {
       hint =
-        "⚠️ 浏览器安全限制：HTTPS 页面中无法请求 HTTP 服务器（Mixed Content 限制）。请使用 HTTPS 部署共读服务。";
-    } else if (isMobile) {
-      hint =
-        "⚠️ 手机端常见原因：\n1. 跨域拦截：安卓端（https://localhost）跨域请求，需在服务端环境变量配置 COLLAB_ALLOWED_ORIGIN=https://localhost,http://localhost\n2. 若直连 IP，需服务端 COLLAB_HOST=0.0.0.0 且防火墙放行 17390 端口。";
+        "⚠️ 浏览器安全限制：HTTPS 页面中无法请求 HTTP 服务器（Mixed Content 限制）。请使用 HTTPS 部署共读服务或在安卓 App 中使用。";
     } else {
       hint =
-        "⚠️ 常见原因：跨域（CORS）被拦截，请确保服务端配置了 COLLAB_ALLOWED_ORIGIN；或者服务端未启动 / 证书无效。";
+        "⚠️ 常见原因：跨域（CORS）被拦截，请确保服务端配置了 COLLAB_ALLOWED_ORIGIN；或 Nginx Basic Auth 拦截了跨域预检。";
     }
 
     return {
@@ -288,9 +293,9 @@ export async function testCollabServerConnection(
       };
     }
 
-    // 若服务端是旧版本（404 没有 /auth/verify），退回使用 POST /rooms 探活
+    // 若服务端是旧版本（404 没有 /auth/verify），退回使用幂等的 leave 接口探活（避免多建空房间）
     if (verifyRes.status === 404) {
-      const probeRooms = await fetch(`${url}/rooms`, {
+      const probeRooms = await fetch(`${url}/rooms/__PING_PROBE__/leave`, {
         method: "POST",
         headers: {
           "content-type": "application/json",
