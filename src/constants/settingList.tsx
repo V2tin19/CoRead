@@ -14,7 +14,7 @@ export const generalSettingList = [
   {
     isElectron: true,
     title: "Disable screen blanking",
-    desc: "When Koodo is running, your computer won't enter sleep mode",
+    desc: "When CoRead is running, your computer won't enter sleep mode",
     propName: "isPreventSleep",
   },
   {
@@ -42,14 +42,14 @@ export const generalSettingList = [
   {
     isElectron: true,
     title: "Open book without adding it to library",
-    desc: "When opening books in the file manager with Koodo, the opened books won't be added to the library",
+    desc: "When opening books in the file manager with CoRead, the opened books won't be added to the library",
     propName: "isPreventAdd",
   },
 
   {
     isElectron: false,
     title: "Auto precache books after import",
-    desc: "Pre-cache books after import to increase opening speed, Koodo will generate a precache version of the original book and save it into your library",
+    desc: "Pre-cache books after import to increase opening speed, CoRead will generate a precache version of the original book and save it into your library",
     propName: "isPrecacheBook",
   },
   {
@@ -337,7 +337,7 @@ export const readingSettingList = [
   {
     isElectron: false,
     title: "No popup when selecting texts",
-    desc: "Turn it on when you want Koodo to work with other third-party translation service, right clicking on the selected text will trigger popup again",
+    desc: "Turn it on when you want CoRead to work with other third-party translation service, right clicking on the selected text will trigger popup again",
     propName: "isDisablePopup",
   },
   {

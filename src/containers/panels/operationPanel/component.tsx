@@ -216,6 +216,7 @@ class OperationPanel extends React.Component<
         </div>
         <div
           className="exit-reading-button"
+          title="退出阅读"
           onClick={() => {
             this.handleExit();
           }}
@@ -235,6 +236,7 @@ class OperationPanel extends React.Component<
         {!isMobileRuntime() && (
           <div
             className="add-bookmark-button"
+            title="添加书签"
             onClick={() => {
               this.handleAddBookmark();
             }}
@@ -252,6 +254,7 @@ class OperationPanel extends React.Component<
         {!isMobileRuntime() && (
           <div
             className="enter-fullscreen-button"
+            title={this.state.isFullscreen ? "退出全屏" : "全屏模式"}
             onClick={() => {
               this.handleScreen();
             }}
