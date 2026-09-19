@@ -20,17 +20,19 @@ import {
 import DatabaseService from "../../utils/storage/databaseService";
 import BookUtil from "../../utils/file/bookUtil";
 import toast from "react-hot-toast";
+import AISetting from "../settings/aiSetting";
 
-// 「个人中心」页:共读昵称 + 共读服务器 + 我的笔记 / 高亮 + 我的书签 + 阅读数据
+// 「个人中心」页:共读昵称 + 共读服务器 + 我的笔记 / 高亮 + 我的书签 + 我的阅读数据 + AI模型设置
 // 从左侧边栏「我的」进入,与「个人设置」里的昵称是同一个存储
 
 interface PersonalCenterProps {
   history: any;
   t: (key: string) => string;
+  handleFetchPlugins?: () => void;
 }
 
 interface PersonalCenterState {
-  tab: "profile" | "note" | "highlight" | "bookmark" | "stats";
+  tab: "profile" | "note" | "highlight" | "bookmark" | "stats" | "ai";
   displayName: string;
   /** 共读服务器地址;空串 = 未配置 = 本地阅读器模式 */
   serverUrl: string;
@@ -50,6 +52,7 @@ interface PersonalCenterState {
 
 const TABS = [
   { key: "profile", label: "个人信息" },
+  { key: "ai", label: "AI 设置" },
   { key: "note", label: "我的笔记" },
   { key: "highlight", label: "我的高亮" },
   { key: "bookmark", label: "我的书签" },
@@ -558,6 +561,17 @@ class PersonalCenter extends React.Component<
             >
               查看完整阅读统计(30 天曲线 + 热力图) →
             </div>
+          </div>
+        )}
+
+        {this.state.tab === "ai" && (
+          <div className="personal-center-section personal-ai-section">
+            <AISetting
+              {...({
+                t: this.props.t,
+                handleFetchPlugins: this.props.handleFetchPlugins || (() => {}),
+              } as any)}
+            />
           </div>
         )}
       </div>

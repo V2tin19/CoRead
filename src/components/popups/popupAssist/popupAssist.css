@@ -76,3 +76,114 @@
   text-align: center;
   width: 60px;
 }
+
+/* 顶部配置按钮 */
+.popup-assist-setting-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  cursor: pointer;
+  opacity: 0.75;
+  color: inherit;
+  transition: opacity 0.2s ease, background-color 0.2s ease;
+}
+.popup-assist-setting-btn:hover {
+  opacity: 1;
+  background: rgba(128, 128, 128, 0.15);
+}
+
+/* 嵌入式配置面板 */
+.popup-assist-config-container {
+  padding: 14px 16px;
+  max-height: 280px;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+.popup-assist-config-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.popup-assist-config-row {
+  margin-bottom: 12px;
+}
+.popup-assist-config-label {
+  font-size: 12px;
+  opacity: 0.75;
+  margin-bottom: 4px;
+}
+.popup-assist-config-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 7px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(128, 128, 128, 0.25);
+  background: rgba(128, 128, 128, 0.06);
+  color: inherit;
+  font-size: 13px;
+  outline: none;
+}
+.popup-assist-config-input:focus {
+  border-color: #f16464;
+}
+.popup-assist-config-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
+.popup-assist-btn {
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.15s ease;
+}
+.popup-assist-btn:hover {
+  opacity: 0.85;
+}
+.popup-assist-btn-primary {
+  background: #f16464;
+  color: #fff;
+  font-weight: 500;
+}
+.popup-assist-btn-secondary {
+  background: rgba(128, 128, 128, 0.16);
+  color: inherit;
+}
+
+/* 优雅空态卡片 */
+.popup-assist-empty-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 36px 20px;
+  text-align: center;
+}
+.popup-assist-empty-icon {
+  font-size: 38px;
+  margin-bottom: 12px;
+  opacity: 0.9;
+}
+.popup-assist-empty-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.popup-assist-empty-desc {
+  font-size: 13px;
+  opacity: 0.65;
+  max-width: 300px;
+  line-height: 1.5;
+  margin-bottom: 18px;
+}
+

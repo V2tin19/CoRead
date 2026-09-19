@@ -28,4 +28,10 @@ export interface PopupAssistState {
   answer: string;
   mode: string;
   inputQuestion: string;
+  isConfiguring: boolean;
+  configProvider: string;
+  configEndpoint: string;
+  configApiKey: string;
+  configModelId: string;
+  isTesting: boolean;
 }

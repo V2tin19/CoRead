@@ -15,7 +15,7 @@
 
 /* 微信读书风格深色磨砂胶囊气泡菜单 */
 .wx-bubble-container {
-  position: absolute;
+  position: fixed;
   z-index: 1000;
   display: flex;
   flex-direction: column;

@@ -448,6 +448,8 @@ class PopupMenu extends React.Component<PopupMenuProps, PopupMenuStates> {
         <div
           className="popup-menu-container wx-bubble-container"
           onMouseDown={(event) => event.preventDefault()}
+          onPointerDown={(event) => event.stopPropagation()}
+          onTouchStart={(event) => event.stopPropagation()}
         >
         {/* 上箭头（当胶囊位于选区下方时显示，尖角朝上） */}
         {isArrowTop && (
