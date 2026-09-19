@@ -33,8 +33,11 @@
 }
 @media screen and (max-width: 576px) {
   .popup-box-container {
-    width: 90%;
-    left: 5%;
+    width: 92% !important;
+    left: 4% !important;
+    z-index: 95 !important;
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.18) !important;
+    border-radius: 12px 12px 0 0 !important;
   }
 }
 .popup-menu-triangle-down {

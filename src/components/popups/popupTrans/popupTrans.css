@@ -224,3 +224,56 @@
   display: flex;
   justify-content: flex-end;
 }
+
+/* 底部辅助操作栏 */
+.trans-bottom-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 0 4px;
+}
+
+.trans-quick-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  border: 1px solid rgba(128, 128, 128, 0.25);
+  background: transparent;
+  color: inherit;
+  opacity: 0.88;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.trans-quick-action-btn:hover {
+  opacity: 1;
+  background: rgba(128, 128, 128, 0.1);
+  border-color: rgba(128, 128, 128, 0.4);
+}
+
+.trans-quick-action-btn:active {
+  transform: scale(0.97);
+}
+
+.trans-highlight-btn {
+  color: #4b89ff;
+  border-color: rgba(75, 137, 255, 0.4);
+  background: rgba(75, 137, 255, 0.08);
+}
+
+.trans-highlight-btn:hover {
+  background: rgba(75, 137, 255, 0.15);
+  border-color: #4b89ff;
+}
+
+.trans-ai-config-btn {
+  margin-left: auto;
+  opacity: 0.8;
+}
+

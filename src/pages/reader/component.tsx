@@ -1492,10 +1492,6 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
             <div
               className="mobile-reader-menu-backdrop"
               onClick={() => this.setState({ isOpenBottomPanel: false })}
-              onTouchEnd={(e) => {
-                e.preventDefault();
-                this.setState({ isOpenBottomPanel: false });
-              }}
             />
           )}
         <div
@@ -1504,12 +1500,23 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
              「这一下是收起工具条还是翻页」。走 data 属性而不是让那边去解析
              transform，避免样式一改就静默失效。 */
           data-open={this.state.isOpenBottomPanel ? "yes" : "no"}
-          onMouseEnter={() => {
-            this.cancelLeaveReader("bottom");
-          }}
-          onMouseLeave={() => {
-            this.scheduleLeaveReader("bottom");
-          }}
+          onClick={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}
+          onMouseEnter={
+            isMobile
+              ? undefined
+              : () => {
+                  this.cancelLeaveReader("bottom");
+                }
+          }
+          onMouseLeave={
+            isMobile
+              ? undefined
+              : () => {
+                  this.scheduleLeaveReader("bottom");
+                }
+          }
           style={
             this.state.isOpenBottomPanel
               ? {

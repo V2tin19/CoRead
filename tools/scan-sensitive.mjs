@@ -106,10 +106,11 @@ const ALLOWED_HOSTS = new Set([
   // npm 国内镜像（打包脚本 ELECTRON_BUILDER_BINARIES_MIRROR / ELECTRON_MIRROR 用的就是它）
   "registry.npmmirror.com", "npmmirror.com", "cdn.npmmirror.com",
   "schema.org", "openstreetmap.org", "meyerweb.com", "www.robotstxt.org", "robotstxt.org",
-  // 合法第三方服务（阅读相关）
+  // 合法第三方服务（阅读与翻译相关）
   "tessdata.projectnaptha.com", "www.gutenberg.org", "manybooks.net",
   "apis.google.com", "www.googleapis.com", "sync.koreader.rocks",
   "beian.miit.gov.cn", "beian.mps.gov.cn",
+  "fanyi.baidu.com", "translate.google.com", "api.mymemory.translated.net",
   // 公开第三方 AI 供应商端点（用户自带 Key 直连）
   "api.openai.com", "api.anthropic.com", "generativelanguage.googleapis.com",
   "api.deepseek.com", "api.mistral.ai", "api.cohere.ai", "api.groq.com",

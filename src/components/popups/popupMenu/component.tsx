@@ -7,6 +7,7 @@ import { ConfigService, HighlightUtil } from "../../../services";
 import {
   getSelection,
   getSelectionSentence,
+  toggleReadingPanel,
 } from "../../../utils/reader/mouseEvent";
 import { createHighlight } from "../../../utils/reader/noteUtil";
 import { isMobileRuntime } from "../../../utils/mobileRuntime";
@@ -14,6 +15,7 @@ import copy from "copy-text-to-clipboard";
 import toast from "react-hot-toast";
 import DatabaseService from "../../../utils/storage/databaseService";
 import collabClient, { getCollabBookKey } from "../../../utils/collab/collabClient";
+import { openExternalUrl } from "../../../utils/common";
 
 declare var window: any;
 
@@ -38,62 +40,91 @@ class PopupMenu extends React.Component<PopupMenuProps, PopupMenuStates> {
     );
 
     const parsedInitialStyle =
-      initialHighlight.styleType === "wave"
-        ? "wavy"
-        : initialHighlight.styleType || "background";
+      initialHighlight.styleType ||
+      (initialHighlight.key && initialHighlight.key.includes("-")
+        ? initialHighlight.key.split("-")[0]
+        : "background");
 
     this.state = {
       deleteKey: "",
-      rect: this.props.rect,
       isRightEdge: false,
+      rect: this.props.rect || null,
       showColorPicker: false,
       activeHighlightKey: "",
       currentStyle: parsedInitialStyle,
-      currentColor: initialHighlight.color || "#FFD54F",
+      currentColor: initialHighlight.color || PRESET_COLORS[0],
       arrowLeft: 140,
       isArrowTop: false,
       posX: 0,
       posY: 0,
-      menuWidth: 300,
+      menuWidth: 356,
     };
   }
-  UNSAFE_componentWillReceiveProps(nextProps: PopupMenuProps) {
-    if (nextProps.rect !== this.props.rect) {
-      this.setState(
-        {
-          rect: nextProps.rect,
-        },
-        () => {
-          this.openMenu();
-        }
-      );
+
+  componentDidMount() {
+    if (this.props.rect) {
+      this.setState({ rect: this.props.rect }, () => {
+        this.openMenu();
+      });
     }
   }
 
-  /** 检测当前选区是否已经落在某个已有高亮中 */
-  detectExistingHighlight = () => {
+  UNSAFE_componentWillReceiveProps(nextProps: PopupMenuProps) {
+    if (nextProps.rect && nextProps.rect !== this.props.rect) {
+      this.setState({ rect: nextProps.rect }, () => {
+        this.openMenu();
+      });
+    }
+  }
+
+  componentDidUpdate(prevProps: PopupMenuProps) {
+    if (this.props.rect && this.props.rect !== prevProps.rect) {
+      this.setState({ rect: this.props.rect }, () => {
+        this.openMenu();
+      });
+      return;
+    }
+    if (
+      (!prevProps.isOpenMenu && this.props.isOpenMenu) ||
+      (prevProps.menuMode !== "menu" && this.props.menuMode === "menu")
+    ) {
+      this.openMenu();
+    }
+  }
+
+
+  /** 检测当前选中文本是否已包含划线/笔记 */
+  detectExistingHighlight = async () => {
     try {
-      const docs = getIframeDoc(
+      const notes: any[] = await DatabaseService.getAllRecords("notes");
+      const bookKey = this.props.currentBook?.key;
+      const currentNotes = notes.filter((n) => n.bookKey === bookKey);
+      let docs = getIframeDoc(
         this.props.currentBook.format,
         this.props.currentBook.key
       );
       for (let i = 0; i < docs.length; i++) {
-        const doc = docs[i];
+        let doc = docs[i];
         if (!doc) continue;
         const sel = doc.getSelection();
-        if (sel && sel.anchorNode) {
-          const parent = (
-            sel.anchorNode.nodeType === Node.TEXT_NODE
-              ? sel.anchorNode.parentElement
-              : sel.anchorNode
-          ) as HTMLElement;
-          const noteEl = parent?.closest?.(".kookit-note, [data-key]");
-          const key = noteEl?.getAttribute("data-key");
-          if (key) {
-            this.setState({ activeHighlightKey: key });
-            DatabaseService.getRecord(key, "notes").then((note: any) => {
-              if (note?.color) {
-                const parsed = this.highlightUtil.getHighlightValue(note.color);
+        if (sel && sel.rangeCount > 0 && !sel.isCollapsed) {
+          const range = sel.getRangeAt(0);
+          const parent =
+            range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE
+              ? (range.commonAncestorContainer as HTMLElement)
+              : range.commonAncestorContainer.parentElement;
+          const noteEl = parent?.closest?.(".kookit-note") as HTMLElement;
+          if (noteEl) {
+            const key =
+              noteEl.getAttribute("data-key") ||
+              (noteEl as any)?.dataset?.key ||
+              "";
+            this.setState({ activeHighlightKey: key }, () => {
+              const matched = currentNotes.find((n) => n.key === key);
+              if (matched && matched.color) {
+                const parsed = this.highlightUtil.getHighlightValue(
+                  matched.color
+                );
                 const detectedStyle =
                   parsed.styleType === "wave"
                     ? "wavy"
@@ -118,8 +149,8 @@ class PopupMenu extends React.Component<PopupMenuProps, PopupMenuStates> {
   getHtmlPosition(rect: any, expanded: boolean) {
     const isMobile = isMobileRuntime() || document.body.clientWidth < 570;
     const MENU_WIDTH = isMobile
-      ? Math.min(312, window.innerWidth - 20)
-      : 300;
+      ? Math.min(364, window.innerWidth - 16)
+      : 364;
     const MENU_HEIGHT = expanded ? 98 : 52;
     const pageSize = this.props.rendition?.getPageSize() || {
       scrollTop: 0,
@@ -145,18 +176,25 @@ class PopupMenu extends React.Component<PopupMenuProps, PopupMenuStates> {
       isArrowTop = true; // true = 箭头在顶部指向上方选区
     }
 
+    // 视口边界保护：确保气泡永远位于视口上下边界内
+    const maxTop = window.innerHeight - MENU_HEIGHT - 12;
+    if (posY > maxTop) {
+      posY = maxTop;
+    }
+    posY = Math.max(10, posY);
+
     return { posX, posY, arrowLeft, isArrowTop, menuWidth: MENU_WIDTH };
   }
 
   showMenu = (expanded?: boolean) => {
-    const rect = this.state.rect;
-    if (!rect) return;
+    const rect = this.state.rect || this.props.rect;
+    if (!rect || (rect.width === 0 && rect.height === 0)) return;
     const isExpanded =
       expanded !== undefined ? expanded : this.state.showColorPicker;
     const { posX, posY, arrowLeft, isArrowTop, menuWidth } =
       this.getHtmlPosition(rect, isExpanded);
 
-    this.setState({ posX, posY, arrowLeft, isArrowTop, menuWidth });
+    this.setState({ posX, posY, arrowLeft, isArrowTop, menuWidth, rect });
     this.props.handleOpenMenu(true);
   };
 
@@ -165,25 +203,20 @@ class PopupMenu extends React.Component<PopupMenuProps, PopupMenuStates> {
     this.setState({ showColorPicker: false });
     this.detectExistingHighlight();
 
-    let docs = getIframeDoc(
-      this.props.currentBook.format,
-      this.props.currentBook.key
-    );
-    let sel: Selection | null = null;
-    for (let i = 0; i < docs.length; i++) {
-      let doc = docs[i];
-      if (!doc) continue;
-      sel = doc.getSelection();
-      if (sel && sel.rangeCount > 0 && !sel.isCollapsed) {
-        break;
-      }
-    }
-
-    if (!sel || sel.isCollapsed) {
+    const rect = this.state.rect || this.props.rect;
+    if (!rect || (rect.width === 0 && rect.height === 0)) {
       if (this.props.isOpenMenu) {
         this.closeMenu();
       }
       return;
+    }
+
+    // 互斥保障：气泡菜单展示时，若底部进度面板开着，自动收起底部面板，避免两个菜单重叠
+    const bottomPanel = document.querySelector(
+      '.progress-panel-container[data-open="yes"]'
+    );
+    if (bottomPanel) {
+      toggleReadingPanel("bottom");
     }
 
     this.showMenu(false);
@@ -398,6 +431,19 @@ class PopupMenu extends React.Component<PopupMenuProps, PopupMenuStates> {
     this.props.handleOpenMenu(true);
   };
 
+  /** 点击“翻译”：呼出翻译面板 */
+  handleTranslate = () => {
+    const text = getSelection(this.props.currentBook.format);
+    if (!text || !text.trim()) {
+      toast(this.props.t("No text selected") || "请先选中文本");
+      return;
+    }
+    this.closeMenu();
+    this.props.handleOriginalText(text.trim());
+    this.props.handleMenuMode("trans");
+    this.props.handleOpenMenu(true);
+  };
+
   /** 点击“AI 问书” */
   handleAskAI = () => {
     const text = getSelection(this.props.currentBook.format);
@@ -405,6 +451,55 @@ class PopupMenu extends React.Component<PopupMenuProps, PopupMenuStates> {
     this.props.handleQuoteText?.(text);
     this.props.handleMenuMode("assistant");
     this.props.handleOpenMenu(true);
+  };
+
+  /** 点击“网上搜索”：调起系统默认浏览器/新窗口进行搜索引擎检索 */
+  handleSearch = () => {
+    const text = getSelection(this.props.currentBook.format);
+    if (!text || !text.trim()) {
+      toast(this.props.t("No text selected") || "请先选中文本");
+      return;
+    }
+    this.closeMenu();
+    let url = "";
+    switch (ConfigService.getReaderConfig("searchEngine")) {
+      case "google":
+        url = "https://www.google.com/search?q=" + encodeURIComponent(text.trim());
+        break;
+      case "baidu":
+        url = "https://www.baidu.com/s?wd=" + encodeURIComponent(text.trim());
+        break;
+      case "bing":
+        url = "https://www.bing.com/search?q=" + encodeURIComponent(text.trim());
+        break;
+      case "duckduckgo":
+        url = "https://duckduckgo.com/?q=" + encodeURIComponent(text.trim());
+        break;
+      case "yandex":
+        url = "https://yandex.com/search/?text=" + encodeURIComponent(text.trim());
+        break;
+      case "yahoo":
+        url = "https://search.yahoo.com/search?p=" + encodeURIComponent(text.trim());
+        break;
+      case "naver":
+        url =
+          "https://search.naver.com/search.naver?where=nexearch&sm=top_hty&fbm=1&ie=utf8&query=" +
+          encodeURIComponent(text.trim());
+        break;
+      case "baike":
+        url = "https://baike.baidu.com/item/" + encodeURIComponent(text.trim());
+        break;
+      case "wiki":
+        url = "https://en.wikipedia.org/wiki/" + encodeURIComponent(text.trim());
+        break;
+      default:
+        url =
+          (navigator.language === "zh-CN" || navigator.language?.startsWith("zh"))
+            ? "https://www.baidu.com/s?wd=" + encodeURIComponent(text.trim())
+            : "https://www.google.com/search?q=" + encodeURIComponent(text.trim());
+        break;
+    }
+    openExternalUrl(url);
   };
 
   /** 点击“听当前” */
@@ -544,7 +639,35 @@ class PopupMenu extends React.Component<PopupMenuProps, PopupMenuStates> {
               <span className="wx-btn-label">写想法</span>
             </button>
 
-            {/* 4. AI 问书 */}
+            {/* 4. 翻译 */}
+            <button
+              type="button"
+              className="wx-action-btn"
+              onClick={this.handleTranslate}
+            >
+              <span className="wx-btn-icon">
+                <svg
+                  width="17"
+                  height="17"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M5 8l6 6" />
+                  <path d="M4 14l6-6 2-3" />
+                  <path d="M2 5h12" />
+                  <path d="M7 2h1" />
+                  <path d="M22 22l-5-10-5 10" />
+                  <path d="M14 18h6" />
+                </svg>
+              </span>
+              <span className="wx-btn-label">翻译</span>
+            </button>
+
+            {/* 5. AI 问书 */}
             <button
               type="button"
               className="wx-action-btn"
@@ -561,14 +684,38 @@ class PopupMenu extends React.Component<PopupMenuProps, PopupMenuStates> {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 >
-                  <circle cx="11" cy="11" r="8" />
-                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  <path d="M12 3c.5 4 3 6.5 7 7-4 .5-6.5 3-7 7-.5-4-3-6.5-7-7 4-.5 6.5-3 7-7z" />
+                  <path d="M19 3v4M21 5h-4" />
                 </svg>
               </span>
               <span className="wx-btn-label">AI 问书</span>
             </button>
 
-            {/* 5. 听当前 */}
+            {/* 6. 网上搜索 */}
+            <button
+              type="button"
+              className="wx-action-btn"
+              onClick={this.handleSearch}
+            >
+              <span className="wx-btn-icon">
+                <svg
+                  width="17"
+                  height="17"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+              </span>
+              <span className="wx-btn-label">搜索</span>
+            </button>
+
+            {/* 7. 听当前 */}
             <button
               type="button"
               className="wx-action-btn"
