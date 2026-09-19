@@ -700,15 +700,10 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
     // 默认不跟随：共读时不该被别人翻页拽走自己的阅读位置。
     // 只有本人打开「跟随领读」、且这次翻页确实来自房间领读时，才跟着翻。
     // （领读在共读面板的在线成员里指定，服务端下发。）
-    if (!collabClient.followLeader) return;
-    if (!collabClient.leaderId || event.senderId !== collabClient.leaderId)
+    if (!collabClient.followLeader) {
       return;
-    // 锚点内容已在当前视野里:阅读进度本就对齐,不翻页,只给个提示
-    if (this.isAnchorVisible(event.location)) {
-      toast.success("已在领读进度附近", {
-        id: "collab-follow",
-        duration: 1000,
-      });
+    }
+    if (!collabClient.leaderId || event.senderId !== collabClient.leaderId) {
       return;
     }
     this.isApplyingRemoteLocation = true;

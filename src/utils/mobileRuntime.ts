@@ -24,21 +24,38 @@ export function isMobileRuntime(): boolean {
   if (typeof window === "undefined") {
     return false;
   }
-  const cap = (window as any).Capacitor;
-  if (cap && typeof cap.isNativePlatform === "function") {
-    return !!cap.isNativePlatform();
+  const w = window as any;
+  // 1. Android 原生壳注入桥检测（MainActivity / CoreadWebView 注入）
+  if (w.AndroidStatusBar || w.AndroidTextSelection) {
+    return true;
   }
+  // 2. Capacitor 原生容器判定
+  const cap = w.Capacitor;
+  if (cap && typeof cap.isNativePlatform === "function" && cap.isNativePlatform()) {
+    return true;
+  }
+  // 3. 标准移动端 UA 检测（涵盖 Android 原生 WebView、手机端主流浏览器及微信）
+  if (
+    typeof navigator !== "undefined" &&
+    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(
+      navigator.userAgent || ""
+    )
+  ) {
+    return true;
+  }
+  // 4. 触屏设备且处于窄视口（规避高分屏物理像素大于 768 导致的误判）
   const isTouch =
     "ontouchstart" in window ||
     (typeof navigator !== "undefined" && navigator.maxTouchPoints > 0);
   if (!isTouch) {
     return false;
   }
-  const shortSide = Math.min(
-    (window.screen && window.screen.width) || 9999,
-    (window.screen && window.screen.height) || 9999
-  );
-  return shortSide <= 768;
+  const viewportWidth =
+    (window.visualViewport && window.visualViewport.width) ||
+    window.innerWidth ||
+    (document.documentElement && document.documentElement.clientWidth) ||
+    9999;
+  return viewportWidth <= 768;
 }
 
 /**

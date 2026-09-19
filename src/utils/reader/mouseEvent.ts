@@ -403,8 +403,15 @@ const gesture = async (rendition: any, type: string) => {
 };
 
 const handleLocation = (key: string, rendition: any) => {
-  let position = rendition.getPosition();
-  ConfigService.setObjectConfig(key, position, "recordLocation");
+  let position = rendition?.getPosition?.();
+  if (position) {
+    ConfigService.setObjectConfig(key, position, "recordLocation");
+  }
+  try {
+    rendition?.trigger?.("page-changed");
+  } catch (e) {
+    /* ignore */
+  }
 };
 export const scrollChapter = async (
   element: any,

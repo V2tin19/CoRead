@@ -587,8 +587,37 @@ function isAuthorized(req, url) {
 const EMPTY_ROOM_TTL_MS = Number(process.env.EMPTY_ROOM_TTL_MS || 10 * 60 * 1000);
 const MAX_EMPTY_ROOMS = Number(process.env.MAX_EMPTY_ROOMS || 20);
 
-const clients = new Map(); // clientId -> { clientId, conns: Set<res> }
+// 客户端离线缓冲时长（毫秒，默认 0 即刻离线清理；生产可按需配置）：
+const CLIENT_DISCONNECT_GRACE_MS = Number(
+  process.env.CLIENT_DISCONNECT_GRACE_MS || 0
+);
+
+const clients = new Map(); // clientId -> { clientId, conns: Set<res>, disconnectTimer?: Timeout }
 const rooms = new Map();
+
+function scheduleClientDisconnect(clientId) {
+  const client = clients.get(clientId);
+  if (!client) return;
+  if (CLIENT_DISCONNECT_GRACE_MS <= 0) {
+    clients.delete(clientId);
+    leaveRooms(clientId);
+    return;
+  }
+  if (client.disconnectTimer) return;
+  client.disconnectTimer = setTimeout(() => {
+    clients.delete(clientId);
+    leaveRooms(clientId);
+  }, CLIENT_DISCONNECT_GRACE_MS);
+  if (client.disconnectTimer.unref) client.disconnectTimer.unref();
+}
+
+function cancelClientDisconnect(clientId) {
+  const client = clients.get(clientId);
+  if (client && client.disconnectTimer) {
+    clearTimeout(client.disconnectTimer);
+    client.disconnectTimer = null;
+  }
+}
 
 // ── CORS ───────────────────────────────────────────────────────────────
 // 默认**不发**任何 CORS 头。网页版与共读服务本来同源：
@@ -663,8 +692,7 @@ function sendEvent(clientId, event, data) {
     }
   }
   if (client.conns.size === 0) {
-    clients.delete(clientId);
-    leaveRooms(clientId);
+    scheduleClientDisconnect(clientId);
   }
 }
 
@@ -773,10 +801,12 @@ function joinRoom(room, clientId, name, device) {
     room.emptyTimer = null;
   }
   room.emptySince = 0;
+  cancelClientDisconnect(clientId);
+  const existingMember = room.members.get(clientId);
   const member = {
     clientId,
-    name: String(name || "Reader").slice(0, 40),
-    joinedAt: Date.now(),
+    name: String(name || (existingMember && existingMember.name) || "Reader").slice(0, 40),
+    joinedAt: (existingMember && existingMember.joinedAt) || Date.now(),
     // 设备形态：只认 "mobile" / "desktop" 两个值。
     // 缺省或非法值一律当 desktop —— 收到「电脑」标注总比标错成「手机」好。
     device: device === "mobile" ? "mobile" : "desktop",
@@ -1003,8 +1033,10 @@ const server = http.createServer(async (req, res) => {
       // 这里改成同一 clientId 挂多条连接,全部关闭才算离线。
       let client = clients.get(clientId);
       if (!client) {
-        client = { clientId, conns: new Set() };
+        client = { clientId, conns: new Set(), disconnectTimer: null };
         clients.set(clientId, client);
+      } else {
+        cancelClientDisconnect(clientId);
       }
       client.conns.add(res);
       // 对端强杀连接时 write 可能触发异步 error 事件,不接管会被当作
@@ -1030,8 +1062,7 @@ const server = http.createServer(async (req, res) => {
         if (!current) return;
         current.conns.delete(res);
         if (current.conns.size === 0) {
-          clients.delete(clientId);
-          leaveRooms(clientId);
+          scheduleClientDisconnect(clientId);
         }
       });
       return;

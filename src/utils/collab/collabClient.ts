@@ -521,10 +521,20 @@ class CollabClient {
   /** 指定（或清空）房间里的领读。任何成员都能设，服务端会广播给全房间 */
   async setRoomLeader(targetId: string) {
     if (!this.roomId) return;
-    await this.request(`/rooms/${this.roomId}/leader`, {
+    const res = await this.request(`/rooms/${this.roomId}/leader`, {
       clientId: this.clientId,
       targetId: targetId || "",
     });
+    // 立即乐观刷新本地 leaderId，避免弱网或 SSE 延迟导致跟读判定落后
+    if (res && res.ok) {
+      this.leaderId = res.leaderId || "";
+      this.leaderName = res.leaderName || "";
+      this.emit("room-updated", {
+        roomId: this.roomId,
+        leaderId: this.leaderId,
+        leaderName: this.leaderName,
+      });
+    }
   }
 
   async leaveRoom() {
