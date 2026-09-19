@@ -587,8 +587,37 @@ function isAuthorized(req, url) {
 const EMPTY_ROOM_TTL_MS = Number(process.env.EMPTY_ROOM_TTL_MS || 10 * 60 * 1000);
 const MAX_EMPTY_ROOMS = Number(process.env.MAX_EMPTY_ROOMS || 20);
 
-const clients = new Map(); // clientId -> { clientId, conns: Set<res> }
+// 客户端离线缓冲时长（毫秒，默认 0 即刻离线清理；生产可按需配置）：
+const CLIENT_DISCONNECT_GRACE_MS = Number(
+  process.env.CLIENT_DISCONNECT_GRACE_MS || 0
+);
+
+const clients = new Map(); // clientId -> { clientId, conns: Set<res>, disconnectTimer?: Timeout }
 const rooms = new Map();
+
+function scheduleClientDisconnect(clientId) {
+  const client = clients.get(clientId);
+  if (!client) return;
+  if (CLIENT_DISCONNECT_GRACE_MS <= 0) {
+    clients.delete(clientId);
+    leaveRooms(clientId);
+    return;
+  }
+  if (client.disconnectTimer) return;
+  client.disconnectTimer = setTimeout(() => {
+    clients.delete(clientId);
+    leaveRooms(clientId);
+  }, CLIENT_DISCONNECT_GRACE_MS);
+  if (client.disconnectTimer.unref) client.disconnectTimer.unref();
+}
+
+function cancelClientDisconnect(clientId) {
+  const client = clients.get(clientId);
+  if (client && client.disconnectTimer) {
+    clearTimeout(client.disconnectTimer);
+    client.disconnectTimer = null;
+  }
+}
 
 // ── CORS ───────────────────────────────────────────────────────────────
 // 默认**不发**任何 CORS 头。网页版与共读服务本来同源：
@@ -598,15 +627,16 @@ const rooms = new Map();
 // 都能借访客的浏览器读到房间列表。
 //
 // 什么时候需要配：打包成桌面端 / 安卓端之后，页面不再是我们的域名 ——
-//   · Electron 用 file:// 加载，发出去的 Origin 是字面量 `null`；
+//   · Electron 用 file:// 加载，发出去的 Origin 是字面量 `null` 或 `app://coread`；
 //   · Capacitor(安卓)的页面跑在 https://localhost。
 // 这时客户端与服务端是跨域的，必须把客户端来源写进白名单（**逗号分隔，支持多值**）：
-//   COLLAB_ALLOWED_ORIGIN=null,https://localhost,http://localhost
+//   COLLAB_ALLOWED_ORIGIN=null,https://localhost,http://localhost,app://coread
 // 也可以填 "*" 放行所有来源（只在你还想保留"任意网页跨域访问"时才这么做）。
 const ALLOWED_ORIGINS = String(process.env.COLLAB_ALLOWED_ORIGIN || "")
   .split(",")
   .map((item) => item.trim())
   .filter(Boolean);
+
 
 function buildCorsHeaders(allowOrigin) {
   return {
@@ -662,8 +692,7 @@ function sendEvent(clientId, event, data) {
     }
   }
   if (client.conns.size === 0) {
-    clients.delete(clientId);
-    leaveRooms(clientId);
+    scheduleClientDisconnect(clientId);
   }
 }
 
@@ -691,6 +720,9 @@ function roomSnapshot(room) {
       clientId: member.clientId,
       name: member.name,
       joinedAt: member.joinedAt,
+      // 设备形态（手机 / 电脑）：由客户端在 join / 建房时上报。
+      // 老版本客户端不带这个字段 ⇒ 兜底成 desktop，前端照常显示。
+      device: member.device === "mobile" ? "mobile" : "desktop",
     })),
     messages: room.messages.slice(-50),
     notes: room.notes.slice(-200),
@@ -763,16 +795,21 @@ function readBodyRaw(req, limit = 1024 * 1024) {
   });
 }
 
-function joinRoom(room, clientId, name) {
+function joinRoom(room, clientId, name, device) {
   if (room.emptyTimer) {
     clearTimeout(room.emptyTimer);
     room.emptyTimer = null;
   }
   room.emptySince = 0;
+  cancelClientDisconnect(clientId);
+  const existingMember = room.members.get(clientId);
   const member = {
     clientId,
-    name: String(name || "Reader").slice(0, 40),
-    joinedAt: Date.now(),
+    name: String(name || (existingMember && existingMember.name) || "Reader").slice(0, 40),
+    joinedAt: (existingMember && existingMember.joinedAt) || Date.now(),
+    // 设备形态：只认 "mobile" / "desktop" 两个值。
+    // 缺省或非法值一律当 desktop —— 收到「电脑」标注总比标错成「手机」好。
+    device: device === "mobile" ? "mobile" : "desktop",
   };
   room.members.set(clientId, member);
   // 领读没指定、或指定的那个人已经不在房里 → 默认让房主当；房主也不在就第一个进的人当
@@ -959,6 +996,15 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    if ((req.method === "POST" || req.method === "GET") && url.pathname === "/auth/verify") {
+      sendJson(res, 200, {
+        ok: true,
+        authenticated: true,
+        version: "0.13.0",
+      });
+      return;
+    }
+
     if (req.method === "GET" && url.pathname === "/") {
       sendJson(res, 200, {
         ok: true,
@@ -987,8 +1033,10 @@ const server = http.createServer(async (req, res) => {
       // 这里改成同一 clientId 挂多条连接,全部关闭才算离线。
       let client = clients.get(clientId);
       if (!client) {
-        client = { clientId, conns: new Set() };
+        client = { clientId, conns: new Set(), disconnectTimer: null };
         clients.set(clientId, client);
+      } else {
+        cancelClientDisconnect(clientId);
       }
       client.conns.add(res);
       // 对端强杀连接时 write 可能触发异步 error 事件,不接管会被当作
@@ -1014,8 +1062,7 @@ const server = http.createServer(async (req, res) => {
         if (!current) return;
         current.conns.delete(res);
         if (current.conns.size === 0) {
-          clients.delete(clientId);
-          leaveRooms(clientId);
+          scheduleClientDisconnect(clientId);
         }
       });
       return;
@@ -1083,7 +1130,7 @@ const server = http.createServer(async (req, res) => {
         sendJson(res, 201, { roomId, name: room.roomName });
         return;
       }
-      joinRoom(room, clientId, body.name);
+      joinRoom(room, clientId, body.name, body.device);
       sendJson(res, 201, roomSnapshot(room));
       return;
     }
@@ -1449,7 +1496,7 @@ const server = http.createServer(async (req, res) => {
         }
         // 先加入的书写进房间，后来者按同一本比对
         if (!room.bookKey && incomingBook) room.bookKey = incomingBook;
-        joinRoom(room, clientId, body.name);
+        joinRoom(room, clientId, body.name, body.device);
         sendJson(res, 200, roomSnapshot(room));
         return;
       }
