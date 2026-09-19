@@ -1,4 +1,5 @@
 import React from "react";
+import ReactDOM from "react-dom";
 import "./popupMenu.css";
 import { PopupMenuProps, PopupMenuStates } from "./interface";
 import { getIframeDoc } from "../../../utils/reader/docUtil";
@@ -51,6 +52,9 @@ class PopupMenu extends React.Component<PopupMenuProps, PopupMenuStates> {
       currentColor: initialHighlight.color || "#FFD54F",
       arrowLeft: 140,
       isArrowTop: false,
+      posX: 0,
+      posY: 0,
+      menuWidth: 300,
     };
   }
   UNSAFE_componentWillReceiveProps(nextProps: PopupMenuProps) {
@@ -152,17 +156,8 @@ class PopupMenu extends React.Component<PopupMenuProps, PopupMenuStates> {
     const { posX, posY, arrowLeft, isArrowTop, menuWidth } =
       this.getHtmlPosition(rect, isExpanded);
 
-    this.setState({ arrowLeft, isArrowTop });
+    this.setState({ posX, posY, arrowLeft, isArrowTop, menuWidth });
     this.props.handleOpenMenu(true);
-
-    const popupMenu = document.querySelector(
-      ".wx-bubble-container"
-    ) as HTMLElement;
-    if (popupMenu) {
-      popupMenu.style.left = `${posX}px`;
-      popupMenu.style.top = `${posY}px`;
-      popupMenu.style.width = `${menuWidth}px`;
-    }
   };
 
   openMenu = () => {
@@ -384,7 +379,9 @@ class PopupMenu extends React.Component<PopupMenuProps, PopupMenuStates> {
   };
 
   /** 点击背景遮罩关闭气泡菜单并清除选区 */
-  handleBackdropDismiss = (event: React.PointerEvent) => {
+  handleBackdropDismiss = (
+    event: React.MouseEvent | React.TouchEvent | React.PointerEvent
+  ) => {
     event.preventDefault();
     event.stopPropagation();
     this.closeMenu();
@@ -435,21 +432,33 @@ class PopupMenu extends React.Component<PopupMenuProps, PopupMenuStates> {
       currentColor,
       arrowLeft,
       isArrowTop,
+      posX,
+      posY,
+      menuWidth,
     } = this.state;
     const isHighlighted = Boolean(activeHighlightKey);
 
-    return (
+    const content = (
       <>
         {/* 全屏透明背景遮罩：点击屏幕其他区域立即关闭气泡菜单 */}
         <div
           className="wx-bubble-backdrop"
+          onClick={this.handleBackdropDismiss}
           onPointerDown={this.handleBackdropDismiss}
         />
         <div
-          className="popup-menu-container wx-bubble-container"
+          className="wx-bubble-container"
+          style={{
+            position: "fixed",
+            left: `${posX}px`,
+            top: `${posY}px`,
+            width: `${menuWidth}px`,
+            zIndex: 9999,
+          }}
           onMouseDown={(event) => event.preventDefault()}
           onPointerDown={(event) => event.stopPropagation()}
           onTouchStart={(event) => event.stopPropagation()}
+          onClick={(event) => event.stopPropagation()}
         >
         {/* 上箭头（当胶囊位于选区下方时显示，尖角朝上） */}
         {isArrowTop && (
@@ -683,6 +692,11 @@ class PopupMenu extends React.Component<PopupMenuProps, PopupMenuStates> {
       </div>
     </>
     );
+
+    if (typeof document !== "undefined" && document.body) {
+      return ReactDOM.createPortal(content, document.body);
+    }
+    return content;
   }
 }
 

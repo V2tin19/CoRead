@@ -1,26 +1,26 @@
 /* 全屏透明背景遮罩：点击屏幕其他区域立即关闭气泡菜单 */
 .wx-bubble-backdrop {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  width: 100vw;
-  height: 100vh;
-  z-index: 998;
-  background: transparent;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 9998 !important;
+  background: transparent !important;
   touch-action: manipulation;
-  pointer-events: auto;
+  pointer-events: auto !important;
 }
 
 /* 微信读书风格深色磨砂胶囊气泡菜单 */
 .wx-bubble-container {
-  position: fixed;
-  z-index: 1000;
+  position: fixed !important;
+  z-index: 9999 !important;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  pointer-events: auto;
+  pointer-events: auto !important;
   user-select: none;
   -webkit-user-select: none;
   filter: drop-shadow(0 6px 20px rgba(0, 0, 0, 0.45));

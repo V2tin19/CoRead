@@ -42,4 +42,7 @@ export interface PopupMenuStates {
   currentColor: string;
   arrowLeft: number;
   isArrowTop: boolean;
+  posX: number;
+  posY: number;
+  menuWidth: number;
 }
