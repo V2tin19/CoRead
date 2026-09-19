@@ -1314,7 +1314,12 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
         {this.props.isSettingOpen && (
           <>
             <SettingDialog />
-            <div className="drag-background"></div>
+            <div
+              className="drag-background"
+              onClick={() => {
+                this.props.handleSetting(false);
+              }}
+            ></div>
           </>
         )}
         <Toaster

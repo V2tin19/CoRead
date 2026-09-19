@@ -73,3 +73,38 @@
   right: 10px;
   cursor: pointer;
 }
+
+.setting-panel-ai-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 18px 20px 14px;
+  padding: 10px 14px;
+  border-radius: 9px;
+  background: rgba(128, 128, 128, 0.08);
+  border: 1px solid rgba(128, 128, 128, 0.18);
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  user-select: none;
+}
+.setting-panel-ai-entry:hover {
+  background: rgba(128, 128, 128, 0.16);
+  border-color: rgba(128, 128, 128, 0.32);
+}
+.setting-panel-ai-entry:active {
+  transform: scale(0.98);
+}
+.ai-entry-icon {
+  font-size: 16px;
+  margin-right: 8px;
+  color: #ff9800;
+}
+.ai-entry-title {
+  font-size: 14px;
+  font-weight: 500;
+  flex: 1;
+}
+.ai-entry-arrow {
+  font-size: 16px;
+  opacity: 0.5;
+}

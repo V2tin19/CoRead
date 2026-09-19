@@ -125,6 +125,21 @@ class SettingPanel extends React.Component<
           <DropdownList />
 
           <SettingSwitch />
+
+          {/* AI 问书与翻译设置快捷入口 */}
+          <div
+            className="setting-panel-ai-entry"
+            onClick={() => {
+              this.props.handleSetting?.(true);
+              this.props.handleSettingMode?.("ai");
+            }}
+            title="配置大语言模型与翻译引擎（DeepSeek、OpenAI、Ollama 等）"
+          >
+            <span className="icon-idea-line ai-entry-icon"></span>
+            <span className="ai-entry-title">AI 问书与翻译设置</span>
+            <span className="ai-entry-arrow">›</span>
+          </div>
+
           <div className="setting-panel-menu" style={{ marginTop: "5px" }}>
             <span
               className="icon-more menu-icon"
@@ -156,6 +171,16 @@ class SettingPanel extends React.Component<
                 <p className="action-name">
                   <Trans>Clear all style</Trans>
                 </p>
+              </div>
+              <div
+                className="action-dialog-add"
+                onClick={() => {
+                  this.setState({ isShowMenu: false });
+                  this.props.handleSetting?.(true);
+                  this.props.handleSettingMode?.("ai");
+                }}
+              >
+                <p className="action-name">AI 与高级设置</p>
               </div>
             </div>
           </div>

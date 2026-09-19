@@ -157,9 +157,9 @@ export class HighlightUtil {
       case "wave":
         if (multiply) {
           const svgUrl = `url("data:image/svg+xml,%3Csvg xmlns='http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg' width='6' height='3'%3E%3Cpath d='M0 2 Q1.5 0 3 2 Q4.5 4 6 2' fill='none' stroke='${color.replace("#", "%23")}' stroke-width='1.5'%2F%3E%3C%2Fsvg%3E")`;
-          return `background-image: ${svgUrl}; background-repeat: repeat-x; background-position: bottom; background-size: 6px 3px;`;
+          return `background-image: ${svgUrl}; background-repeat: repeat-x; background-position: bottom; background-size: 6px 3px; padding-bottom: 2px;`;
         }
-        return `text-decoration: underline wavy ${rgbaColor} 2px; -webkit-text-decoration: underline wavy ${rgbaColor} 2px; text-decoration-line: underline; text-decoration-style: wavy; text-decoration-color: ${rgbaColor}; text-decoration-thickness: 2px; -webkit-text-decoration-style: wavy; -webkit-text-decoration-color: ${rgbaColor}; text-decoration-skip-ink: none;`;
+        return `text-decoration: underline wavy ${rgbaColor} 2px; -webkit-text-decoration: underline wavy ${rgbaColor} 2px; text-decoration-line: underline; text-decoration-style: wavy; text-decoration-color: ${rgbaColor}; text-decoration-thickness: 2px; -webkit-text-decoration-style: wavy; -webkit-text-decoration-color: ${rgbaColor}; text-decoration-skip-ink: none; text-underline-offset: 3px;`;
       default:
         return `background: ${rgbaColor};`;
     }
@@ -182,6 +182,7 @@ export class HighlightUtil {
           textDecorationStyle: "wavy",
           textDecorationColor: color,
           textDecorationThickness: "2px",
+          textUnderlineOffset: "3px",
           textDecorationSkipInk: "none",
         };
     }

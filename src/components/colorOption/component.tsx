@@ -85,18 +85,25 @@ class ColorOption extends React.Component<ColorProps> {
           })}
         </ul>
         <ul className="note-highlight-color-container">
-          {presetColors.map((presetColor, index) => (
-            <li
-              key={presetColor}
-              className={
-                presetColors.indexOf(color) === index
-                  ? "note-highlight-color-item active-note-highlight-color"
-                  : "note-highlight-color-item"
-              }
-              style={{ backgroundColor: presetColor }}
-              onClick={() => this.handlePresetColor(index)}
-            />
-          ))}
+          {presetColors.map((presetColor, index) => {
+            const isSelected =
+              color.toLowerCase() === presetColor.toLowerCase() ||
+              presetColors.indexOf(color) === index;
+            return (
+              <li
+                key={presetColor}
+                className={
+                  isSelected
+                    ? "note-highlight-color-item active-note-highlight-color"
+                    : "note-highlight-color-item"
+                }
+                style={{ backgroundColor: presetColor }}
+                onClick={() => this.handlePresetColor(index)}
+              >
+                {isSelected && <span className="color-check-icon">✓</span>}
+              </li>
+            );
+          })}
         </ul>
       </div>
     );

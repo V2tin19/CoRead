@@ -42,6 +42,7 @@ export interface ReaderProps {
   renderBookFunc: () => void;
   handleFetchAuthed: () => void;
   handleFetchUserInfo: () => Promise<any>;
+  handleSetting: (isSettingOpen: boolean) => void;
 }
 
 export interface ReaderState {

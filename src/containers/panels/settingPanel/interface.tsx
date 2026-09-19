@@ -7,6 +7,8 @@ export interface SettingPanelProps {
   t: (title: string) => string;
   handleSettingLock: (isSettingLocked: boolean) => void;
   renderBookFunc: () => void;
+  handleSetting?: (isSettingOpen: boolean) => void;
+  handleSettingMode?: (mode: string) => void;
 }
 export interface SettingPanelState {
   isShowMenu: boolean;

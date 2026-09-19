@@ -52,10 +52,10 @@ export const HighlightStyleTypes = [
 ];
 
 export const HighlightPresetColors: Record<string, string[]> = {
-  background: ["#F3C9C9", "#FEF3CD", "#CEFACD", "#CDE9FA"],
-  underline: ["#FF0000", "#60A5FA", "#FF9900", "#2EFF2E"],
-  strikethrough: ["#FF0000", "#60A5FA", "#FF9900", "#2EFF2E"],
-  wavy: ["#FF0000", "#60A5FA", "#FF9900", "#2EFF2E"],
+  background: ["#FF6B8B", "#B388FF", "#40C4FF", "#69F0AE", "#FFD54F", "#FFA726"],
+  underline: ["#FF6B8B", "#B388FF", "#40C4FF", "#69F0AE", "#FFD54F", "#FFA726"],
+  strikethrough: ["#FF6B8B", "#B388FF", "#40C4FF", "#69F0AE", "#FFD54F", "#FFA726"],
+  wavy: ["#FF6B8B", "#B388FF", "#40C4FF", "#69F0AE", "#FFD54F", "#FFA726"],
 };
 
 export const PresetThemeList = [
