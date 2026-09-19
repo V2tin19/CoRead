@@ -926,9 +926,20 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
     const now = Date.now();
     if (now - this.lastSelectionMenuAt < 250) return;
     const selection = doc.getSelection();
-    if (!selection || selection.rangeCount === 0) return;
-    // 空选区 / 光标塌陷都不该弹：点一下空白、长按空白都会走到这里
-    if (selection.isCollapsed || !selection.toString().trim()) return;
+    // 空选区 / 光标塌陷：若当前选段菜单开启中，点击空白处应及时将其关闭并清理状态
+    if (
+      !selection ||
+      selection.rangeCount === 0 ||
+      selection.isCollapsed ||
+      !selection.toString().trim()
+    ) {
+      if (this.props.isOpenMenu && this.props.menuMode === "menu") {
+        this.props.handleOpenMenu(false);
+        this.props.handleMenuMode("");
+        this.props.handleNoteKey("");
+      }
+      return;
+    }
     let rect: any;
     try {
       rect = selection.getRangeAt(0).getBoundingClientRect();

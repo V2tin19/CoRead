@@ -1,3 +1,18 @@
+/* 全屏透明背景遮罩：点击屏幕其他区域立即关闭气泡菜单 */
+.wx-bubble-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 998;
+  background: transparent;
+  touch-action: manipulation;
+  pointer-events: auto;
+}
+
 /* 微信读书风格深色磨砂胶囊气泡菜单 */
 .wx-bubble-container {
   position: absolute;

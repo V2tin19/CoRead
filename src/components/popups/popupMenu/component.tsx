@@ -36,13 +36,18 @@ class PopupMenu extends React.Component<PopupMenuProps, PopupMenuStates> {
       this.props.highlight || "background-#FFD54F"
     );
 
+    const parsedInitialStyle =
+      initialHighlight.styleType === "wave"
+        ? "wavy"
+        : initialHighlight.styleType || "background";
+
     this.state = {
       deleteKey: "",
       rect: this.props.rect,
       isRightEdge: false,
       showColorPicker: false,
       activeHighlightKey: "",
-      currentStyle: initialHighlight.styleType || "background",
+      currentStyle: parsedInitialStyle,
       currentColor: initialHighlight.color || "#FFD54F",
       arrowLeft: 140,
       isArrowTop: false,
@@ -85,8 +90,12 @@ class PopupMenu extends React.Component<PopupMenuProps, PopupMenuStates> {
             DatabaseService.getRecord(key, "notes").then((note: any) => {
               if (note?.color) {
                 const parsed = this.highlightUtil.getHighlightValue(note.color);
+                const detectedStyle =
+                  parsed.styleType === "wave"
+                    ? "wavy"
+                    : parsed.styleType || "background";
                 this.setState({
-                  currentStyle: parsed.styleType || "background",
+                  currentStyle: detectedStyle,
                   currentColor: parsed.color || PRESET_COLORS[0],
                 });
               }
@@ -374,36 +383,22 @@ class PopupMenu extends React.Component<PopupMenuProps, PopupMenuStates> {
     });
   };
 
-  /** 点击“写想法” */
-  handleWriteIdea = async () => {
-    const color =
-      this.highlightUtil.getNoteHighlightString() ||
-      `${this.state.currentStyle}-${this.state.currentColor}`;
+  /** 点击背景遮罩关闭气泡菜单并清除选区 */
+  handleBackdropDismiss = (event: React.PointerEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    this.closeMenu();
+  };
 
-    await createHighlight({
-      currentBook: this.props.currentBook,
-      htmlBook: this.props.htmlBook,
-      chapterDocIndex: this.props.chapterDocIndex,
-      chapter: this.props.chapter,
-      color,
-      t: this.props.t,
-      onNoteClick: (event: Event) => {
-        const el =
-          (event.target as HTMLElement) ||
-          (event.currentTarget as HTMLElement);
-        const key =
-          el?.getAttribute("data-key") || (el as any)?.dataset?.key;
-        if (key) {
-          this.props.handleNoteKey(key);
-          this.props.handleMenuMode("note");
-          this.props.handleOpenMenu(true);
-        }
-      },
-      onSuccess: () => {
-        this.props.handleFetchNotes();
-        this.closeMenu();
-      },
-    });
+  /** 点击“写想法”：无缝唤起笔记/想法编辑器 */
+  handleWriteIdea = () => {
+    if (this.state.activeHighlightKey) {
+      this.props.handleNoteKey(this.state.activeHighlightKey);
+    } else {
+      this.props.handleNoteKey("");
+    }
+    this.props.handleMenuMode("note");
+    this.props.handleOpenMenu(true);
   };
 
   /** 点击“AI 问书” */
@@ -444,10 +439,16 @@ class PopupMenu extends React.Component<PopupMenuProps, PopupMenuStates> {
     const isHighlighted = Boolean(activeHighlightKey);
 
     return (
-      <div
-        className="popup-menu-container wx-bubble-container"
-        onMouseDown={(event) => event.preventDefault()}
-      >
+      <>
+        {/* 全屏透明背景遮罩：点击屏幕其他区域立即关闭气泡菜单 */}
+        <div
+          className="wx-bubble-backdrop"
+          onPointerDown={this.handleBackdropDismiss}
+        />
+        <div
+          className="popup-menu-container wx-bubble-container"
+          onMouseDown={(event) => event.preventDefault()}
+        >
         {/* 上箭头（当胶囊位于选区下方时显示，尖角朝上） */}
         {isArrowTop && (
           <div
@@ -618,9 +619,9 @@ class PopupMenu extends React.Component<PopupMenuProps, PopupMenuStates> {
                 <button
                   type="button"
                   className={`wx-style-tab ${
-                    currentStyle === "wave" ? "active" : ""
+                    currentStyle === "wavy" || currentStyle === "wave" ? "active" : ""
                   }`}
-                  onClick={() => this.handleChangeStyle("wave")}
+                  onClick={() => this.handleChangeStyle("wavy")}
                   title="波浪下划线"
                 >
                   <span className="wx-style-box wx-style-wave-box">
@@ -678,6 +679,7 @@ class PopupMenu extends React.Component<PopupMenuProps, PopupMenuStates> {
           />
         )}
       </div>
+    </>
     );
   }
 }

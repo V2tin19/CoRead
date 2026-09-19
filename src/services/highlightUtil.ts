@@ -154,11 +154,12 @@ export class HighlightUtil {
           ? `background: linear-gradient(transparent calc(50% - 1px), ${rgbaColor} calc(50% - 1px), ${rgbaColor} calc(50% + 1px), transparent calc(50% + 1px));`
           : `text-decoration: line-through; text-decoration-color: ${rgbaColor};`;
       case "wavy":
+      case "wave":
         if (multiply) {
           const svgUrl = `url("data:image/svg+xml,%3Csvg xmlns='http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg' width='6' height='3'%3E%3Cpath d='M0 2 Q1.5 0 3 2 Q4.5 4 6 2' fill='none' stroke='${color.replace("#", "%23")}' stroke-width='1.5'%2F%3E%3C%2Fsvg%3E")`;
           return `background-image: ${svgUrl}; background-repeat: repeat-x; background-position: bottom; background-size: 6px 3px;`;
         }
-        return `text-decoration-line: underline; text-decoration-style: wavy; text-decoration-color: ${rgbaColor}; text-decoration-thickness: 2px; text-decoration-skip-ink: none;`;
+        return `text-decoration: underline wavy ${rgbaColor} 2px; -webkit-text-decoration: underline wavy ${rgbaColor} 2px; text-decoration-line: underline; text-decoration-style: wavy; text-decoration-color: ${rgbaColor}; text-decoration-thickness: 2px; -webkit-text-decoration-style: wavy; -webkit-text-decoration-color: ${rgbaColor}; text-decoration-skip-ink: none;`;
       default:
         return `background: ${rgbaColor};`;
     }
@@ -174,7 +175,9 @@ export class HighlightUtil {
       case "strikethrough":
         return { textDecoration: "line-through", textDecorationColor: color };
       case "wavy":
+      case "wave":
         return {
+          textDecoration: `underline wavy ${color} 2px`,
           textDecorationLine: "underline",
           textDecorationStyle: "wavy",
           textDecorationColor: color,

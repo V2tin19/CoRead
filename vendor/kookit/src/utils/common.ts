@@ -62,6 +62,7 @@ export const buildHighlightStyleForType = (
       }
       return `text-decoration: line-through; text-decoration-color: ${color}; text-decoration-thickness: 2px; text-decoration-skip-ink: none;`;
     case "wavy":
+    case "wave":
       const encodedColor = rawColor.replace("#", "%23");
       if (forPDFOverlay) {
         // text-decoration doesn't render on empty divs; simulate with a repeating
