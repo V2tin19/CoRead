@@ -6,7 +6,6 @@
 
 - **本项目由 [Koodo Reader](https://github.com/koodo-reader/koodo-reader)（AGPL-3.0）的定制分支裁剪而来**，
   渲染内核使用其抽出的独立库 [`koodo-reader/kookit`](https://github.com/koodo-reader/kookit)（已 vendor 在 `vendor/kookit/`）。
-- **本副本没有 git 历史**：它是从原始仓库裁剪并脱敏后的干净副本，已剥离全部部署配置与自有服务器信息。
 - **分支说明**：`main` 分支只含网页端（桌面 Electron 与安卓 Capacitor 不在该副本内）；
   本仓库另有 `android` 分支，含桌面与安卓打包壳。两种打包壳访问共读服务属于**跨域**，
   服务端要额外配白名单 —— 见「给 AI 助手」一节的步骤 0。
