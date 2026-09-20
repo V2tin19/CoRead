@@ -262,7 +262,7 @@ class ProgressPanel extends React.Component<
             </div>
           )}
 
-          {/* 微信读书同款极简进度卡片 */}
+          {/* 移动端极简进度卡片 */}
           {this.state.showProgressCard && (
             <div className="mobile-progress-card">
               <div className="mobile-progress-header">
@@ -311,7 +311,7 @@ class ProgressPanel extends React.Component<
             </div>
           )}
 
-          {/* 微信读书截图同款底部 5 大核心入口 */}
+          {/* 移动端底部 5 大核心入口 */}
           <div className="mobile-bottom-tabs">
             <button
               type="button"

@@ -13,7 +13,7 @@
   pointer-events: auto !important;
 }
 
-/* 微信读书风格深色磨砂胶囊气泡菜单 */
+/* 深色磨砂胶囊气泡菜单 */
 .wx-bubble-container {
   position: fixed !important;
   z-index: 9999 !important;
@@ -267,7 +267,7 @@
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
-/* 微信读书气泡小三角箭头 */
+/* 气泡小三角箭头 */
 .wx-bubble-arrow {
   position: relative;
   width: 0;

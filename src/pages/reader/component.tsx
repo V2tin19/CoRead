@@ -969,7 +969,7 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
               >
                 <span className="icon-cloud" style={{ fontSize: "18px" }} />
               </button>
-              {/* 更多菜单（对应微信读书截图右侧三个竖点） */}
+              {/* 更多菜单（阅读选项与设置） */}
               <button
                 type="button"
                 className={
@@ -993,7 +993,7 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
           </div>
         )}
 
-        {/* 微信读书同款单手拇指快捷悬浮按钮：Ai 问书 + 听书（仅在唤出菜单时呈现） */}
+        {/* 单手拇指快捷悬浮按钮：Ai 问书 + 听书（仅在唤出菜单时呈现） */}
         {isMobile && !this.state.isOpenLeftPanel && !this.state.isOpenRightPanel && (
           <div
             className={`mobile-floating-actions ${

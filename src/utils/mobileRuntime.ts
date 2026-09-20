@@ -34,7 +34,7 @@ export function isMobileRuntime(): boolean {
   if (cap && typeof cap.isNativePlatform === "function" && cap.isNativePlatform()) {
     return true;
   }
-  // 3. 标准移动端 UA 检测（涵盖 Android 原生 WebView、手机端主流浏览器及微信）
+  // 3. 标准移动端 UA 检测（涵盖 Android 原生 WebView、手机主流浏览器等）
   if (
     typeof navigator !== "undefined" &&
     /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(

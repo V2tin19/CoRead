@@ -37,3 +37,14 @@ yarn-error.log*
 .DS_Store
 /tmp-*
 /tmp-*/
+
+# —— 内部交接与 AI 工作文档（仅本地保留，不展示在公开仓库） ——
+GEMINI.md
+REFACTOR-BRIEF.md
+AI-AND-TTS-KEEP.md
+MOBILE-UX-PLAN.md
+START-PROMPT*.md
+SECURITY-REVIEW.md
+BASELINE.md
+ANDROID.md
+DESKTOP.md

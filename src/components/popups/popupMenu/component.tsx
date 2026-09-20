@@ -19,7 +19,7 @@ import { openExternalUrl } from "../../../utils/common";
 
 declare var window: any;
 
-/** 微信读书精选 6 款柔和护眼高亮颜色 */
+/** 精选 6 款柔和护眼高亮颜色 */
 const PRESET_COLORS = [
   "#FF6B8B", // 樱花粉 / 浅红
   "#B388FF", // 薰衣草紫
@@ -199,7 +199,7 @@ class PopupMenu extends React.Component<PopupMenuProps, PopupMenuStates> {
   };
 
   openMenu = () => {
-    // 微信读书规范：长按选中文本时，默认绝不展开颜色选择器！
+    // 交互规范：长按选中文本时，默认不展开颜色选择器
     this.setState({ showColorPicker: false });
     this.detectExistingHighlight();
 
